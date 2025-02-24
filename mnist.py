@@ -64,7 +64,7 @@ def train():
                 label_dist = model(images)
                 loss = criterion(label_dist, labels)
 
-                labels_hat = torch.argmax(label_dist, dim=1)
+                labels_hat = torch.aqrgmax(label_dist, dim=1)
                 correct = (labels_hat == labels).float()
                 accuracy = correct.mean()
 
