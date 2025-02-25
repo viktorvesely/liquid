@@ -7,18 +7,18 @@ class Citizen(nn.Module):
         super().__init__()
 
         self.body = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=30, kernel_size=5, stride=2, padding=2),
+            nn.Conv2d(in_channels=1, out_channels=60, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=30, out_channels=60, kernel_size=5, stride=2, padding=2),
+            nn.Conv2d(in_channels=60, out_channels=120, kernel_size=5, stride=2, padding=2),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=60, out_channels=90, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(in_channels=120, out_channels=180, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=90, out_channels=120, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(in_channels=180, out_channels=240, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(),
             nn.Flatten(),
         )
 
-        n_body_f = 120 * 4
+        n_body_f = 240 * 4
 
         def mid(source, target):
             return int(round(source + (target - source) / 2))
@@ -47,28 +47,3 @@ class Citizen(nn.Module):
 
         return c, d
 
-    @classmethod
-    def solve_delegation(cls, Ds: list[torch.Tensor]) -> torch.Tensor:
-
-        # Create a delegation matrix
-        Ds_cat_ready = [torch.unsqueeze(d, -1) for d in Ds]
-        D = torch.cat(Ds_cat_ready, dim=-1)
-        n_batch, n, _ = D.shape
-
-        # Extract the power the model wants to keep for itself
-        p = torch.diagonal(D, dim1=-2, dim2=-1)
-        mask = torch.ones_like(D)
-        batch_indices = torch.arange(n_batch).unsqueeze(1).unsqueeze(2)
-        diag_indices = torch.arange(n).unsqueeze(0).expand(n, -1)
-        mask[batch_indices, diag_indices, diag_indices] = 0
-        D_no_diag = D * mask
-
-        identity = torch.zeros_like(D)
-        identity[batch_indices, diag_indices, diag_indices] = 1
-
-        p_column = p.unsqueeze(-1)
-        inverse = torch.pinverse(identity - D_no_diag)
-        influence = torch.bmm(inverse, p_column)
-        influence = torch.squeeze(influence)
-
-        return influence
