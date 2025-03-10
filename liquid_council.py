@@ -92,13 +92,22 @@ class LiquidCouncil(Council):
         return D[:, diag_indices, diag_indices].mean()
 
 
-    def entropy(self):
+    def speaker_entropy(self):
+        power = self.last_power
+        # power (n_batch, n)
+        bs, n = power.shape
+        speaker = torch.argmax(power, dim=1)
+        histogram = torch.bincount(speaker)
+        dist = Categorical(probs=histogram / histogram.sum())
+        return dist.entropy() / math.log(n)
+
+    def power_entropy(self):
         power = self.last_power
         # power (n_batch, n)
 
         bs, n = power.shape
 
-        dist = Categorical(logits=power)
+        dist = Categorical(probs=power)
         entropy = dist.entropy() / math.log(n)
 
         return torch.mean(entropy)
@@ -107,6 +116,9 @@ class LiquidCouncil(Council):
         headless = [citizen.cut_delegation_head() for citizen in self.citizens]
         headless = nn.ModuleList(headless)
         return MajorityCouncil(self.n_citizens, headless)
+
+    def name(self):
+        return "liquid"
 
     @classmethod
     def step(cls, p_delegatable: torch.Tensor, p_kept: torch.Tensor, D: torch.Tensor):

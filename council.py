@@ -30,3 +30,6 @@ class Council(nn.Module):
         # distributions (n_batch, out)
         raise NotImplementedError("vote")
 
+    def name(self):
+        raise NotImplementedError("name")
+

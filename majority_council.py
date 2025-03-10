@@ -56,3 +56,5 @@ class MajorityCouncil(Council):
         dictator = nn.ModuleList([dictator])
         return MajorityCouncil(self.n_citizens, dictator)
 
+    def name(self):
+        return "majority" if len(self.citizens) > 1 else "dictator"

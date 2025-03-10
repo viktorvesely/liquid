@@ -6,11 +6,12 @@ import torch.nn as nn
 
 class Citizen(nn.Module):
 
+
     def __init__(self, channels: tuple[int, ...] | None = None):
         super().__init__()
 
         if channels is None:
-            channels = (60, 120, 180, 240)
+            channels = (5, 10, 15, 20)
 
         self.channels = channels
 

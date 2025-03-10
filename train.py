@@ -4,21 +4,36 @@ import numpy as np
 import torch
 from torchvision import datasets, transforms
 from pathlib import Path
-from torch.optim import AdamW
+from torch.optim import AdamW, Optimizer
 import torch.nn as nn
 import tqdm
+
+import utils
 
 from matplotlib import pyplot as plt
 
 from liquid_council import LiquidCouncil
+from council import Council
 
-def load_data():
+def load_data_mnist():
     data_dir = Path(__file__).parent / 'mnist_data'
     transform = transforms.Compose([transforms.ToTensor()])
     train_dataset = datasets.MNIST(root=data_dir, train=True, transform=transform, download=True)
     test_dataset = datasets.MNIST(root=data_dir, train=False, transform=transform, download=True)
 
     return train_dataset, test_dataset
+
+def load_data_cifar10():
+    data_dir = Path(__file__).parent / 'cifar10_data'
+    transform = transforms.Compose([transforms.ToTensor()])
+    train_dataset = datasets.CIFAR10(root=data_dir, train=True, transform=transform, download=True)
+    test_dataset = datasets.CIFAR10(root=data_dir, train=False, transform=transform, download=True)
+
+    return train_dataset, test_dataset
+
+def save_models(councils: list[Council], optimizers: list[Optimizer], folder: Path):
+    for council, optimizer in zip(councils, optimizers, strict=True):
+        utils.save_checkpoint(council, optimizer, folder / f"{council.name()}.pt")
 
 class Metrics:
 
@@ -48,12 +63,15 @@ class Metrics:
             out.append(f"{name}={np.mean(values):.3f}")
         return ", ".join(out)
 
-def train(n_citizens: int = 4):
+def train(n_citizens: int = 8, experiment_name: str = "mnist_small"):
 
-    batch_size = 1_400
-    epoch = 3
+    batch_size = 1_000
+    epoch = 25
 
-    train_dataset, test_dataset = load_data()
+    experiment_folder = utils.create_experiment_folder(experiment_name)
+    utils.copy_files_to_folder(experiment_folder, "council.py", "dictator_council.py", "liquid_council.py")
+
+    train_dataset, test_dataset = load_data_mnist()
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
@@ -68,7 +86,7 @@ def train(n_citizens: int = 4):
         dictator
     ]
 
-    train_liquid_metric = Metrics(loss=None, entropy=None, self_delegation=None)
+    train_liquid_metric = Metrics(loss=None, power_entropy=None, speaker_entropy=None)
 
     train_metrics = [
         train_liquid_metric,
@@ -78,7 +96,6 @@ def train(n_citizens: int = 4):
 
     valid_metrics = [Metrics.empty_like(metric, accuracy=None) for metric in train_metrics]
     valid_liquid_metric = valid_metrics[0]
-
 
     optimizers = [AdamW(council.parameters(), lr=1e-4) for council in councils]
 
@@ -104,9 +121,9 @@ def train(n_citizens: int = 4):
 
 
             with torch.no_grad():
-                self_delegation = liquid_council.self_delegation()
-                entropy = liquid_council.entropy()
-                train_liquid_metric.push(entropy=entropy.item(), self_delegation=self_delegation.item())
+                power_entropy = liquid_council.power_entropy()
+                speaker_entropy = liquid_council.speaker_entropy()
+                train_liquid_metric.push(power_entropy=power_entropy.item(), speaker_entropy=speaker_entropy.item())
 
 
         for council in councils: council.eval()
@@ -128,17 +145,19 @@ def train(n_citizens: int = 4):
 
                     metrics.push(loss=loss.item(), accuracy=accuracy.item())
 
-                self_delegation = liquid_council.self_delegation()
-                entropy = liquid_council.entropy()
+                power_entropy = liquid_council.power_entropy()
+                speaker_entropy = liquid_council.speaker_entropy()
 
-                valid_liquid_metric.push(entropy=entropy.item(), self_delegation=self_delegation.item())
+                valid_liquid_metric.push(power_entropy=power_entropy.item(), speaker_entropy=speaker_entropy.item())
 
         print(f"\n--------Epoch {e}-----------")
         for i, council in enumerate(councils):
-            print(f"\n {council.__class__.__name__}")
+            print(f"\n {council.name()}")
             print(f"Train: {train_metrics[i]}")
             print(f"Valid: {valid_metrics[i]}")
 
+
+    for metric in (train_metrics + valid_metrics): metric.reset()
     fig, ax = plt.subplots()
 
     for metric, name in zip(valid_metrics, ["liquid", "majority", "dictator"]):
@@ -146,6 +165,8 @@ def train(n_citizens: int = 4):
 
     ax.legend()
     plt.show()
+
+    save_models(councils, optimizers, experiment_folder)
 
 
 
