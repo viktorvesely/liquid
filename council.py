@@ -6,7 +6,7 @@ from copy import deepcopy
 
 class Council(nn.Module):
 
-    n_digits: int = 10
+    n_classes: int = 3
 
     def __init__(self, n_citizens: int, citizens: nn.ModuleList):
         super().__init__()

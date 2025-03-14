@@ -4,17 +4,28 @@ import torch.nn as nn
 from torch.distributions import Categorical
 
 from council import Council
-from citizen import DelegatingCitizen
+from image_citizen import DelegatingCitizen
+from synthetic_citizen import DelegatingCitizen as SyntheticDelegatingCitizen
 from majority_council import MajorityCouncil
 
 class LiquidCouncil(Council):
 
 
-    def __init__(self, n_citizens: int, citizens: nn.ModuleList | None = None):
+    def __init__(
+            self,
+            n_citizens: int,
+            citizens: nn.ModuleList | None = None,
+            synthetic: bool = False,
+            load_distribution_lambda: float = 1.0
+        ):
+
+        CitizenClass = SyntheticDelegatingCitizen if synthetic else DelegatingCitizen
 
         if citizens is None:
-            citizens = [DelegatingCitizen(n_citizens).to("cuda") for _ in range(n_citizens)]
+            citizens = [CitizenClass(n_citizens).to("cuda") for _ in range(n_citizens)]
             citizens = nn.ModuleList(citizens)
+
+        self.load_distribution_lambda = load_distribution_lambda
 
         super().__init__(n_citizens, citizens)
 
@@ -29,9 +40,11 @@ class LiquidCouncil(Council):
 
         for citizen in self.citizens:
             c, d = citizen(x)
+            # d (n_batch, n_citizen)
             classifications.append(c)
             delegations.append(d)
 
+        # D (n_batch, n_citizen, n_citizen)
         power, D = self.solve_delegation_iterative(delegations)
 
         classifications = torch.cat([torch.unsqueeze(c, 0) for c in classifications], dim=0)
@@ -43,6 +56,28 @@ class LiquidCouncil(Council):
         return classifications
 
 
+    def load_distribution_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1):
+
+        if power is None:
+            power = self.last_power
+        # power (n_batch, n)
+
+        bs, n = power.shape
+
+        # (n_batch, n) differentiable argmax, weighted towards highest power citizen
+        soft_assign = torch.softmax(power / temperature, dim=1)
+
+        # (n), how much was each citizen active
+        histogram = soft_assign.sum(dim=0)
+        dist = Categorical(probs=histogram / histogram.sum())
+
+        # close to 1 - even load, close to 0 not even load
+        normalized_entropy = dist.entropy() / math.log(n)
+
+        power_entropy = self.power_entropy()
+
+        return self.load_distribution_lambda * (power_entropy - normalized_entropy)
+
     def loss(self, y: torch.Tensor, classifications: torch.Tensor):
         predict_losses = self.predict_loss(y, classifications)
 
@@ -52,15 +87,19 @@ class LiquidCouncil(Council):
             # power (n_batch, n)
             final_loss += citizen_predict_loss * self.last_power[:, i_citizen]
 
-        return final_loss.mean()
+        load_loss = self.load_distribution_loss()
+
+        return final_loss.mean() + load_loss
 
 
-    def vote(self, classifications: torch.Tensor):
+    def vote(self, classifications: torch.Tensor, power: torch.Tensor | None = None):
         # classifications (n, n_batch, out)
         # power (n_batch, n)
         # distributions (n_batch, out)
 
-        power = self.last_power
+        if power is None:
+            power = self.last_power
+
         bs = power.shape[0]
 
         # Just in case normalize power
@@ -70,7 +109,7 @@ class LiquidCouncil(Council):
 
         power = power / sums
 
-        distributions = torch.zeros((bs, self.n_digits), dtype=power.dtype, device=power.device)
+        distributions = torch.zeros((bs, self.n_classes), dtype=power.dtype, device=power.device)
 
         for i_batch in range(bs):
             # (n, digits)
@@ -87,13 +126,19 @@ class LiquidCouncil(Council):
 
 
     def self_delegation(self):
+
         D = self.last_D
         diag_indices = torch.arange(D.shape[-1])
         return D[:, diag_indices, diag_indices].mean()
 
 
-    def speaker_entropy(self):
-        power = self.last_power
+    def speaker_entropy(self, power: torch.Tensor | None = None):
+        """Entropy over histogram of speakers, 1 - everybody speaks (max p) uniformly, 0 - one speaker
+        """
+
+        if power is None:
+            power = self.last_power
+
         # power (n_batch, n)
         bs, n = power.shape
         speaker = torch.argmax(power, dim=1)
@@ -101,8 +146,12 @@ class LiquidCouncil(Council):
         dist = Categorical(probs=histogram / histogram.sum())
         return dist.entropy() / math.log(n)
 
-    def power_entropy(self):
-        power = self.last_power
+    def power_entropy(self, power: torch.Tensor | None = None):
+        """Mean Entropy axis=power, 1 - everybody is speaking every time (not good), 0 - one person speaks per decision (better)
+        """
+
+        if power is None:
+            power = self.last_power
         # power (n_batch, n)
 
         bs, n = power.shape

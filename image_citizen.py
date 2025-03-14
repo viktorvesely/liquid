@@ -11,7 +11,7 @@ class Citizen(nn.Module):
         super().__init__()
 
         if channels is None:
-            channels = (5, 10, 15, 20)
+            channels = (10, 20, 30, 40)
 
         self.channels = channels
 
@@ -52,6 +52,8 @@ class Citizen(nn.Module):
         new_citizen.body = copy.deepcopy(self.body)
         new_citizen.class_head = copy.deepcopy(self.class_head)
         return new_citizen
+
+
 
 
 class DelegatingCitizen(Citizen):

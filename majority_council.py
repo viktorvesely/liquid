@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 from council import Council
-from citizen import Citizen
+from image_citizen import Citizen
 
 class MajorityCouncil(Council):
 
