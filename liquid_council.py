@@ -1,4 +1,5 @@
 import math
+from typing import Callable, Literal
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
@@ -8,15 +9,18 @@ from image_citizen import DelegatingCitizen
 from synthetic_citizen import DelegatingCitizen as SyntheticDelegatingCitizen
 from majority_council import MajorityCouncil
 
-class LiquidCouncil(Council):
 
+type SolveFunc = Callable[[list[torch.Tensor]], tuple[torch.Tensor, torch.Tensor]]
+
+class LiquidCouncil(Council):
 
     def __init__(
             self,
             n_citizens: int,
             citizens: nn.ModuleList | None = None,
             synthetic: bool = False,
-            load_distribution_lambda: float = 1.0
+            load_distribution_lambda: float = 1.0,
+            solver: Literal["stable_point", "iterative"] = "stable_point"
         ):
 
         CitizenClass = SyntheticDelegatingCitizen if synthetic else DelegatingCitizen
@@ -32,6 +36,11 @@ class LiquidCouncil(Council):
         self.last_D = None
         self.last_power = None
 
+        self.solver: SolveFunc = None
+        if solver == "stable_point":
+            self.solver = self.solve_delegation
+        elif solver == "iterative":
+            self.solver = self.solve_delegation_iterative
 
     def forward(self, x: torch.Tensor):
 
@@ -45,7 +54,7 @@ class LiquidCouncil(Council):
             delegations.append(d)
 
         # D (n_batch, n_citizen, n_citizen)
-        power, D = self.solve_delegation_iterative(delegations)
+        power, D = self.solver(delegations)
 
         classifications = torch.cat([torch.unsqueeze(c, 0) for c in classifications], dim=0)
 
@@ -122,8 +131,6 @@ class LiquidCouncil(Council):
 
         labels_hat = torch.argmax(distributions, dim=1)
         return labels_hat
-
-
 
     def self_delegation(self):
 
@@ -226,4 +233,74 @@ class LiquidCouncil(Council):
             p_delegatable, p_kept = new_delegatable, new_kept
 
         return p_delegatable + p_kept, D
+
+    @classmethod
+    def solve_delegation(cls, Ds: list[torch.Tensor], epsilon: float = 0.01) -> tuple[torch.Tensor, torch.Tensor]:
+
+        # Create a delegation matrix where the columns are the preferences
+        # d (batch, n)
+        # (batch, n, 1)
+        Ds_cat_ready = [torch.unsqueeze(d, -1) for d in Ds]
+        D = torch.cat(Ds_cat_ready, dim=-1)
+        n_batch, n, _ = D.shape
+
+        # Extend the delegation matrix to include the additional agent (agent n+1)
+        # For agents 1..n, redefine preferences as ((1 - epsilon)*x_i, epsilon)
+        # For the new agent, set its preference to (0, ..., 0, 1)
+        D_ext = torch.zeros((n_batch, n + 1, n + 1), dtype=D.dtype, device=D.device)
+        # For original agents: scale the old delegation preferences and add epsilon to the new column.
+        D_ext[:, :n, :n] = (1 - epsilon) * D
+        D_ext[:, n, :n] = epsilon
+        D_ext[:, n, n] = 1.0
+
+        # Extract the power the model wants to keep for itself
+        # p = torch.diagonal(D, dim1=-2, dim2=-1)
+        # p_column = p.unsqueeze(-1)
+        # Everybody gets one vote
+        p_column = torch.ones((n_batch, n + 1, 1), dtype=D.dtype, device=D.device)
+
+        # Remove diagonal
+        mask = torch.ones_like(D_ext)
+        batch_indices = torch.arange(n_batch).unsqueeze(1).unsqueeze(2)
+        diag_indices = torch.arange(n + 1).unsqueeze(0).expand(n + 1, -1)
+        mask[batch_indices, diag_indices, diag_indices] = 0
+        D_no_diag = D_ext * mask
+
+
+        # Create identity batch matrix
+        # identity = torch.zeros_like(D)
+        # identity[batch_indices, diag_indices, diag_indices] = 1
+        identity = torch.eye(n + 1, dtype=D.dtype, device=D.device).unsqueeze(0).expand(n_batch, -1, -1)
+
+        # Solve the equation
+        inverse = torch.pinverse(identity - D_no_diag)
+        power_ext = torch.bmm(inverse, p_column)
+        power_ext = torch.squeeze(power_ext, -1)
+        power_ext = power_ext * torch.diagonal(D_ext, offset=0, dim1=1, dim2=2).squeeze()
+
+        # Return lost power uniformly back
+        power = torch.clone(power_ext[:, :-1])
+        power += power_ext[:, [-1]] / n
+        power -= 1 / n
+
+        return power, torch.transpose(D, 1, 2)
+
+
+if __name__ == "__main__":
+
+    def tt(x):
+        return torch.tensor(x, dtype=torch.float).unsqueeze(0)
+
+    Ds = [
+        tt([0.5, 0.5, 0, 0]),
+        tt([0, 1, 0, 0]),
+        tt([0, 0, 1, 0]),
+        tt([0, 0, 0, 1]),
+    ]
+
+    epsilon = 0.01
+
+    power, _ = LiquidCouncil.solve_delegation(Ds, epsilon)
+
+    print(power)
 
