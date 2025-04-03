@@ -17,6 +17,9 @@ from matplotlib import pyplot as plt
 from synthetic import sample
 from liquid_council import LiquidCouncil
 from council import Council
+from synth_metrics import calc_metrics, inference
+
+import argparse
 
 def load_data_mnist():
     data_dir = Path(__file__).parent / 'mnist_data'
@@ -46,9 +49,6 @@ def load_data_synthetic(n_train: int = 50_000, n_valid: int = 5_000):
     return train_dataset, test_dataset
 
 
-def save_models(councils: list[Council], optimizers: list[Optimizer], folder: Path):
-    for council, optimizer in zip(councils, optimizers, strict=True):
-        utils.save_checkpoint(council, optimizer, folder / f"{council.name()}.pt")
 
 class Metrics:
 
@@ -85,14 +85,31 @@ class Metrics:
 
 
 
+def save_test_metrics(
+        council: LiquidCouncil,
+        experiment_folder: Path
+    ):
+
+    dataset, _ = load_data_synthetic(n_train=10_000, n_valid=100)
+    classifications, Ds, Ps = inference(council, dataset)
+    accuracy, power_entropy, speaker_entropy, region_nmi = calc_metrics(council, dataset, classifications, Ps, verbal=False)
+
+    with open(experiment_folder / "test_metrics.txt", "w") as f:
+        f.write(f"accuracy={accuracy}\npower_entropy={power_entropy}\nspeaker_entropy={speaker_entropy}\nregion_nmi={region_nmi}")
+
+
 def train(
         n_citizens: int = 4,
-        experiment_name: str = "delegation_stable_point",
+        experiment_name: str = "experiment",
         load_distribution_lambda: float = 1.0,
-        epoch: int = 100,
+        epoch: int = 150,
         batch_size: int = 1_500,
         verbose: int = 2,
-        solver: Literal["stable_point", "iterative"] = "stable_point"
+        solver: Literal["sink_one", "sink_many"] = "sink_one",
+        layers: int = 24,
+        citizens_ratio: tuple[int, int, int] = (1, 1, 1),
+        citizen_width: int = 50,
+        habrok: bool = False
         ):
 
 
@@ -109,7 +126,10 @@ def train(
         n_citizens,
         synthetic=True,
         load_distribution_lambda=load_distribution_lambda,
-        solver=solver
+        solver=solver,
+        params=layers,
+        citizens_ratio=citizens_ratio,
+        citizen_width=citizen_width
     )
     # majority_council = liquid_council.cut_delegation_heads()
     # dictator = majority_council.make_dictator()
@@ -138,7 +158,7 @@ def train(
         for council in councils: council.train()
         for metric in train_metrics: metric.reset()
 
-        for samples, labels in tqdm.tqdm(train_loader, total=len(train_loader), desc="Train"):
+        for samples, labels in tqdm.tqdm(train_loader, total=len(train_loader), desc="Train", disable=habrok):
 
             samples = samples.to("cuda")
             labels = labels.to("cuda")
@@ -160,13 +180,24 @@ def train(
                 train_liquid_metric.push(power_entropy=power_entropy.item(), speaker_entropy=speaker_entropy.item())
 
 
-        save_models(councils, optimizers, experiment_folder)
+        # Save models
+        for council, optimizer in zip(councils, optimizers, strict=True):
+            utils.save_checkpoint(
+                council,
+                optimizer,
+                experiment_folder / f"{council.name()}.pt",
+                n_citizens,
+                layers,
+                citizens_ratio,
+                citizen_width,
+                solver
+            )
 
         for council in councils: council.eval()
         for metric in valid_metrics: metric.reset()
 
         with torch.no_grad():
-            for samples, labels in tqdm.tqdm(test_loader, total=len(test_loader), desc="Valid"):
+            for samples, labels in tqdm.tqdm(test_loader, total=len(test_loader), desc="Valid", disable=habrok):
 
                 samples = samples.to("cuda")
                 labels = labels.to("cuda")
@@ -208,32 +239,22 @@ def train(
 
     valid_metrics[0].save_histories(experiment_folder)
 
+    save_test_metrics(council, experiment_folder)
+
     return valid_metrics
 
 
-def launch_experiment():
-
-    from itertools import product
-
-    base_name = "exp_load_solver_{}_{}_{}"
-
-    solvers = ["stable_point", "iterative"]
-    balance_lambdas = np.linspace(0, 1.0, num=4, endpoint=True)
-
-    for solver,  balance_lambda in product(solvers, balance_lambdas):
-
-        for variation in range(4):
-            exp_name = base_name.format(solver, balance_lambda, variation)
-
-            train(
-                experiment_name=exp_name,
-                load_distribution_lambda=balance_lambda,
-                verbose=1,
-                solver=solver,
-                epoch=200
-            )
-
-
-
 if __name__ == "__main__":
-    train(experiment_name="better_synthetic")
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--habrok", action="store_true")
+    args = parser.parse_args()
+
+    train(
+        experiment_name="test",
+        load_distribution_lambda=1/5,
+        solver="sink_many",
+        citizens_ratio=(1, 1, 1),
+        habrok=args.habrok,
+        layers=57142 # TODO rewrite params to layers (fix width)
+    )

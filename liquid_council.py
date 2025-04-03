@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 from typing import Callable, Literal
 import torch
 import torch.nn as nn
@@ -10,7 +11,11 @@ from synthetic_citizen import DelegatingCitizen as SyntheticDelegatingCitizen
 from majority_council import MajorityCouncil
 
 
-type SolveFunc = Callable[[list[torch.Tensor]], tuple[torch.Tensor, torch.Tensor]]
+
+Delegations = list[torch.Tensor]
+Power = torch.Tensor
+DelegationMatrix = torch.Tensor
+SolveFunc = Callable[[Delegations], tuple[Power, DelegationMatrix]]
 
 class LiquidCouncil(Council):
 
@@ -20,13 +25,16 @@ class LiquidCouncil(Council):
             citizens: nn.ModuleList | None = None,
             synthetic: bool = False,
             load_distribution_lambda: float = 1.0,
-            solver: Literal["stable_point", "iterative"] = "stable_point"
+            solver: Literal["sink_one", "sink_many"] = "sink_one",
+            layers: int = 24,
+            citizens_ratio: tuple[int, int, int] = (2, 1, 1),
+            citizen_width: int = 30
         ):
 
         CitizenClass = SyntheticDelegatingCitizen if synthetic else DelegatingCitizen
 
         if citizens is None:
-            citizens = [CitizenClass(n_citizens).to("cuda") for _ in range(n_citizens)]
+            citizens = [CitizenClass(n_citizens, layers // n_citizens, citizens_ratio, citizen_width).to("cuda") for _ in range(n_citizens)]
             citizens = nn.ModuleList(citizens)
 
         self.load_distribution_lambda = load_distribution_lambda
@@ -37,10 +45,12 @@ class LiquidCouncil(Council):
         self.last_power = None
 
         self.solver: SolveFunc = None
-        if solver == "stable_point":
-            self.solver = self.solve_delegation
-        elif solver == "iterative":
-            self.solver = self.solve_delegation_iterative
+        if solver == "sink_one":
+            self.solver = self.solve_delegation_one_sink
+        elif solver == "sink_many":
+            self.solver = self.solve_delegation_many_sinks
+        else:
+            raise ValueError(f"'{solver}' is unknown solver")
 
     def forward(self, x: torch.Tensor):
 
@@ -55,10 +65,10 @@ class LiquidCouncil(Council):
 
         # D (n_batch, n_citizen, n_citizen)
         power, D = self.solver(delegations)
+        self.last_D = D
 
         classifications = torch.cat([torch.unsqueeze(c, 0) for c in classifications], dim=0)
 
-        self.last_D = D
         self.last_power = power
 
         # (n, batch, out)
@@ -132,12 +142,6 @@ class LiquidCouncil(Council):
         labels_hat = torch.argmax(distributions, dim=1)
         return labels_hat
 
-    def self_delegation(self):
-
-        D = self.last_D
-        diag_indices = torch.arange(D.shape[-1])
-        return D[:, diag_indices, diag_indices].mean()
-
 
     def speaker_entropy(self, power: torch.Tensor | None = None):
         """Entropy over histogram of speakers, 1 - everybody speaks (max p) uniformly, 0 - one speaker
@@ -176,6 +180,22 @@ class LiquidCouncil(Council):
     def name(self):
         return "liquid"
 
+
+    @classmethod
+    def load_from_checkpoint(cls, folder: Path):
+        checkpoint = torch.load(folder / "liquid.pt", weights_only=False)
+        model = LiquidCouncil(
+            checkpoint["n_citizens"],
+            synthetic=True,
+            solver=checkpoint["solver"],
+            params=checkpoint["params"],
+            citizens_ratio=checkpoint["ratio"],
+            citizen_width=checkpoint["width"]
+        )
+        model.load_state_dict(checkpoint["model_state_dict"])
+        return model
+
+
     @classmethod
     def step(cls, p_delegatable: torch.Tensor, p_kept: torch.Tensor, D: torch.Tensor):
 
@@ -208,7 +228,7 @@ class LiquidCouncil(Council):
         return new_delegatable, new_kept
 
     @classmethod
-    def solve_delegation_iterative(cls, Ds: list[torch.Tensor], max_iter: int = 100, tol:float =1e-4) -> tuple[torch.Tensor, torch.Tensor]:
+    def solve_delegation_iterative(cls, Ds: Delegations,  max_iter: int = 100, tol:float =1e-4) -> Power:
 
         # TODO check dim
         Ds_cat_ready = [torch.unsqueeze(d, 1) for d in Ds]
@@ -232,10 +252,90 @@ class LiquidCouncil(Council):
 
             p_delegatable, p_kept = new_delegatable, new_kept
 
-        return p_delegatable + p_kept, D
+        return p_delegatable + p_kept
+
+
+
 
     @classmethod
-    def solve_delegation(cls, Ds: list[torch.Tensor], epsilon: float = 0.01) -> tuple[torch.Tensor, torch.Tensor]:
+    def solve_delegation_many_sinks(
+        cls,
+        Ds: Delegations,
+        epsilon: float = 0.01,
+        long_delegation_penalty: float = 0.90,
+        threshold: float = 0.01
+        ) -> Power:
+
+
+        # Create a delegation matrix where the columns are the preferences
+        # d (batch, n)
+        # (batch, n, 1)
+        Ds_cat_ready = [torch.unsqueeze(d, 1) for d in Ds]
+        D = torch.cat(Ds_cat_ready, dim=1)
+        n_batch, n, _ = D.shape
+        n2 = 2 * n
+
+        mask = torch.ones((n_batch, n, n), dtype=D.dtype, device=D.device)
+        batch_indices = torch.arange(n_batch).unsqueeze(1).unsqueeze(2)
+        diag_indices = torch.arange(n).unsqueeze(0).expand(n, -1)
+        mask[batch_indices, diag_indices, diag_indices] = 0
+        identity = torch.eye(n, dtype=D.dtype, device=D.device).unsqueeze(0).expand(n_batch, -1, -1)
+
+
+        D_no_diag = D * mask
+        self_connections = torch.diagonal(D, offset=0, dim1=1, dim2=2).clone().squeeze()
+        # Add small self connection for convergence
+        self_connections += epsilon
+
+        D_ext = torch.zeros((n_batch, n2, n2), dtype=D.dtype, device=D.device)
+        # Keeep the original connections same without diagonal
+        D_ext[:, :n, :n] = D_no_diag
+
+        # The new fake nodes have only self connection
+        D_ext[:, n:, n:] = identity
+
+        # Add connections from original nodes to fake nodes
+        src_indices = torch.arange(n, device=D.device)
+        tgt_indices = src_indices + n
+        batch_indices = torch.arange(n_batch, device=D.device).unsqueeze(1).expand(-1, n)
+        src_indices = src_indices.unsqueeze(0).expand(n_batch, -1)
+        tgt_indices = tgt_indices.unsqueeze(0).expand(n_batch, -1)
+
+        # Flatten all for advanced indexing
+        batch_indices = batch_indices.reshape(-1)
+        src_indices = src_indices.reshape(-1)
+        tgt_indices = tgt_indices.reshape(-1)
+
+        # TODO maybe invert the src and target?
+        D_ext[batch_indices, src_indices, tgt_indices] = self_connections.flatten()
+
+        # Everybody gets one vote except the fake voters
+        p_column = torch.ones((n_batch, n2, 1), dtype=D.dtype, device=D.device)
+        p_column[:, n:] = 0.0
+        acumulated_power = torch.zeros_like(p_column)
+
+        D_ext = torch.transpose(D_ext, 1, 2)
+        # Iiterate
+        for i in range(1_000):
+            acumulated_power += p_column
+            new_p = torch.bmm(long_delegation_penalty * D_ext, p_column)
+            if torch.allclose(new_p, p_column, atol=threshold):
+                p_column = new_p
+                break
+
+            p_column = new_p
+
+        power = torch.squeeze(acumulated_power[:, n:])
+
+        if power.ndim == 1:
+             power = power.unsqueeze(0)
+
+        power = (power / power.sum(1, keepdim=True)) * n
+
+        return power, D
+
+    @classmethod
+    def solve_delegation_one_sink(cls, Ds: Delegations, epsilon: float = 0.01) -> Power:
 
         # Create a delegation matrix where the columns are the preferences
         # d (batch, n)
@@ -300,7 +400,7 @@ if __name__ == "__main__":
 
     epsilon = 0.01
 
-    power, _ = LiquidCouncil.solve_delegation(Ds, epsilon)
+    power, _ = LiquidCouncil.solve_delegation_one_sink(Ds, epsilon)
 
     print(power)
 

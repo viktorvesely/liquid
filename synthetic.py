@@ -1,21 +1,26 @@
+from typing import Literal
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
-def sample(N: int):
+def sample(N: int, task: Literal["trigonometry", "mine"] = "trigonometry"):
     x = np.random.uniform(-1, 1, N)
     y = np.random.uniform(-1, 1, N)
-    return _sample(x, y)
+
+    if task == "trigonometry":
+        return _sample_trigonometry(x, y)
+    elif task == "mine":
+        return _sample_mine(x, y)
 
 
-main_tasks = np.array([[[6.90903647953027, 5.778479568481748],
-  [1.516997098060882, 1.11212445585193]],
- [[5.6316795691919905, 7.614172961116462],
-  [2.8964781153398986, 0.2611080014705087]],
- [[2.799142603485153, 6.623534235717257],
-  [2.9380713924070063, 3.085322784723629]],
- [[4.2476839523991226, 9.442654609872976],
-  [2.4861845445918336, 0.10285074318308762]]])
+main_tasks = np.array([[[9.932413069162699, 4.519830328319423],
+  [-0.8168586112347911, 3.0652076063204268]],
+ [[6.813502941134584, 4.535151023517105],
+  [-0.9787248160055277, -0.7607226180909064]],
+ [[5.072345710065466, 8.097182426210178],
+  [0.13002298321802952, -0.9435734256299448]],
+ [[9.888464240328421, 6.869020754016834],
+  [1.1026867568371523, 0.13987090946831815]]])
 
 
 def generate_main_tasks(n_tasks: int = 4, per_task: int = 2):
@@ -27,7 +32,7 @@ def generate_main_tasks(n_tasks: int = 4, per_task: int = 2):
 
     return tasks
 
-def _sample(x: np.ndarray, y: np.ndarray, tasks: np.ndarray | None) -> np.ndarray:
+def _sample_trigonometry(x: np.ndarray, y: np.ndarray, tasks: np.ndarray | None = None) -> np.ndarray:
 
     if tasks is None:
         tasks = main_tasks.copy()
@@ -44,7 +49,14 @@ def _sample(x: np.ndarray, y: np.ndarray, tasks: np.ndarray | None) -> np.ndarra
     mask_ll = (x < 0) & (y <= 0)
     mask_lr = (x >= 0) & (y <= 0)
 
+    if (not mask_ul.any()) or (not mask_ur.any()) or (not mask_ll.any()) or (not mask_lr.any()):
+        raise ValueError("Some quadrant has 0 values")
+
     def fill_classes(mask: np.ndarray):
+
+        if not (mask.any()):
+            return c
+
         t1, t2 = np.quantile(z[mask], quantiles)
         c_masked = c[mask]
         c_masked[:] = 0
@@ -55,30 +67,47 @@ def _sample(x: np.ndarray, y: np.ndarray, tasks: np.ndarray | None) -> np.ndarra
 
         return c
 
+    # Upper Left quadrant (x < 0, y > 0)
     dx = x[mask_ul] + 0.5
     dy = y[mask_ul] - 0.5
-    z[mask_ul] = np.sin(dx * tasks[0, F, 0] + tasks[0, O, 0]) + np.tanh(dy * tasks[0, F, 1] + tasks[0, O, 1])
+    z[mask_ul] = np.cos(dx * tasks[0, F, 0] + tasks[0, O, 0]) \
+                + np.tanh(dy * tasks[0, F, 1] + tasks[0, O, 1])
     c = fill_classes(mask_ul)
 
-    dx = x[mask_lr] + 0.5
-    dy = y[mask_lr] + 0.5
-    z[mask_lr] = np.sin(dx * tasks[1, F, 0] + tasks[1, O, 0] + np.tanh(dy * tasks[1, F, 1] + tasks[1, O, 1]))
-    c = fill_classes(mask_lr)
-
+    # Upper Right quadrant (x >= 0, y > 0)
     dx = x[mask_ur] - 0.5
     dy = y[mask_ur] - 0.5
-    z[mask_ur] = np.sin(dx * tasks[2, F, 0] + tasks[2, O, 0]) * np.tanh(dy * tasks[2, F, 1] + tasks[2, O, 1])
+    z[mask_ur] = np.sin(dx * tasks[1, F, 0] + tasks[1, O, 0]) \
+                * np.tanh(dy * tasks[1, F, 1] + tasks[1, O, 1])
     c = fill_classes(mask_ur)
 
+    # Lower Right quadrant (x >= 0, y <= 0)
+    dx = x[mask_lr] + 0.5
+    dy = y[mask_lr] + 0.5
+    z[mask_lr] = np.sin(dx * tasks[2, F, 0] + tasks[2, O, 0] \
+                + np.tanh(dy * tasks[2, F, 1] + tasks[2, O, 1]))
+    c = fill_classes(mask_lr)
+
+    # Lower Left quadrant (x < 0, y <= 0)
     dx = x[mask_ll] + 0.5
     dy = y[mask_ll] + 0.5
-    z[mask_ll] = np.tanh(np.sin(dx * tasks[3, F, 0] + tasks[3, O, 0]) * tasks[3, F, 1] + tasks[3, O, 1]) * dy
+    z[mask_ll] = np.tanh(
+        np.cos(dx * tasks[3, F, 0] + tasks[3, O, 0]) \
+        * np.sin(dy * tasks[3, F, 1] + tasks[3, O, 1])
+    )
     c = fill_classes(mask_ll)
 
-    return c
+    if x.ndim > 1:
+        return None, c
+
+    X = np.empty((x.size, 2))
+    X[:, 0] = x
+    X[:, 1] = y
+
+    return X, c
 
 
-def _sample2(x: np.ndarray, y: np.ndarray):
+def _sample_mine(x: np.ndarray, y: np.ndarray):
 
     z = np.zeros_like(x, dtype=int)
 

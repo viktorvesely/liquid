@@ -15,8 +15,22 @@ def copy_files_to_folder(folder: Path, *files: str) -> None:
     for file in files:
         shutil.copy(src_dir / file, folder)
 
-def save_checkpoint(model: nn.Module, optimizer: optim.Optimizer, file: Path) -> None:
+def save_checkpoint(
+        model: nn.Module,
+        optimizer: optim.Optimizer,
+        file: Path,
+        n_citizens: int,
+        params: int,
+        citizens_ratio: tuple[int, int, int],
+        citizen_width: int,
+        solver: str
+    ) -> None:
     torch.save({
         'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict()
+        'optimizer_state_dict': optimizer.state_dict(),
+        'n_citizens': n_citizens,
+        'params': params,
+        'ratio': citizens_ratio,
+        'width': citizen_width,
+        'solver': solver
     }, file)

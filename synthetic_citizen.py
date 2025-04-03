@@ -3,34 +3,51 @@ from __future__ import annotations
 import copy
 import torch
 import torch.nn as nn
+import numpy as np
+
+def total_params(b, c, d, width):
+    one = width ** 2
+    return b* one, c * one, d * one
+
+
+def build_layers(layers: int, body: float, classification: float, delegation: float, width: int = 50) -> tuple[int, list[int], list[int], list[int]]:
+
+    weights = np.array([body, classification, delegation])
+    weights = weights / weights.sum()
+
+    l = np.round(layers * weights).astype(int)
+
+    def to_layers(l: int) -> list:
+        return [width for _ in range(l)]
+
+    lb, lc, ld = l
+    b = to_layers(lb)
+    c = to_layers(lc)
+    d = to_layers(ld)
+
+    return layers - l.sum(), b, c, d,
+
+def get_sequential(layers: list[int]) -> list[nn.Module]:
+    arch = []
+    for src, tar in zip(layers[:-1], layers[1:], strict=True):
+        arch.append(nn.Linear(src, tar))
+        arch.append(nn.LeakyReLU())
+
+    return arch
 
 class Citizen(nn.Module):
 
-    def __init__(self, layers: tuple[int, ...] | None = None):
+    def __init__(self, body_layers: list[int], class_layers: list[int]):
         super().__init__()
 
-        if layers is None:
-            layers = (30, 60, 120, 240, 480)
+        body_layers = [2] + body_layers
+        self.body = nn.Sequential(*get_sequential(body_layers))
 
-        self.layers = layers
-
-        all_layers = [2] + list(layers)
-        body = []
-        for src, tar in zip(all_layers[:-1], all_layers[1:], strict=True):
-            body.append(nn.Linear(src, tar))
-            body.append(nn.LeakyReLU())
-
-        body.append(nn.Flatten())
-        self.body = nn.Sequential(*body)
-
-        self.n_body_f = layers[-1]
-
-        self.class_head = nn.Sequential(
-            nn.Linear(self.n_body_f, self.mid(self.n_body_f, 3)),
-            nn.LeakyReLU(),
-            nn.Linear(self.mid(self.n_body_f, 3), 3),
-            nn.Softmax(dim=1)
-        )
+        class_layers = class_layers + [3]
+        self.class_head = get_sequential(class_layers)
+        self.class_head.pop()
+        self.class_head.append(nn.Softmax(dim=1))
+        self.class_head = nn.Sequential(*self.class_head)
 
 
     @staticmethod
@@ -52,21 +69,20 @@ class Citizen(nn.Module):
         return new_citizen
 
 
-
-
 class DelegatingCitizen(Citizen):
 
-    def __init__(self, n_citizens: int, channels: tuple[int, ...] | None = None):
-        super().__init__(channels)
+    def __init__(self, n_citizens: int, layers: int = 6, ratios: tuple[int, int, int] = (2, 1, 1), layer_width: int = 30):
+        _, body_l, class_l, del_l = build_layers(layers, *ratios, width=layer_width)
 
-        n_body_f = self.n_body_f
+        print(layers, len(body_l), len(class_l), len(del_l))
 
-        self.delegate_head = nn.Sequential(
-            nn.Linear(n_body_f, self.mid(n_body_f, n_citizens)),
-            nn.LeakyReLU(),
-            nn.Linear(self.mid(n_body_f, n_citizens), n_citizens),
-            nn.Softmax(dim=1)
-        )
+        super().__init__(body_l, class_l)
+
+        del_l = del_l + [n_citizens]
+        self.delegate_head = get_sequential(del_l)
+        self.delegate_head.pop()
+        self.delegate_head.append(nn.Softmax(dim=1))
+        self.delegate_head = nn.Sequential(*self.delegate_head)
 
 
     def forward(self, x: torch.Tensor):
