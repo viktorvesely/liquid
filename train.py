@@ -108,7 +108,7 @@ def train(
         solver: Literal["sink_one", "sink_many"] = "sink_one",
         layers: int = 24,
         citizens_ratio: tuple[int, int, int] = (1, 1, 1),
-        citizen_width: int = 50,
+        citizen_width: int = 20,
         habrok: bool = False
         ):
 
@@ -127,7 +127,7 @@ def train(
         synthetic=True,
         load_distribution_lambda=load_distribution_lambda,
         solver=solver,
-        params=layers,
+        layers=layers,
         citizens_ratio=citizens_ratio,
         citizen_width=citizen_width
     )
@@ -251,10 +251,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     train(
-        experiment_name="test",
-        load_distribution_lambda=1/5,
+        experiment_name="region_nmi",
+        load_distribution_lambda=1/3,
         solver="sink_many",
-        citizens_ratio=(1, 1, 1),
+        citizens_ratio=(1, 2, 1),
         habrok=args.habrok,
-        layers=57142 # TODO rewrite params to layers (fix width)
+        layers=48,
+        epoch=100
     )

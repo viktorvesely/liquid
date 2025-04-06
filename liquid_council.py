@@ -188,7 +188,7 @@ class LiquidCouncil(Council):
             checkpoint["n_citizens"],
             synthetic=True,
             solver=checkpoint["solver"],
-            params=checkpoint["params"],
+            layers=checkpoint["params"],
             citizens_ratio=checkpoint["ratio"],
             citizen_width=checkpoint["width"]
         )

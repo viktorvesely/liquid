@@ -178,7 +178,7 @@ def _sample_mine(x: np.ndarray, y: np.ndarray):
 
     return X, z
 
-def plot():
+def plot(task: Literal["trigonometry", "mine"] = "trigonometry", N: int = 300):
 
     from scipy import interpolate
 
@@ -186,9 +186,7 @@ def plot():
 
     fig, ax = plt.subplots(figsize=(6, 6))
 
-    N = 300
-
-    x, v = sample(N * N)
+    x, v = sample(N * N, task=task)
 
     X, Y = np.meshgrid(
         np.linspace(-1, 1, N),
@@ -199,11 +197,13 @@ def plot():
     interp = interpolate.LinearNDInterpolator(x, v)
     Z = interp(X, Y)
 
-    ax.imshow(Z, extent=[-1, 1, -1, 1], origin='lower', cmap=cmap, interpolation='nearest')
+    ax.imshow(Z, extent=[-1, 1, -1, 1], origin='lower', cmap=cmap, interpolation='bicubic')
     ax.set_xlabel("$x_1$", fontsize=12)
     ax.set_ylabel("$x_2$", fontsize=12)
     # plt.colorbar(ticks=[0, 1, 2], label='Class')
     plt.show()
+
+    return fig
 
 
 if __name__ == "__main__":

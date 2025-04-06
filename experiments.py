@@ -1,31 +1,45 @@
 from itertools import product
 import itertools
-import math
 import numpy as np
 import torch.multiprocessing as mp
 
 from train import train
 
-def experiment_load_balancer():
+N_LAYERS = 72
+RATIO = (4, 1, 4)
 
-    base_name = "exp_load_solver_{}_{}_{}"
+def launch_solvers_load_balance(args: tuple[str, float, str]):
+    exp_name, load_balance, solver = args
 
-    solvers = ["stable_point", "iterative"]
-    balance_lambdas = np.linspace(0, 1.0, num=4, endpoint=True)
+    train(
+        experiment_name=exp_name,
+        load_distribution_lambda=load_balance,
+        solver=solver,
+        epoch=300,
+        batch_size=2_000,
+        verbose=0,
+        layers=N_LAYERS,
+        habrok=True,
+        citizens_ratio=RATIO,
+    )
 
-    for solver,  balance_lambda in product(solvers, balance_lambdas):
 
-        for variation in range(4):
-            exp_name = base_name.format(solver, balance_lambda, variation)
+def experiment_solvers_load_balance():
 
-            train(
-                experiment_name=exp_name,
-                load_distribution_lambda=balance_lambda,
-                verbose=1,
-                solver=solver,
-                epoch=200
-            )
+    base_name = "exp_main_{}_{}_{}"
+    n_variations = 8
 
+    load_specs = np.logspace(0.0, 1.0, num=7, endpoint=True) / 10
+    solver_specs = ["sink_one", "sink_many"]
+    runs = []
+
+    for load_lambda, solver, i_variation in product(load_specs, solver_specs, list(range(n_variations))):
+        exp_name = base_name.format(solver, load_lambda, i_variation)
+        runs.append((exp_name, load_lambda, solver))
+
+    with mp.Pool(processes=8) as pool:
+        for _ in pool.imap_unordered(launch_solvers_load_balance, runs):
+            ...
 
 
 def launch_layer(args: tuple[str, int]):
@@ -39,14 +53,14 @@ def launch_layer(args: tuple[str, int]):
         verbose=0,
         layers=layers,
         habrok=True,
-        citizens_ratio=(1, 1, 1),
+        citizens_ratio=(1, 1, 1)
     )
 
 
-def experiment_param_budget():
+def experiment_layer_budget():
 
     base_name = "exp_layer_budget_{}_{}"
-    n_variations = 5
+    n_variations = 4
 
     layer_step = 3 * 4
     up_to = 8
@@ -71,9 +85,10 @@ def launch_ratio(args: tuple[str, int]):
         experiment_name=exp_name,
         load_distribution_lambda=0,
         epoch=300,
-        batch_size=2_000,
+        batch_size=2000,
         verbose=0,
         habrok=True,
+        layers=N_LAYERS,
         citizens_ratio=ratios
     )
 
@@ -105,5 +120,5 @@ def experiment_ratio():
 if __name__ == "__main__":
 
     mp.set_start_method("spawn", force=True)
-    experiment_param_budget()
+    experiment_solvers_load_balance()
 

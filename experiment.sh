@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --mem=16GB
+#SBATCH --mem=10GB
 #SBATCH --time=3:00:00
 #SBATCH --job-name=cnnsae
 #SBATCH --partition=gpu
