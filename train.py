@@ -87,16 +87,19 @@ class Metrics:
 
 def save_test_metrics(
         council: LiquidCouncil,
-        experiment_folder: Path
+        experiment_folder: Path,
+        only_compute: bool = False
     ):
 
     dataset, _ = load_data_synthetic(n_train=10_000, n_valid=100)
     classifications, Ds, Ps = inference(council, dataset)
     accuracy, power_entropy, speaker_entropy, region_nmi = calc_metrics(council, dataset, classifications, Ps, verbal=False)
 
-    with open(experiment_folder / "test_metrics.txt", "w") as f:
-        f.write(f"accuracy={accuracy}\npower_entropy={power_entropy}\nspeaker_entropy={speaker_entropy}\nregion_nmi={region_nmi}")
+    if not only_compute:
+        with open(experiment_folder / "test_metrics.txt", "w") as f:
+            f.write(f"accuracy={accuracy}\npower_entropy={power_entropy}\nspeaker_entropy={speaker_entropy}\nregion_nmi={region_nmi}")
 
+    return accuracy, power_entropy, speaker_entropy, region_nmi
 
 def train(
         n_citizens: int = 4,
@@ -109,13 +112,17 @@ def train(
         layers: int = 24,
         citizens_ratio: tuple[int, int, int] = (1, 1, 1),
         citizen_width: int = 20,
-        habrok: bool = False
+        habrok: bool = False,
+        save_files: bool = True
         ):
 
 
 
-    experiment_folder = utils.create_experiment_folder(experiment_name)
-    utils.copy_files_to_folder(experiment_folder, "liquid_council.py")
+    if save_files:
+        experiment_folder = utils.create_experiment_folder(experiment_name)
+        utils.copy_files_to_folder(experiment_folder, "liquid_council.py")
+    else:
+        experiment_folder = None
 
     train_dataset, test_dataset = load_data_synthetic()
 
@@ -181,17 +188,18 @@ def train(
 
 
         # Save models
-        for council, optimizer in zip(councils, optimizers, strict=True):
-            utils.save_checkpoint(
-                council,
-                optimizer,
-                experiment_folder / f"{council.name()}.pt",
-                n_citizens,
-                layers,
-                citizens_ratio,
-                citizen_width,
-                solver
-            )
+        if save_files:
+            for council, optimizer in zip(councils, optimizers, strict=True):
+                utils.save_checkpoint(
+                    council,
+                    optimizer,
+                    experiment_folder / f"{council.name()}.pt",
+                    n_citizens,
+                    layers,
+                    citizens_ratio,
+                    citizen_width,
+                    solver
+                )
 
         for council in councils: council.eval()
         for metric in valid_metrics: metric.reset()
@@ -237,11 +245,13 @@ def train(
         ax.legend()
         plt.show()
 
-    valid_metrics[0].save_histories(experiment_folder)
 
-    save_test_metrics(council, experiment_folder)
+    if save_files:
+        valid_metrics[0].save_histories(experiment_folder)
 
-    return valid_metrics
+    test_metrics = save_test_metrics(council, experiment_folder, only_compute=not save_files)
+
+    return valid_metrics, test_metrics
 
 
 if __name__ == "__main__":
@@ -251,11 +261,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     train(
-        experiment_name="region_nmi",
-        load_distribution_lambda=1/3,
+        experiment_name="best_nmi",
+        load_distribution_lambda=0.75,
         solver="sink_many",
-        citizens_ratio=(1, 2, 1),
+        citizens_ratio=(1, 3, 2),
         habrok=args.habrok,
-        layers=48,
-        epoch=100
+        layers=12,
+        epoch=100,
+        citizen_width=80,
     )

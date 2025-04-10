@@ -7,6 +7,7 @@ from train import train
 
 N_LAYERS = 72
 RATIO = (4, 1, 4)
+CPU = 8
 
 def launch_solvers_load_balance(args: tuple[str, float, str]):
     exp_name, load_balance, solver = args
@@ -37,7 +38,7 @@ def experiment_solvers_load_balance():
         exp_name = base_name.format(solver, load_lambda, i_variation)
         runs.append((exp_name, load_lambda, solver))
 
-    with mp.Pool(processes=8) as pool:
+    with mp.Pool(processes=CPU) as pool:
         for _ in pool.imap_unordered(launch_solvers_load_balance, runs):
             ...
 
@@ -73,7 +74,7 @@ def experiment_layer_budget():
         runs.append((exp_name, layers))
 
 
-    with mp.Pool(processes=8) as pool:
+    with mp.Pool(processes=CPU) as pool:
         for _ in pool.imap_unordered(launch_layer, runs):
             ...
 
@@ -113,12 +114,56 @@ def experiment_ratio():
         runs.append((exp_name, ratios))
 
 
-    with mp.Pool(processes=8) as pool:
+    with mp.Pool(processes=CPU) as pool:
         for _ in pool.imap_unordered(launch_ratio, runs):
             ...
 
+
+def launch_optimize_nmi(args: tuple[str, int]):
+    ratios, load_lamba, layers, width  = args
+
+    _, (accuracy, power_entropy, speaker_entropy, region_nmi) = train(
+        experiment_name="delete_me",
+        load_distribution_lambda=load_lamba,
+        epoch=100,
+        batch_size=2000,
+        verbose=0,
+        habrok=True,
+        layers=layers,
+        citizens_ratio=ratios,
+        citizen_width=width,
+        save_files=False
+    )
+
+    return region_nmi
+
+def run_my_task(
+        b: int,
+        c: int,
+        d: int,
+        load_lambda: float,
+        layer_times_step: int,
+        network_width: int
+    ):
+
+    layer_step = 3 * 4
+    layers = layer_times_step * layer_step
+    n_times = CPU
+
+    runs = [((b, c, d), load_lambda, layers, network_width) for _ in range(n_times)]
+
+    with mp.Pool(processes=CPU) as pool:
+        results = list(pool.imap_unordered(launch_optimize_nmi, runs))
+
+    return np.mean(results)
+
+def setup_multiple_cpu():
+    mp.set_start_method("spawn", force=True)
+
+
 if __name__ == "__main__":
 
-    mp.set_start_method("spawn", force=True)
+    setup_multiple_cpu()
+
     experiment_solvers_load_balance()
 

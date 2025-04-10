@@ -21,6 +21,11 @@ def build_layers(layers: int, body: float, classification: float, delegation: fl
         return [width for _ in range(l)]
 
     lb, lc, ld = l
+
+    lb = max(lb, 1)
+    lc = max(lc, 1)
+    ld = max(ld, 1)
+
     b = to_layers(lb)
     c = to_layers(lc)
     d = to_layers(ld)
@@ -74,7 +79,7 @@ class DelegatingCitizen(Citizen):
     def __init__(self, n_citizens: int, layers: int = 6, ratios: tuple[int, int, int] = (2, 1, 1), layer_width: int = 30):
         _, body_l, class_l, del_l = build_layers(layers, *ratios, width=layer_width)
 
-        print(layers, len(body_l), len(class_l), len(del_l))
+        # print(layers, len(body_l), len(class_l), len(del_l))
 
         super().__init__(body_l, class_l)
 

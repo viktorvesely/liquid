@@ -11,4 +11,4 @@ module purge
 module load PyTorch-bundle/2.1.2-foss-2023a-CUDA-12.1.1
 
 source liquid/bin/activate
-srun python experiments.py --habrok
+srun python optimize.py --habrok
