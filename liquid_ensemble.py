@@ -4,12 +4,7 @@ from typing import Callable, Literal
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
-
-from council import Council
-from image_citizen import DelegatingCitizen
-from synthetic_citizen import DelegatingCitizen as SyntheticDelegatingCitizen
-from majority_council import MajorityCouncil
-
+from typing import Literal
 
 
 Delegations = list[torch.Tensor]
@@ -17,32 +12,28 @@ Power = torch.Tensor
 DelegationMatrix = torch.Tensor
 SolveFunc = Callable[[Delegations], tuple[Power, DelegationMatrix]]
 
-class LiquidCouncil(Council):
+class LiquidEnsembleLayer(nn.Module):
 
     def __init__(
             self,
-            n_citizens: int,
             citizens: nn.ModuleList | None = None,
-            synthetic: bool = False,
-            load_distribution_lambda: float = 1.0,
-            solver: Literal["sink_one", "sink_many"] = "sink_one",
-            layers: int = 24,
-            citizens_ratio: tuple[int, int, int] = (2, 1, 1),
-            citizen_width: int = 30
+            load_distribution_lambda: float = 0.0,
+            specialization_lambda: float = 0.0,
+            solver: Literal["sink_one", "sink_many"] = "sink_one"
         ):
+        super().__init__()
 
-        CitizenClass = SyntheticDelegatingCitizen if synthetic else DelegatingCitizen
 
-        if citizens is None:
-            citizens = [CitizenClass(n_citizens, layers // n_citizens, citizens_ratio, citizen_width).to("cuda") for _ in range(n_citizens)]
-            citizens = nn.ModuleList(citizens)
+        n_citizens = len(citizens)
+        self.n_citizens = n_citizens
+        self.citizens = citizens
 
         self.load_distribution_lambda = load_distribution_lambda
-
-        super().__init__(n_citizens, citizens)
+        self.specialization_lambda = specialization_lambda
 
         self.last_D = None
         self.last_power = None
+        self.last_y: torch.Tensor = None
 
         self.solver: SolveFunc = None
         if solver == "sink_one":
@@ -54,28 +45,43 @@ class LiquidCouncil(Council):
 
     def forward(self, x: torch.Tensor):
 
-        classifications = []
+        ys = []
         delegations = []
 
         for citizen in self.citizens:
-            c, d = citizen(x)
-            # d (n_batch, n_citizen)
-            classifications.append(c)
-            delegations.append(d)
+            y_citizen, delegation = citizen(x)
+            # d (batch, n_citizen)
+            ys.append(y_citizen)
+            delegations.append(delegation)
 
-        # D (n_batch, n_citizen, n_citizen)
+        # D (batch, n_citizen, n_citizen)
+        # Power (batch, n_citizen)
         power, D = self.solver(delegations)
+
+        power_sums = power.sum(1, keepdim=True)
+        if not torch.isclose(
+            power_sums,
+            torch.tensor(self.n_citizens, device=power.device, dtype=power.dtype),
+            atol=1e-2
+        ).all():
+            print("Warning, power sum is not close to n_citizens")
+
+        # (n_citizen, batch, out)
+        ys = torch.stack(ys)
+        # (batch, n_citizen, out)
+        ys = torch.transpose(ys, 0, 1)
+
+        # (batch, out)
+        y = torch.sum(ys * power.unsqueeze(2), dim=1)
+
+        self.last_y = ys
         self.last_D = D
-
-        classifications = torch.cat([torch.unsqueeze(c, 0) for c in classifications], dim=0)
-
         self.last_power = power
 
-        # (n, batch, out)
-        return classifications
+        # (batch, out)
+        return y
 
-
-    def load_distribution_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1):
+    def load_distribution_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
 
         if power is None:
             power = self.last_power
@@ -91,24 +97,11 @@ class LiquidCouncil(Council):
         dist = Categorical(probs=histogram / histogram.sum())
 
         # close to 1 - even load, close to 0 not even load
-        normalized_entropy = dist.entropy() / math.log(n)
+        speaker_entropy = dist.entropy() / math.log(n)
 
         power_entropy = self.power_entropy()
 
-        return self.load_distribution_lambda * (power_entropy - normalized_entropy)
-
-    def loss(self, y: torch.Tensor, classifications: torch.Tensor):
-        predict_losses = self.predict_loss(y, classifications)
-
-        final_loss = 0
-        for i_citizen, citizen_predict_loss in enumerate(predict_losses):
-            # citizen_predict_loss (n_batch,)
-            # power (n_batch, n)
-            final_loss += citizen_predict_loss * self.last_power[:, i_citizen]
-
-        load_loss = self.load_distribution_loss()
-
-        return final_loss.mean() + load_loss
+        return self.specialization_lambda * power_entropy - speaker_entropy * self.load_distribution_lambda
 
 
     def vote(self, classifications: torch.Tensor, power: torch.Tensor | None = None):
@@ -120,13 +113,6 @@ class LiquidCouncil(Council):
             power = self.last_power
 
         bs = power.shape[0]
-
-        # Just in case normalize power
-        sums = power.sum(1, keepdim=True)
-        if (~torch.isclose(sums, torch.tensor(self.n_citizens, device=power.device, dtype=power.dtype), atol=1e-2)).any():
-            print("Warning, power sum is not close to n_citizens")
-
-        power = power / sums
 
         distributions = torch.zeros((bs, self.n_classes), dtype=power.dtype, device=power.device)
 
@@ -171,30 +157,6 @@ class LiquidCouncil(Council):
         entropy = dist.entropy() / math.log(n)
 
         return torch.mean(entropy)
-
-    def cut_delegation_heads(self) -> MajorityCouncil:
-        headless = [citizen.cut_delegation_head() for citizen in self.citizens]
-        headless = nn.ModuleList(headless)
-        return MajorityCouncil(self.n_citizens, headless)
-
-    def name(self):
-        return "liquid"
-
-
-    @classmethod
-    def load_from_checkpoint(cls, folder: Path):
-        checkpoint = torch.load(folder / "liquid.pt", weights_only=False)
-        model = LiquidCouncil(
-            checkpoint["n_citizens"],
-            synthetic=True,
-            solver=checkpoint["solver"],
-            layers=checkpoint["params"],
-            citizens_ratio=checkpoint["ratio"],
-            citizen_width=checkpoint["width"]
-        )
-        model.load_state_dict(checkpoint["model_state_dict"])
-        return model
-
 
     @classmethod
     def step(cls, p_delegatable: torch.Tensor, p_kept: torch.Tensor, D: torch.Tensor):
@@ -400,7 +362,7 @@ if __name__ == "__main__":
 
     epsilon = 0.01
 
-    power, _ = LiquidCouncil.solve_delegation_one_sink(Ds, epsilon)
+    power, _ = LiquidEnsembleLayer.solve_delegation_one_sink(Ds, epsilon)
 
     print(power)
 

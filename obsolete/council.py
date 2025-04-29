@@ -11,15 +11,11 @@ class Council(nn.Module):
     def __init__(self, n_citizens: int, citizens: nn.ModuleList):
         super().__init__()
 
-        self.n_citizens = n_citizens
-        self.citizens = citizens
-        self.predict_criterion = nn.CrossEntropyLoss(reduction="none")
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError("forward")
 
-    def predict_loss(self, y: torch.Tensor, classifications: torch.Tensor):
-        return [self.predict_criterion(classifications[i_voter, :, :], y) for i_voter in range(classifications.shape[0])]
 
     def loss(self, y: torch.Tensor, classifications: torch.Tensor):
         raise NotImplementedError("loss")

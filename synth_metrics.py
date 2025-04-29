@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import normalized_mutual_info_score
 
-from liquid_council import LiquidCouncil
+from liquid_ensemble import LiquidEnsembleLayer
 
 
 def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
@@ -21,7 +21,7 @@ def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
 
     return c
 
-def inference(council: LiquidCouncil, dataset: TensorDataset, bs: int = 1_000):
+def inference(council: LiquidEnsembleLayer, dataset: TensorDataset, bs: int = 1_000):
 
     loader = DataLoader(dataset, bs)
 
@@ -46,7 +46,7 @@ def inference(council: LiquidCouncil, dataset: TensorDataset, bs: int = 1_000):
     return classifications, Ds, Ps
 
 def calc_metrics(
-        council: LiquidCouncil,
+        council: LiquidEnsembleLayer,
         dataset: TensorDataset,
         classifications: torch.Tensor,
         Ps: torch.Tensor,
