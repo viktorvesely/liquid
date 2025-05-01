@@ -34,17 +34,24 @@ class Metrics:
             out.append(f"{name}={np.mean(values):.3f}")
         return ", ".join(out)
 
-    def save_histories(self, folder: Path):
+    def save_histories(self, folder: Path, prefix: str = "liquid"):
         for name, values in self.history.items():
-            with open(folder / f"{name}.txt", "w") as f:
+            with open(folder / f"{prefix}_{name}.txt", "w") as f:
                 f.write("\n".join(map(lambda x: f"{x:.4f}", values)))
 
 class Adapter(ABC):
 
 
-    def __init__(self, folder: Path):
+    def __init__(
+        self,
+        n_input: int,
+        n_output: int,
+        folder: Path
+    ):
         super().__init__()
 
+        self.n_input = n_input
+        self.n_output = n_output
         self.folder = folder
 
 

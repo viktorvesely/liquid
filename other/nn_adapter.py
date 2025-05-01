@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from pathlib import Path
 from typing import Any, Callable
 import numpy as np
 import torch
@@ -12,11 +13,20 @@ from .adapter import Adapter
 
 class NNAdapter(Adapter):
 
+    synthetic: bool = True
 
-    def __init__(self, folder):
-        super().__init__(folder)
+    def __init__(
+        self,
+        n_input: int,
+        n_output: int,
+        folder: Path,
+        lr: float = 1e-3
+    ):
+        super().__init__(n_input=n_input, n_output=n_output, folder=folder)
 
+        self.lr = lr
         self.last_bs: int = None
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     @abstractmethod
     def get_nn(self) -> tuple[nn.Module, optim.Optimizer]:
@@ -83,15 +93,16 @@ class NNAdapter(Adapter):
 
         ys = []
 
-        for (x_batch,) in tqdm.tqdm(loader, total=len(loader), disable=(verbose < 1)):
+        with torch.no_grad():
+            for (x_batch,) in tqdm.tqdm(loader, total=len(loader), disable=(verbose < 1)):
 
-            x_batch = x_batch.to("cuda")
-            yhat_batch = model(x_batch)
+                x_batch = x_batch.to("cuda")
+                yhat_batch = model(x_batch)
 
-            ys.append(yhat_batch.cpu().numpy())
+                ys.append(yhat_batch.cpu().numpy())
 
-            if callable(on_batch):
-                on_batch(model, x_batch, yhat_batch)
+                if callable(on_batch):
+                    on_batch(model, x_batch, yhat_batch)
 
         return np.concat(ys, axis=0)
 

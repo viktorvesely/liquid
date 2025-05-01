@@ -10,6 +10,7 @@ import utils
 
 from synthetic import sample
 from LE import LE
+from other.ME import ME
 
 import argparse
 
@@ -69,15 +70,29 @@ def train(
     y_val = val_dataset.tensors[1].numpy()
     val_dataset = None
 
-    le = LE(experiment_folder)
-    le.init_model(
-        n_citizens=n_citizens,
-        load_distribution_lambda=load_distribution_lambda,
-        specialization_lambda=specialization_lambda,
-        solver=solver
-    )
+    # le = LE(
+    #     n_input=2,
+    #     n_output=3,
+    #     folder=experiment_folder,
+    #     n_citizens=n_citizens,
+    #     lr=5 * 1e-4,
+    #     load_distribution_lambda=load_distribution_lambda,
+    #     specialization_lambda=specialization_lambda,
+    #     solver=solver
+    # )
+    # le.init_model()
+    # val_metrics = le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
 
-    val_metrics = le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+
+    me = ME(
+        n_input=2,
+        n_output=3,
+        folder=experiment_folder,
+        n_experts=n_citizens,
+        lr=5 * 1e-4
+    )
+    me.init_model()
+    val_metrics = me.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
 
     return val_metrics
 
@@ -89,9 +104,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     train(
-        experiment_name="best_nmi",
-        load_distribution_lambda=0.75,
-        specialization_lambda=0.5,
+        experiment_name="moe",
+        load_distribution_lambda=0.5,
+        specialization_lambda=0.05,
         solver="sink_many",
-        epoch=5
+        epoch=100
     )

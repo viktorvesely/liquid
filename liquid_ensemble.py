@@ -1,11 +1,13 @@
 import math
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Callable, Literal, Self
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
 from typing import Literal
+from citizen import Citizen
 
+from name_to_citizen import name_to_citizen
 
 Delegations = list[torch.Tensor]
 Power = torch.Tensor
@@ -16,17 +18,16 @@ class LiquidEnsembleLayer(nn.Module):
 
     def __init__(
             self,
-            citizens: nn.ModuleList | None = None,
+            citizens: list[Citizen],
             load_distribution_lambda: float = 0.0,
             specialization_lambda: float = 0.0,
             solver: Literal["sink_one", "sink_many"] = "sink_one"
         ):
         super().__init__()
 
-
         n_citizens = len(citizens)
         self.n_citizens = n_citizens
-        self.citizens = citizens
+        self.citizens = nn.ModuleList(citizens)
 
         self.load_distribution_lambda = load_distribution_lambda
         self.specialization_lambda = specialization_lambda
@@ -34,6 +35,7 @@ class LiquidEnsembleLayer(nn.Module):
         self.last_D = None
         self.last_power = None
         self.last_y: torch.Tensor = None
+        self.solver_name = solver
 
         self.solver: SolveFunc = None
         if solver == "sink_one":
@@ -42,6 +44,36 @@ class LiquidEnsembleLayer(nn.Module):
             self.solver = self.solve_delegation_many_sinks
         else:
             raise ValueError(f"'{solver}' is unknown solver")
+
+
+    def get_constructor(self) -> dict:
+
+        constructor = {
+            'citizens_classes': [c.name() for c in self.citizens],
+            'solver': self.solver_name,
+            'load_distribution_lambda': self.load_distribution_lambda,
+            'specialization_lambda': self.specialization_lambda,
+            'citizens': [c.get_constructor() for c in self.citizens]
+        }
+
+        return constructor
+
+    @classmethod
+    def apply_constructor(cls, constructor: dict) -> Self:
+
+        citizen_classes = constructor.pop("citizens_classes")
+        constructors = constructor.pop("citizens")
+
+        citizens = []
+        for c_class, c_constructor in zip(citizen_classes, constructors, strict=True):
+            CitizenClass = name_to_citizen[c_class]
+            citizen = CitizenClass.apply_constructor(c_constructor)
+            citizens.append(citizen)
+
+        constructor["citizens"] = citizens
+
+        return LiquidEnsembleLayer(**constructor)
+
 
     def forward(self, x: torch.Tensor):
 
@@ -103,30 +135,6 @@ class LiquidEnsembleLayer(nn.Module):
 
         return self.specialization_lambda * power_entropy - speaker_entropy * self.load_distribution_lambda
 
-
-    def vote(self, classifications: torch.Tensor, power: torch.Tensor | None = None):
-        # classifications (n, n_batch, out)
-        # power (n_batch, n)
-        # distributions (n_batch, out)
-
-        if power is None:
-            power = self.last_power
-
-        bs = power.shape[0]
-
-        distributions = torch.zeros((bs, self.n_classes), dtype=power.dtype, device=power.device)
-
-        for i_batch in range(bs):
-            # (n, digits)
-            c = classifications[:, i_batch, :]
-
-            # (n, 1)
-            p = torch.unsqueeze(power[i_batch, :], -1)
-
-            distributions[i_batch, :] = torch.sum(c * p, 0)
-
-        labels_hat = torch.argmax(distributions, dim=1)
-        return labels_hat
 
 
     def speaker_entropy(self, power: torch.Tensor | None = None):
@@ -346,6 +354,7 @@ class LiquidEnsembleLayer(nn.Module):
         power -= 1 / n
 
         return power, torch.transpose(D, 1, 2)
+
 
 
 if __name__ == "__main__":

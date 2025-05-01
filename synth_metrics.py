@@ -2,7 +2,8 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import normalized_mutual_info_score
 
-from liquid_ensemble import LiquidEnsembleLayer
+from LE import LE
+from other.ME import ME
 
 
 def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
@@ -21,12 +22,11 @@ def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
 
     return c
 
-def inference(council: LiquidEnsembleLayer, dataset: TensorDataset, bs: int = 1_000):
+def inference(council: LE | ME, dataset: TensorDataset, bs: int = 1_000):
 
     loader = DataLoader(dataset, bs)
 
     classifications = []
-    Ds = []
     Ps = []
 
     with torch.no_grad():
@@ -34,26 +34,29 @@ def inference(council: LiquidEnsembleLayer, dataset: TensorDataset, bs: int = 1_
 
             samples = samples.to("cuda")
 
-            c = council(samples)
+            c = council.model(samples)
             classifications.append(c.cpu())
-            Ds.append(council.last_D.cpu())
-            Ps.append(council.last_power.cpu())
 
-    classifications = torch.cat(classifications, dim=1)
-    Ds = torch.cat(Ds, dim=0)
+            if isinstance(council, LE):
+                Ps.append(council.liquid_ensemble.last_power.cpu())
+            else:
+                Ps.append(council.moe_layer.last_gate.cpu())
+
+    classifications = torch.cat(classifications, dim=0)
     Ps = torch.cat(Ps, dim=0)
 
-    return classifications, Ds, Ps
+    return classifications, Ps
 
 def calc_metrics(
-        council: LiquidEnsembleLayer,
+        council: LE | ME,
         dataset: TensorDataset,
         classifications: torch.Tensor,
         Ps: torch.Tensor,
         verbal: bool = False
     ):
     with torch.no_grad():
-        hatlabel = council.vote(classifications, Ps)
+
+        hatlabel = torch.argmax(classifications, 1)
         accuracy = (dataset.tensors[1]  == hatlabel).to(float).mean().item()
 
         power_voter = torch.argmax(Ps, 1)
@@ -66,8 +69,12 @@ def calc_metrics(
         if not isinstance(region_nmi, float):
             region_nmi = region_nmi.item()
 
-        power_entropy = council.power_entropy(Ps).item()
-        speaker_entropy = council.speaker_entropy(Ps).item()
+        if isinstance(council, LE):
+            power_entropy = council.liquid_ensemble.power_entropy(Ps).item()
+            speaker_entropy = council.liquid_ensemble.speaker_entropy(Ps).item()
+        else:
+            power_entropy = council.moe_layer.power_entropy(Ps).item()
+            speaker_entropy = council.moe_layer.speaker_entropy(Ps).item()
 
     if verbal:
         print(f"accuracy {accuracy:.3f}")

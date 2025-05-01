@@ -1,9 +1,15 @@
+import math
+from typing import Self
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Callable
+from torch.distributions import Categorical
 
-class ReLURouterMoE(nn.Module):
+from citizen import Citizen, CitizenFC
+from name_to_citizen import name_to_citizen
+
+
+class MoELayer(nn.Module):
     """Mixture‑of‑Experts layer with fully differentiable **ReLU routing**.
 
     This variant follows the *ReMoE* paper (Wang et al., 2024) but is simplified
@@ -20,78 +26,126 @@ class ReLURouterMoE(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        num_experts: int,
-        hidden_dim: int,
+        experts: list[Citizen],
         k_active: int = 1,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.GELU(),
-        bias: bool = True,
-        lambda0: float = 1e-8,
-        alpha: float = 1.0,
+        sparsity_lambda: float = 1e-8,
+        sparsity_move: float = 1.0,
     ) -> None:
         super().__init__()
 
+        num_experts = len(experts)
         assert 0 < k_active <= num_experts, "k_active must be in 1…E"
 
+        self.input_dim = input_dim
+        self.experts = nn.ModuleList(experts)
         self.E = num_experts
-        self.k = k_active
+        self.k_active = k_active
         self.target_sparsity = 1.0 - k_active / num_experts
-        self.alpha = alpha
-        self.last_l1_gate: torch.Tensor = None
+        self.sparsity_move = sparsity_move
+        self.last_gate: torch.Tensor = None
 
-        self.register_buffer("lambda_L1", torch.tensor(lambda0))
+        self.register_buffer("sparsity_lambda", torch.tensor(sparsity_lambda))
 
-        self.router = nn.Linear(input_dim, num_experts, bias=bias)
+        self.router = CitizenFC(input_dim, num_experts, layers=4, width=50)
 
-        self.experts = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(input_dim, hidden_dim, bias=bias),
-                activation,
-                nn.Linear(hidden_dim, input_dim, bias=bias),
-            ) for _ in range(num_experts)
-        ])
 
-        # Fallback expert idx (keeps gradient non‑zero if all gates 0)
-        self.register_buffer("_fallback", torch.tensor(0, dtype=torch.long))
+    def get_constructor(self) -> dict:
+
+        constructor = {
+            'expert_classes': [c.name() for c in self.experts],
+            'input_dim': self.input_dim,
+            'k_active': self.k_active,
+            'sparsity_move': self.sparsity_move,
+            'experts': [c.get_constructor() for c in self.experts],
+            'router_class': self.router.name(),
+            'router': self.router.get_constructor()
+        }
+
+        return constructor
+
+    @classmethod
+    def apply_constructor(cls, constructor: dict) -> Self:
+
+        experts_classes = constructor.pop("expert_classes")
+        constructors = constructor.pop("experts")
+        r_class = constructor.pop("router_class")
+        r_constructor = constructor.pop("router")
+
+        experts = []
+        for c_class, c_constructor in zip(experts_classes, constructors, strict=True):
+            CitizenClass = name_to_citizen[c_class]
+            expert = CitizenClass.apply_constructor(c_constructor)
+            experts.append(expert)
+
+        constructor["experts"] = experts
+
+        instance = MoELayer(**constructor)
+
+        RouterClass = name_to_citizen[r_class]
+        instance.router = RouterClass(**r_constructor)
+
+        return instance
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        B, d = x.shape
-        gates_raw = self.router(x)          # (B,E)
-        gates = F.relu(gates_raw)           # ReLU routing
+        gates_raw = self.router(x)
+        gates = F.relu(gates_raw)
+        gates = gates + 1e-5
+        self.last_gate = gates.clone().detach()
 
         with torch.no_grad():
             sparsity = (gates == 0).float().mean()
             self._update_lambda(sparsity)
 
-        l1_reg = gates.mean()
-        self.last_l1_gate = l1_reg
-
         # Normalise gates (optional—keeps scale stable)
         denom = gates.sum(dim=-1, keepdim=True)
-        empty = denom.squeeze(-1) == 0
-        if empty.any():
-            gates[empty, self._fallback] = 1.0
-            denom = gates.sum(dim=-1, keepdim=True)
         gates = gates / denom
 
-        # Weighted expert aggregation
         y_accum: list[torch.Tensor] = []
         for e, expert in enumerate(self.experts):
-            y_e = expert(x) * gates[:, e:e+1]  # (B,d)
+            # TODO not compute bellow some threshold
+            y_e = expert(x) * gates[:, e:e+1]
             y_accum.append(y_e)
 
         y_out = torch.stack(y_accum, 0).sum(0)
         return y_out
 
-
-    def sparsity_loss(self, l1_gate: torch.Tensor | None = None) -> torch.Tensor:
-        l1_gate = self.last_l1_gate if  l1_gate is None else l1_gate
-        return self.lambda_L1 * l1_gate
-
+    def sparsity_loss(self, mean_l1_gate: torch.Tensor | None = None) -> torch.Tensor:
+        mean_l1_gate = self.last_gate.mean() if  mean_l1_gate is None else mean_l1_gate
+        return self.sparsity_lambda * mean_l1_gate
 
     def _update_lambda(self, batch_sparsity: torch.Tensor) -> None:
         """Update λ in‑place once *per call* using eq (7)."""
         target = self.target_sparsity
         direction = torch.sign(target - batch_sparsity)  # +1 if too dense, ‑1 if too sparse
         if direction != 0:
-            self.lambda_L1.mul_(self.alpha ** direction.item())
+            self.sparsity_lambda.mul_(self.sparsity_move ** direction.item())
+
+    def speaker_entropy(self, gate: torch.Tensor | None = None):
+        """Entropy over histogram of speakers, 1 - everybody speaks (max p) uniformly, 0 - one speaker
+        """
+
+        if gate is None:
+            gate = self.last_gate
+
+        # gate (n_batch, n_experts)
+        bs, n_experts = gate.shape
+        speaker = torch.argmax(gate, dim=1)
+        histogram = torch.bincount(speaker)
+        dist = Categorical(probs=histogram / histogram.sum())
+
+        return dist.entropy() / math.log(n_experts)
+
+    def power_entropy(self, gate: torch.Tensor | None = None):
+        """Mean Entropy axis=power, 1 - everybody is speaking every time (not good), 0 - one person speaks per decision (better)
+        """
+
+        if gate is None:
+            gate = self.last_gate
+        # gate (n_batch, n)
+        bs, n = gate.shape
+
+        dist = Categorical(probs=gate)
+        entropy = dist.entropy() / math.log(n)
+
+        return torch.mean(entropy)
