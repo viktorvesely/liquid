@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import joblib
 
-from .adapter import Adapter
+from ..adapter import Adapter
 
 class RandomForest(Adapter):
 

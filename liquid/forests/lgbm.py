@@ -4,7 +4,8 @@ import re
 from typing import Self
 import numpy as np
 import lightgbm as lgb
-from .adapter import Adapter
+
+from ..adapter import Adapter
 
 class LightGBM(Adapter):
     def __init__(

@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from citizen import Citizen, CitizenFC
-from name_to_citizen import name_to_citizen
+from ..citizens.citizen import Citizen, CitizenFC
+from ..citizens.name_to_citizen import name_to_citizen
 
 
 class MoELayer(nn.Module):

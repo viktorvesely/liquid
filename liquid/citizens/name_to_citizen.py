@@ -1,6 +1,6 @@
 from typing import Type
-from delegating_citizen import DelegatingFC
-from citizen import CitizenFC, Citizen
+from .delegating_citizen import DelegatingFC
+from .citizen import CitizenFC, Citizen
 
 
 citizens: tuple[Type[Citizen], ...] = (DelegatingFC, CitizenFC)

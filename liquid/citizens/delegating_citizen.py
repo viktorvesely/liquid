@@ -4,7 +4,7 @@ from typing import Self
 import torch
 import torch.nn as nn
 
-from citizen import Citizen
+from .citizen import Citizen
 
 
 

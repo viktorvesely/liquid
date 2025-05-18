@@ -6,18 +6,18 @@ from torchvision import datasets, transforms
 from pathlib import Path
 from torch.utils.data import TensorDataset
 
-import utils
 
-from synthetic import sample
-from LE import Liquid
-from other.ME import Moe
-from other.bagging import RandomForest
-from other.lgbm import LightGBM
+import liquid.utils as utils
+from .synthetic import sample
+from .liquid_ensemble.adapter import Liquid
+from .moe.adapter import Moe
+from .forests.bagging import RandomForest
+from .forests.lgbm import LightGBM
 
 import argparse
 
 def load_data_mnist():
-    data_dir = Path(__file__).parent / 'mnist_data'
+    data_dir = Path(__file__).parent.parent / 'mnist_data'
     transform = transforms.Compose([transforms.ToTensor()])
     train_dataset = datasets.MNIST(root=data_dir, train=True, transform=transform, download=True)
     test_dataset = datasets.MNIST(root=data_dir, train=False, transform=transform, download=True)
@@ -25,7 +25,7 @@ def load_data_mnist():
     return train_dataset, test_dataset
 
 def load_data_cifar10():
-    data_dir = Path(__file__).parent / 'cifar10_data'
+    data_dir = Path(__file__).parent.parent / 'cifar10_data'
     transform = transforms.Compose([transforms.ToTensor()])
     train_dataset = datasets.CIFAR10(root=data_dir, train=True, transform=transform, download=True)
     test_dataset = datasets.CIFAR10(root=data_dir, train=False, transform=transform, download=True)

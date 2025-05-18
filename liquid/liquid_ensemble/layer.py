@@ -5,9 +5,9 @@ import torch
 import torch.nn as nn
 from torch.distributions import Categorical
 from typing import Literal
-from citizen import Citizen
 
-from name_to_citizen import name_to_citizen
+from ..citizens.citizen import Citizen
+from ..citizens.name_to_citizen import name_to_citizen
 
 Delegations = list[torch.Tensor]
 Power = torch.Tensor

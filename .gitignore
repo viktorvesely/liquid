@@ -1,5 +1,6 @@
-/__pycache__
-/liquid
+**/__pycache__
+/venv
 /mnist_data
 /cifar10_data
 /experiments
+/liquid.egg-info
