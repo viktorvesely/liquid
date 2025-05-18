@@ -1,6 +1,7 @@
 
 from pathlib import Path
 import numpy as np
+import optuna
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
@@ -31,7 +32,7 @@ def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
 
     return c
 
-class LE(NNAdapter):
+class Liquid(NNAdapter):
 
     def __init__(
         self,
@@ -119,7 +120,7 @@ class LE(NNAdapter):
 
     def on_epoch(self, epoch: int):
 
-        print(f"\n--------Liquid Epoch {epoch}-----------")
+        print(f"\n--------{self.name()} Epoch {epoch}-----------")
         print(f"Train: {self.train_metrics}")
         print(f"Valid: {self.valid_metric}")
 
@@ -132,7 +133,7 @@ class LE(NNAdapter):
         save_files = self.folder is not None
 
         if save_files:
-            self.valid_metric.save_histories(folder)
+            self.valid_metric.save_histories(folder, prefix=self.name())
 
         Ps = []
 
@@ -151,6 +152,8 @@ class LE(NNAdapter):
             region_nmi = normalized_mutual_info_score(
                 chair, region_classes.cpu().numpy()
             )
+        else:
+            region_nmi = float("nan")
 
         if not isinstance(region_nmi, float):
             region_nmi = region_nmi.item()
@@ -158,14 +161,9 @@ class LE(NNAdapter):
         power_entropy = self.liquid_ensemble.power_entropy(torch.tensor(Ps)).item()
         speaker_entropy = self.liquid_ensemble.speaker_entropy(torch.tensor(Ps)).item()
 
-        if save_files:
-            with open(folder / "liquid_test_metrics.txt", "w") as f:
-                f.write(f"accuracy={accuracy}\npower_entropy={power_entropy}\nspeaker_entropy={speaker_entropy}\nregion_nmi={region_nmi}")
+        self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy, region_nmi=region_nmi)
 
-        if self.synthetic:
-            return accuracy, power_entropy, speaker_entropy, region_nmi
-        else:
-            return accuracy, power_entropy, speaker_entropy
+        return accuracy
 
 
 
@@ -204,7 +202,7 @@ class LE(NNAdapter):
         if folder is None:
             return
 
-        file = folder / "liquid.pt"
+        file = folder / f"{self.name()}.pt"
 
         constructor = self.get_constructor()
         constructor["__optimizer_state_dict"] = self.optimizer.state_dict()
@@ -215,7 +213,7 @@ class LE(NNAdapter):
 
     @classmethod
     def load(cls, folder: Path) -> Self:
-        constructor = torch.load(folder / "liquid.pt", weights_only=False)
+        constructor = torch.load(folder / f"{cls.name()}.pt", weights_only=False)
 
         msd = constructor.pop("__model_state_dict")
         osd = constructor.pop("__optimizer_state_dict")
@@ -226,3 +224,16 @@ class LE(NNAdapter):
         instance.optimizer.load_state_dict(osd)
 
         return instance
+
+
+    @classmethod
+    def hyperoptimize_step(cls, trial: optuna.Trial):
+        
+        
+
+        lr = trial.sug
+        n_citizens: int = 10,
+        solver:  Literal["sink_one", "sink_many"] = "sink_one",
+        load_distribution_lambda: float = 0.0,
+        specialization_lambda: float = 0.0,
+

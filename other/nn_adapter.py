@@ -64,7 +64,7 @@ class NNAdapter(Adapter):
 
     def get_size_nbytes(self) -> int:
 
-        model = self.get_nn()
+        model, _ = self.get_nn()
         nbytes = 0
 
         for params in model.parameters():

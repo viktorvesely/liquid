@@ -2,8 +2,8 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import normalized_mutual_info_score
 
-from LE import LE
-from other.ME import ME
+from LE import Liquid
+from other.ME import Moe
 
 
 def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
@@ -22,7 +22,7 @@ def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
 
     return c
 
-def inference(council: LE | ME, dataset: TensorDataset, bs: int = 1_000):
+def inference(council: Liquid | Moe, dataset: TensorDataset, bs: int = 1_000):
 
     loader = DataLoader(dataset, bs)
 
@@ -37,7 +37,7 @@ def inference(council: LE | ME, dataset: TensorDataset, bs: int = 1_000):
             c = council.model(samples)
             classifications.append(c.cpu())
 
-            if isinstance(council, LE):
+            if isinstance(council, Liquid):
                 Ps.append(council.liquid_ensemble.last_power.cpu())
             else:
                 Ps.append(council.moe_layer.last_gate.cpu())
@@ -48,7 +48,7 @@ def inference(council: LE | ME, dataset: TensorDataset, bs: int = 1_000):
     return classifications, Ps
 
 def calc_metrics(
-        council: LE | ME,
+        council: Liquid | Moe,
         dataset: TensorDataset,
         classifications: torch.Tensor,
         Ps: torch.Tensor,
@@ -69,7 +69,7 @@ def calc_metrics(
         if not isinstance(region_nmi, float):
             region_nmi = region_nmi.item()
 
-        if isinstance(council, LE):
+        if isinstance(council, Liquid):
             power_entropy = council.liquid_ensemble.power_entropy(Ps).item()
             speaker_entropy = council.liquid_ensemble.speaker_entropy(Ps).item()
         else:

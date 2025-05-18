@@ -9,8 +9,10 @@ from torch.utils.data import TensorDataset
 import utils
 
 from synthetic import sample
-from LE import LE
-from other.ME import ME
+from LE import Liquid
+from other.ME import Moe
+from other.bagging import RandomForest
+from other.lgbm import LightGBM
 
 import argparse
 
@@ -70,21 +72,20 @@ def train(
     y_val = val_dataset.tensors[1].numpy()
     val_dataset = None
 
-    # le = LE(
-    #     n_input=2,
-    #     n_output=3,
-    #     folder=experiment_folder,
-    #     n_citizens=n_citizens,
-    #     lr=5 * 1e-4,
-    #     load_distribution_lambda=load_distribution_lambda,
-    #     specialization_lambda=specialization_lambda,
-    #     solver=solver
-    # )
-    # le.init_model()
-    # val_metrics = le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    le = Liquid(
+        n_input=2,
+        n_output=3,
+        folder=experiment_folder,
+        n_citizens=n_citizens,
+        lr=5 * 1e-4,
+        load_distribution_lambda=load_distribution_lambda,
+        specialization_lambda=specialization_lambda,
+        solver=solver
+    )
+    le.init_model()
+    val_metrics = le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
 
-
-    me = ME(
+    me = Moe(
         n_input=2,
         n_output=3,
         folder=experiment_folder,
@@ -93,6 +94,27 @@ def train(
     )
     me.init_model()
     val_metrics = me.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+
+
+    bagging = RandomForest(
+        n_input=2,
+        n_output=3,
+        folder=experiment_folder,
+        n_estimators=100
+    )
+    bagging.init_model()
+    val_metrics = bagging.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    bagging.save()
+
+    lgbm = LightGBM(
+        n_input=2,
+        n_output=3,
+        folder=experiment_folder,
+        n_estimators=100
+    )
+    lgbm.init_model()
+    val_metrics = lgbm.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    lgbm.save()
 
     return val_metrics
 
@@ -104,9 +126,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     train(
-        experiment_name="moe",
-        load_distribution_lambda=0.5,
-        specialization_lambda=0.05,
-        solver="sink_many",
-        epoch=100
+        experiment_name="all_together",
+        epoch=80
     )

@@ -33,7 +33,7 @@ def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
 
     return c
 
-class ME(NNAdapter):
+class Moe(NNAdapter):
 
     def __init__(
         self,
@@ -113,7 +113,7 @@ class ME(NNAdapter):
 
     def on_epoch(self, epoch: int):
 
-        print(f"\n--------MOE Epoch {epoch}-----------")
+        print(f"\n--------{self.name()} Epoch {epoch}-----------")
         print(f"Train: {self.train_metrics}")
         print(f"Valid: {self.valid_metric}")
 
@@ -126,7 +126,7 @@ class ME(NNAdapter):
         save_files = self.folder is not None
 
         if save_files:
-            self.valid_metric.save_histories(folder, prefix="moe")
+            self.valid_metric.save_histories(folder, prefix=self.name())
 
         gates = []
 
@@ -145,21 +145,18 @@ class ME(NNAdapter):
             region_nmi = normalized_mutual_info_score(
                 chair, region_classes.cpu().numpy()
             )
+        else:
+            region_nmi = float("nan")
 
-        if not isinstance(region_nmi, float):
+        if region_nmi is not None and not isinstance(region_nmi, float):
             region_nmi = region_nmi.item()
 
         power_entropy = self.moe_layer.power_entropy(torch.tensor(gates)).item()
         speaker_entropy = self.moe_layer.speaker_entropy(torch.tensor(gates)).item()
 
-        if save_files:
-            with open(folder / "moe_test_metrics.txt", "w") as f:
-                f.write(f"accuracy={accuracy}\npower_entropy={power_entropy}\nspeaker_entropy={speaker_entropy}\nregion_nmi={region_nmi}")
+        self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy, region_nmi=region_nmi)
 
-        if self.synthetic:
-            return accuracy, power_entropy, speaker_entropy, region_nmi
-        else:
-            return accuracy, power_entropy, speaker_entropy
+        return accuracy
 
 
 
@@ -197,7 +194,7 @@ class ME(NNAdapter):
         if folder is None:
             return
 
-        file = folder / "moe.pt"
+        file = folder / f"{self.name()}.pt"
 
         constructor = self.get_constructor()
         constructor["__optimizer_state_dict"] = self.optimizer.state_dict()
@@ -208,7 +205,7 @@ class ME(NNAdapter):
 
     @classmethod
     def load(cls, folder: Path) -> Self:
-        constructor = torch.load(folder / "moe.pt", weights_only=False)
+        constructor = torch.load(folder / f"{cls.name()}.pt", weights_only=False)
 
         msd = constructor.pop("__model_state_dict")
         osd = constructor.pop("__optimizer_state_dict")

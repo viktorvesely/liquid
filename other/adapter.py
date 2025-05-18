@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from abc import abstractmethod, ABC
+import copy
 from pathlib import Path
 from typing import Self
 import numpy as np
-
+from optuna import Trial
 
 class Metrics:
 
@@ -74,14 +75,39 @@ class Adapter(ABC):
         ...
 
     @abstractmethod
-    def save(self, folder: Path | None = None):
+    def save(self):
         ...
 
     @classmethod
     @abstractmethod
-    def load(folder: Path) -> Self:
+    def load(cls, folder: Path) -> Self:
         ...
 
     @abstractmethod
-    def init_model(**kwargs):
+    def init_model(self, **kwargs):
         ...
+
+    def save_test_metrics(self, **metrics):
+
+
+        if self.folder is not None:
+
+            metrics = copy.deepcopy(metrics)
+            metrics["nbytes"] = self.get_size_nbytes()
+
+            metrics_file = self.folder / f"{self.name()}_test_metrics.txt"
+            content = "\n".join(f"{k}={v}" for k, v in metrics.items())
+            with open(metrics_file, "w") as f:
+                f.write(content)
+
+
+    # @classmethod
+    # @abstractmethod
+    # def hyperoptimize_step(cls, trial: Trial) -> float:
+    #     ...
+
+
+
+    @classmethod
+    def name(cls):
+        return cls.__name__
