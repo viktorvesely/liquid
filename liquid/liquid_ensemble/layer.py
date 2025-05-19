@@ -103,17 +103,22 @@ class LiquidEnsembleLayer(nn.Module):
         # (batch, n_citizen, out)
         ys = torch.transpose(ys, 0, 1)
 
+        if ys.ndim == 5:
+            power = power.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)  # (batch, n_citizen, 1, 1, 1)
+        else:
+            power = power.unsqueeze(-1)  # (batch, n_citizen, 1)
+
         # (batch, out)
-        y = torch.sum(ys * power.unsqueeze(2), dim=1)
+        y = torch.sum(ys * power, dim=1)
 
         self.last_y = ys
         self.last_D = D
-        self.last_power = power
+        self.last_power = power.squeeze()
 
         # (batch, out)
         return y
 
-    def load_distribution_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
+    def distribution_specialization_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
 
         if power is None:
             power = self.last_power

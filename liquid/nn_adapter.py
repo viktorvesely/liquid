@@ -13,7 +13,7 @@ from .adapter import Adapter
 
 class NNAdapter(Adapter):
 
-    synthetic: bool = True
+    synthetic: bool = False
 
     def __init__(
         self,
@@ -31,7 +31,6 @@ class NNAdapter(Adapter):
     @abstractmethod
     def get_nn(self) -> tuple[nn.Module, optim.Optimizer]:
         ...
-
 
     def on_batch(
             self,
@@ -71,7 +70,6 @@ class NNAdapter(Adapter):
             nbytes += params.element_size() * params.nelement()
 
         return nbytes
-
 
     def inference(
             self,

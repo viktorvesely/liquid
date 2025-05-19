@@ -25,18 +25,17 @@ class MoELayer(nn.Module):
 
     def __init__(
         self,
-        input_dim: int,
         experts: list[Citizen],
-        k_active: int = 1,
-        sparsity_lambda: float = 1e-8,
-        sparsity_move: float = 1.0,
+        router: Citizen,
+        k_active: int,
+        sparsity_lambda: float,
+        sparsity_move: float
     ) -> None:
         super().__init__()
 
         num_experts = len(experts)
         assert 0 < k_active <= num_experts, "k_active must be in 1…E"
 
-        self.input_dim = input_dim
         self.experts = nn.ModuleList(experts)
         self.E = num_experts
         self.k_active = k_active
@@ -46,14 +45,13 @@ class MoELayer(nn.Module):
 
         self.register_buffer("sparsity_lambda", torch.tensor(sparsity_lambda))
 
-        self.router = CitizenFC(input_dim, num_experts, layers=4, width=50)
+        self.router = router
 
 
     def get_constructor(self) -> dict:
 
         constructor = {
             'expert_classes': [c.name() for c in self.experts],
-            'input_dim': self.input_dim,
             'k_active': self.k_active,
             'sparsity_move': self.sparsity_move,
             'experts': [c.get_constructor() for c in self.experts],
@@ -77,12 +75,14 @@ class MoELayer(nn.Module):
             expert = CitizenClass.apply_constructor(c_constructor)
             experts.append(expert)
 
+        RouterClass = name_to_citizen[r_class]
+        router = RouterClass(**r_constructor)
+
+        constructor["router"] = router
         constructor["experts"] = experts
 
         instance = MoELayer(**constructor)
 
-        RouterClass = name_to_citizen[r_class]
-        instance.router = RouterClass(**r_constructor)
 
         return instance
 
@@ -104,8 +104,16 @@ class MoELayer(nn.Module):
         y_accum: list[torch.Tensor] = []
         for e, expert in enumerate(self.experts):
             # TODO not compute bellow some threshold
-            y_e = expert(x) * gates[:, e:e+1]
-            y_accum.append(y_e)
+
+            y = expert(x)
+            g = gates[:, e]
+
+            if y.ndim == 4:
+                g = g.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            else:
+                g = g.unsqueeze(-1)
+
+            y_accum.append(y * g)
 
         y_out = torch.stack(y_accum, 0).sum(0)
         return y_out

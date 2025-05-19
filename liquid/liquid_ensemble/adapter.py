@@ -11,8 +11,7 @@ from typing import Literal, Self
 from ..nn_adapter import NNAdapter
 from ..adapter import Metrics
 
-from .layer import LiquidEnsembleLayer
-from ..citizens.delegating_citizen import DelegatingFC
+from .cifar10architecture import LongCifar10
 
 
 def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
@@ -39,64 +38,36 @@ class Liquid(NNAdapter):
         n_output: int,
         folder: Path,
         lr: float = 1e-3,
-        n_citizens: int = 10,
-        solver:  Literal["sink_one", "sink_many"] = "sink_one",
-        load_distribution_lambda: float = 0.0,
-        specialization_lambda: float = 0.0,
         ):
         super().__init__(lr=lr, n_input=n_input, n_output=n_output, folder=folder)
 
-        self.liquid_ensemble: LiquidEnsembleLayer = None
+        self.model: LongCifar10 = None
         self.optimizer: AdamW = None
         self.train_metrics: Metrics = None
         self.valid_metric: Metrics = None
-        self.model: nn.Module = None
-
-        self.n_citizens = n_citizens
-        self.solver = solver
-        self.load_distribution_lambda = load_distribution_lambda
-        self.specialization_lambda = specialization_lambda
 
     def init_model(
         self,
-        lel: LiquidEnsembleLayer = None
+        model: LongCifar10 = None,
+        model_kwargs: dict = None
     ):
 
-        n_citizens = self.n_citizens
-        solver = self.solver
-        load_distribution_lambda = self.load_distribution_lambda
-        specialization_lambda = self.specialization_lambda
-
-        if lel is None:
-            lel = LiquidEnsembleLayer(
-                nn.ModuleList([
-                    DelegatingFC(
-                        n_input=self.n_input,
-                        n_citizens=self.n_citizens,
-                        n_output=self.n_output,
-                        layers_body=4,
-                        layers_d=4,
-                        layers_y=4,
-                        width=50
-                    ) for _ in range(n_citizens)
-                ]),
-                load_distribution_lambda=load_distribution_lambda,
-                specialization_lambda=specialization_lambda,
-                solver=solver
+        if model is None:
+            model = LongCifar10(
+                in_channels=self.n_input,
+                n_output=self.n_output,
+                **model_kwargs
             )
 
-        self.liquid_ensemble = lel
-        self.model = [self.liquid_ensemble, nn.Softmax(dim=1)]
-        self.model = nn.Sequential(*self.model)
-
+        self.model = model
         self.model = self.model.to(self.device)
         self.optimizer = AdamW(self.model.parameters(), lr=self.lr)
 
     def get_nn(self):
         return self.model, self.optimizer
 
-    def auxiliary_loss(self, model, x_batch, y_batch, yhat_batch):
-        return self.liquid_ensemble.load_distribution_loss()
+    def auxiliary_loss(self, *args, **kwargs):
+        return self.model.auxiliary_loss(*args, **kwargs)
 
     def on_train(self):
         self.train_metrics = Metrics(loss=None, power_entropy=None, speaker_entropy=None)
@@ -106,9 +77,11 @@ class Liquid(NNAdapter):
 
         metrics = self.valid_metric if valid else self.train_metrics
 
+        le_layer = self.model.le_layer
+
         with torch.no_grad():
-            power_entropy = self.liquid_ensemble.power_entropy()
-            speaker_entropy = self.liquid_ensemble.speaker_entropy()
+            power_entropy = le_layer.power_entropy()
+            speaker_entropy = le_layer.speaker_entropy()
             metrics.push(loss=loss.item(), power_entropy=power_entropy.item(), speaker_entropy=speaker_entropy.item())
 
             if valid:
@@ -137,7 +110,7 @@ class Liquid(NNAdapter):
         Ps = []
 
         def step(model: nn.Module, x, yhat):
-            Ps.append(self.liquid_ensemble.last_power.cpu().numpy())
+            Ps.append(self.model.le_layer.last_power.cpu().numpy())
 
         yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step)
         Ps = np.concat(Ps, axis=0)
@@ -157,8 +130,8 @@ class Liquid(NNAdapter):
         if not isinstance(region_nmi, float):
             region_nmi = region_nmi.item()
 
-        power_entropy = self.liquid_ensemble.power_entropy(torch.tensor(Ps)).item()
-        speaker_entropy = self.liquid_ensemble.speaker_entropy(torch.tensor(Ps)).item()
+        power_entropy = self.model.le_layer.power_entropy(torch.tensor(Ps)).item()
+        speaker_entropy = self.model.le_layer.speaker_entropy(torch.tensor(Ps)).item()
 
         self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy, region_nmi=region_nmi)
 
@@ -173,11 +146,7 @@ class Liquid(NNAdapter):
             'n_output': self.n_output,
             'folder': str(self.folder.resolve()),
             'lr': self.lr,
-            'n_citizens': self.n_citizens,
-            'solver': self.solver,
-            'load_distribution_lambda': self.load_distribution_lambda,
-            'specialization_lambda': self.specialization_lambda,
-            'lel': self.liquid_ensemble.get_constructor(),
+            'model': self.model.get_constructor(),
         }
 
         return constructor
@@ -186,12 +155,12 @@ class Liquid(NNAdapter):
     def apply_constructor(cls, constructor: dict) -> Self:
 
         constructor["folder"] = Path(constructor["folder"])
-        lel = constructor.pop("lel")
+        model = constructor.pop("model")
 
         instance = cls(**constructor)
 
-        lel = LiquidEnsembleLayer.apply_constructor(lel)
-        instance.init_model(lel=lel)
+        model = LongCifar10.apply_constructor(model)
+        instance.init_model(model=model)
 
         return instance
 

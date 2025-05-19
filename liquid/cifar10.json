@@ -1,0 +1,36 @@
+{
+    "epoch": 15,
+    "batch_size": 256,
+    "n_input": 3,
+    "n_output": 10,
+    "Liquid": {
+        "lr": 0.001,
+        "LongCifar10": {
+            "last_channels": 40,
+            "n_citizens": 10,
+            "layers_body": 3,
+            "layers_y": 3,
+            "layers_d": 1,
+            "le_kwargs": {
+                "load_distribution_lambda": 0.3,
+                "specialization_lambda": 0.3,
+                "solver": "sink_many"
+            }
+        }
+    },
+    "Moe": {
+        "lr": 0.001,
+        "MoeCifar10": {
+            "last_channels": 40,
+            "n_citizens": 10,
+            "n_moe_blocks": 4,
+            "layers_in_moe_blocks": 2,
+            "layers_router": 1,
+            "moe_kwargs": {
+                "k_active": 3,
+                "sparsity_lambda": 0.3,
+                "sparsity_move": 0.5
+            }
+        }
+    }
+}
