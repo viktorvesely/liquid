@@ -47,7 +47,7 @@ def train():
     val_loader = DataLoader(val_data, batch_size=BS, shuffle=False, num_workers=4)
 
     model = ConvVAE().to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=5 * 1e-4)
+    optimizer = optim.AdamW(model.parameters(), lr=2 * 1e-4)
 
     best_val_loss = float('inf')
 

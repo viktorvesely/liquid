@@ -9,5 +9,5 @@
 module purge
 module load PyTorch-bundle/2.1.2-foss-2023a-CUDA-12.1.1
 
-source liquid/bin/activate
+source ../../.venv/bin/activate
 srun python train.py
