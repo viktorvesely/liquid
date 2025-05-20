@@ -55,7 +55,7 @@ def train():
         f.write(f"start:{now()}\n")
 
     model.train()
-    for epoch in range(1, 500):
+    for epoch in range(1, 1_000):
         model.train()
         train_loss = 0
         for data, _ in tqdm(train_loader, total=len(train_loader)):
