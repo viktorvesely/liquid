@@ -26,7 +26,7 @@ class NNAdapter(Adapter):
 
         self.lr = lr
         self.last_bs: int = None
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device =  torch.device("cpu") # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     @abstractmethod
     def get_nn(self) -> tuple[nn.Module, optim.Optimizer]:

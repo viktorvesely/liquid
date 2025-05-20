@@ -1,4 +1,5 @@
 from __future__ import annotations
+from copy import deepcopy
 import json
 
 import numpy as np
@@ -10,8 +11,8 @@ from torch.utils.data import TensorDataset, Subset
 
 import liquid.utils as utils
 from .synthetic import sample
-from .liquid_ensemble.adapter import Liquid
-from .moe.adapter import Moe
+from .liquid_ensemble.le_adapter import LiquidLong, LiquidBlock
+from .moe.moe_adapter import Moe
 from .forests.bagging import RandomForest
 from .forests.lgbm import LightGBM
 
@@ -25,7 +26,7 @@ def load_data_mnist():
 
     return train_dataset, test_dataset
 
-def load_data_cifar10(reduction: float = 0.4):
+def load_data_cifar10(reduction: float = 0.25):
     data_dir = Path(__file__).parent.parent / 'cifar10_data'
     transform = transforms.Compose([transforms.ToTensor()])
 
@@ -100,35 +101,27 @@ def train(
     x_val, y_val = dataset_to_numpy(val_dataset)
     val_dataset = None
 
-    le = Liquid(
-        n_input=n_input,
-        n_output=n_output,
-        folder=experiment_folder,
-        lr=params["Liquid"]["lr"],
-    )
-    le.init_model(model_kwargs=params["Liquid"]["LongCifar10"])
 
-
-    moe = Moe(
-        n_input=n_input,
-        n_output=n_output,
-        folder=experiment_folder,
-        lr=params["Moe"]["lr"],
-    )
-    moe.init_model(model_kwargs=params["Moe"]["MoeCifar10"])
-
-    val_metrics = le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    val_metrics = moe.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-
-    # me = Moe(
-    #     n_input=2,
-    #     n_output=3,
+    # model_params = params[LiquidLong.name()]
+    # le = LiquidLong(
+    #     n_input=n_input,
+    #     n_output=n_output,
     #     folder=experiment_folder,
-    #     n_experts=n_citizens,
-    #     lr=5 * 1e-4
+    #     lr=model_params["lr"]
     # )
-    # me.init_model()
-    # val_metrics = me.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    # le.init_model(model_kwargs=model_params["architecture"])
+    # le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    # le = None
+
+
+    # moe = Moe(
+    #     n_input=n_input,
+    #     n_output=n_output,
+    #     folder=experiment_folder,
+    #     lr=params["Moe"]["lr"],
+    # )
+    # moe.init_model(model_kwargs=params["Moe"]["MoeCifar10"])
+    # val_metrics = moe.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
 
 
     # bagging = RandomForest(
@@ -141,17 +134,15 @@ def train(
     # val_metrics = bagging.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
     # bagging.save()
 
-    # lgbm = LightGBM(
-    #     n_input=2,
-    #     n_output=3,
-    #     folder=experiment_folder,
-    #     n_estimators=100
-    # )
-    # lgbm.init_model()
-    # val_metrics = lgbm.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    # lgbm.save()
-
-    return val_metrics
+    lgbm = LightGBM(
+        n_input=n_input,
+        n_output=n_output,
+        folder=experiment_folder,
+        n_estimators=1_000
+    )
+    lgbm.init_model()
+    val_metrics = lgbm.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    lgbm.save()
 
 
 if __name__ == "__main__":

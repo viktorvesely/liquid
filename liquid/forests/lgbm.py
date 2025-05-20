@@ -60,6 +60,12 @@ class LightGBM(Adapter):
         y_val: np.ndarray,
         **kwargs
     ) -> float:
+
+        if x.ndim > 2:
+            x = np.reshape(x, (x.shape[0], -1))
+            x_val = np.reshape(x_val, (x_val.shape[0], -1))
+
+
         train_data = lgb.Dataset(x, label=y)
         valid_data = lgb.Dataset(x_val, label=y_val, reference=train_data)
         self.model = lgb.train(
@@ -67,6 +73,7 @@ class LightGBM(Adapter):
             train_data,
             num_boost_round=self.n_estimators,
             valid_sets=[valid_data],
+
         )
 
         y_hat_train = self.inference(x)
@@ -80,6 +87,10 @@ class LightGBM(Adapter):
         return val_accuracy
 
     def inference(self, x: np.ndarray) -> np.ndarray:
+
+        if x.ndim > 2:
+            x = np.reshape(x, (x.shape[0], -1))
+
         preds = self.model.predict(x)
         if preds.ndim > 1:
             return np.argmax(preds, axis=1)
@@ -98,7 +109,8 @@ class LightGBM(Adapter):
             "colsample_bytree": self.colsample_bytree,
             "reg_alpha": self.reg_alpha,
             "reg_lambda": self.reg_lambda,
-            "random_state": self.random_state
+            "random_state": self.random_state,
+            "verbose": 1
         }
 
     @classmethod

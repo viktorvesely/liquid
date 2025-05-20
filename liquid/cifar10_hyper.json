@@ -1,0 +1,52 @@
+{
+    "epoch": 15,
+    "batch_size": 256,
+    "n_input": 3,
+    "n_output": 10,
+    "LongLiquid": {
+        "lr:float:log": [0.01, 0.0001],
+        "architecture": {
+            "last_channels:int": [10, 100],
+            "n_citizens:int": [2, 30],
+            "layers_body:int": [0, 10],
+            "layers_y:int": [1, 10],
+            "layers_d:int": [1, 10],
+            "le_kwargs": {
+                "load_distribution_lambda:float": [0, 1],
+                "specialization_lambda:float": [0, 1],
+                "solver": "sink_many"
+            }
+        }
+    },
+    "BlockLiquid": {
+        "lr:float:log": [0.01, 0.0001],
+        "architecture": {
+            "last_channels:int": [10, 100],
+            "n_citizens:int": [2, 30],
+            "layers_body:int": [0, 2],
+            "layers_y:int": [1, 3],
+            "layers_d:int": [1, 3],
+            "n_le_blocks:int": [1, 10],
+            "le_kwargs": {
+                "load_distribution_lambda:float": [0, 1],
+                "specialization_lambda:float": [0, 1],
+                "solver": "sink_many"
+        }
+        }
+    },
+    "Moe": {
+        "lr:float:log": [0.01, 0.0001],
+        "architecture": {
+            "last_channels:int": [10, 100],
+            "n_citizens:int": [2, 30],
+            "n_moe_blocks:int": [1, 10],
+            "layers_in_moe_blocks:int": [1, 10],
+            "layers_router:int": [1, 10],
+            "moe_kwargs": {
+                "k_active:int": [1, 30],
+                "sparsity_lambda:float": [0, 1],
+                "sparsity_move:float": [0.1, 2.0]
+            }
+        }
+    }
+}

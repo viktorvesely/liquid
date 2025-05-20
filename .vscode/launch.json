@@ -10,6 +10,13 @@
             "request": "launch",
             "module": "liquid.train",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "size",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "liquid.test_size",
+            "console": "integratedTerminal"
         }
     ]
 }
