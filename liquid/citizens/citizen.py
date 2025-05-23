@@ -41,18 +41,20 @@ class CitizenFC(Citizen):
         n_input: int,
         n_output: int,
         layers: int,
-        width: int
+        width: int,
+        last_linear: bool
     ):
 
         super().__init__()
 
         self.n_input= n_input
         self.n_output= n_output
-        self.layers= layers
-        self.width= width
+        self.layers = layers
+        self.width = width
+        self.last_linear = last_linear
 
         network = [n_input] + [width] * layers + [n_output]
-        self.network = get_sequential(network, last_linear_true=False)
+        self.network = get_sequential(network, last_linear_true=last_linear)
 
     def forward(self, x: torch.Tensor):
         return self.network(x)
@@ -64,6 +66,43 @@ class CitizenFC(Citizen):
             "n_output":  self.n_output,
             "layers":  self.layers,
             "width":  self.width,
+            "last_linear": self.last_linear
+        }
+
+    @classmethod
+    def apply_constructor(cls, constructor: dict) -> Self:
+        instance = cls(**constructor)
+        return instance
+
+class RouterFC(Citizen):
+
+    def __init__(
+        self,
+        n_input: int,
+        n_citizens: int,
+        layers: int,
+        width: int,
+    ):
+
+        super().__init__()
+
+        self.n_input= n_input
+        self.n_citizens= n_citizens
+        self.layers = layers
+        self.width = width
+
+        network = [n_input] + [width] * layers + [n_citizens]
+        self.network = get_sequential(network, last_linear_true=True)
+
+    def forward(self, x: torch.Tensor):
+        return self.network(x)
+
+    def get_constructor(self) -> dict:
+        return {
+            "n_input":  self.n_input,
+            "n_citizens":  self.n_citizens,
+            "layers":  self.layers,
+            "width":  self.width
         }
 
     @classmethod

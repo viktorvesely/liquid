@@ -62,15 +62,6 @@ class LongCifar10(nn.Module):
         h = self.le_layer(x)
         return self.output_head(h)
 
-    def auxiliary_loss(
-            self,
-            model: nn.Module,
-            x_batch: torch.Tensor,
-            y_batch: torch.Tensor,
-            yhat_batch: torch.Tensor
-    ) -> torch.Tensor:
-        return self.le_layer.distribution_specialization_loss()
-
     def get_constructor(self) -> dict:
         return {
             "in_channels": self.in_channels,
@@ -97,11 +88,10 @@ class LongCifar10(nn.Module):
 
         return instance
 
-    def power_entropy(self):
-        return self.le_layer.power_entropy()
+    def get_le_layers(self) -> list[LiquidEnsembleLayer]:
+        return [self.le_layer]
 
-    def speaker_entropy(self):
-        return self.le_layer.speaker_entropy()
+
 
 def le_block(
     in_channels: int,
@@ -185,14 +175,6 @@ class BlockCifar10(nn.Module):
         h = self.le_blocks(x)
         return self.output_head(h)
 
-    def auxiliary_loss(
-            self,
-            model: nn.Module,
-            x_batch: torch.Tensor,
-            y_batch: torch.Tensor,
-            yhat_batch: torch.Tensor
-    ) -> torch.Tensor:
-        return self.le_layer.distribution_specialization_loss()
 
     def get_constructor(self) -> dict:
         return {
@@ -221,9 +203,5 @@ class BlockCifar10(nn.Module):
 
         return instance
 
-    def power_entropy(self):
-        return torch.mean(torch.stack(tuple(le.power_entropy() for le in self.le_blocks)))
-
-    def speaker_entropy(self):
-        return torch.mean(torch.stack(tuple(le.speaker_entropy() for le in self.le_blocks)))
-
+    def get_le_layers(self) -> list[LiquidEnsembleLayer]:
+        return self.le_blocks

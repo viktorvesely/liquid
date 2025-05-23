@@ -1,0 +1,38 @@
+{
+    "name": "protein",
+    "epoch": 100,
+    "batch_size": 1024,
+    "n_input": 9,
+    "n_output": 1,
+    "LongLiquid": {
+        "lr": 0.001,
+        "architecture": {
+            "n_citizens": 10,
+            "layers_body": 1,
+            "layers_y": 1,
+            "layers_d": 1,
+            "width_body": 50,
+            "width_y": 50,
+            "width_d": 10,
+            "le_kwargs": {
+                "load_distribution_lambda": 0,
+                "specialization_lambda": 0,
+                "solver": "sink_many"
+            }
+        }
+    },
+    "Moe": {
+        "lr": 0.001,
+        "architecture": {
+            "layers_body": 1,
+            "width_body": 50,
+            "n_citizens": 10,
+            "layers_router": 1,
+            "width_router": 150,
+            "moe_kwargs": {
+                "load_distribution_lambda": 0.3,
+                "specialization_lambda": 0.3
+            }
+        }
+    }
+}

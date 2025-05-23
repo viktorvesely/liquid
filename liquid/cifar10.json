@@ -1,4 +1,5 @@
 {
+    "name": "cifar10",
     "epoch": 10,
     "batch_size": 256,
     "n_input": 3,
@@ -43,9 +44,8 @@
             "layers_in_moe_blocks": 2,
             "layers_router": 1,
             "moe_kwargs": {
-                "k_active": 3,
-                "sparsity_lambda": 0.3,
-                "sparsity_move": 0.5
+                "load_distribution_lambda": 0.3,
+                "specialization_lambda": 0.3
             }
         }
     }

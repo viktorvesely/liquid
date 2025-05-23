@@ -82,18 +82,12 @@ class MoeCifar10(nn.Module):
             **head_kwargs
         )
 
+    def get_moe_layers(self) -> list[MoELayer]:
+        return self.expert_blocks
+
     def forward(self, x: torch.Tensor):
         h = self.expert_blocks(x)
         return self.output_head(h)
-
-    def auxiliary_loss(
-            self,
-            model: nn.Module,
-            x_batch: torch.Tensor,
-            y_batch: torch.Tensor,
-            yhat_batch: torch.Tensor
-    ) -> torch.Tensor:
-        return torch.mean(torch.stack(tuple(moe.sparsity_loss() for moe in self.expert_blocks)))
 
     def get_constructor(self) -> dict:
 

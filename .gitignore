@@ -5,3 +5,6 @@
 /experiments
 /liquid.egg-info
 /data
+protein_test.csv
+protein_train.csv
+CASP.csv

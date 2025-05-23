@@ -1,11 +1,9 @@
-import sys
 from pathlib import Path
-sys.path.append(Path(__file__).parent.parent)
 
-from sklearn.metrics import normalized_mutual_info_score
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.optim import AdamW
 
 from typing import Self
@@ -15,23 +13,7 @@ from ..adapter import Metrics
 from ..citizens.citizen import CitizenFC
 
 from .moe_cifar10architecture import MoeCifar10
-
-
-def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
-
-    c = torch.zeros(X.shape[0], dtype=torch.int, device=X.device)
-    x, y = X[:, 0], X[:, 1]
-    mask_ul = (x < 0) & (y > 0)
-    mask_ur = (x >= 0) & (y > 0)
-    mask_ll = (x < 0) & (y <= 0)
-    mask_lr = (x >= 0) & (y <= 0)
-
-    c[mask_ul] = 0
-    c[mask_ur] = 1
-    c[mask_ll] = 2
-    c[mask_lr] = 3
-
-    return c
+from .moe_regression import LongRegression
 
 class Moe(NNAdapter):
 
@@ -40,11 +22,12 @@ class Moe(NNAdapter):
         n_input: int,
         n_output: int,
         folder: Path,
+        task: str,
         lr: float = 1e-3,
         ):
-        super().__init__(lr=lr, n_input=n_input, n_output=n_output, folder=folder)
+        super().__init__(lr=lr, n_input=n_input, n_output=n_output, folder=folder, task=task)
 
-        self.model: MoeCifar10 = None
+        self.model: MoeCifar10 | LongRegression = None
         self.optimizer: AdamW = None
         self.train_metrics: Metrics = None
         self.valid_metric: Metrics = None
@@ -57,11 +40,19 @@ class Moe(NNAdapter):
     ):
 
         if model is None:
-            model = MoeCifar10(
-                in_channels=self.n_input,
-                n_output=self.n_output,
-                **model_kwargs
-            )
+
+            if self.task == "cifar10":
+                model = MoeCifar10(
+                    in_channels=self.n_input,
+                    n_output=self.n_output,
+                    **model_kwargs
+                )
+            else:
+                model = LongRegression(
+                    n_input=self.n_input,
+                    n_output=self.n_output,
+                    **model_kwargs
+                )
 
         self.model = model
         self.model = self.model.to(self.device)
@@ -70,18 +61,19 @@ class Moe(NNAdapter):
     def get_nn(self):
         return self.model, self.optimizer
 
-    def auxiliary_loss(self, *args, **kwargs):
-        return self.model.auxiliary_loss(*args, **kwargs)
 
     def on_train(self):
         self.train_metrics = Metrics(loss=None, power_entropy=None, speaker_entropy=None)
-        self.valid_metric = Metrics.empty_like(self.train_metrics, accuracy=None)
+        self.valid_metric = Metrics.empty_like(self.train_metrics, **{self.get_task_metric_name(): None})
+
+    def auxiliary_loss(self, *args, **kwargs):
+        return torch.mean(torch.stack(tuple(moe.auxiliary_loss() for moe in self.model.get_moe_layers())))
 
     def power_entropy(self):
-        return torch.mean(torch.stack(tuple(moe.power_entropy() for moe in self.model.expert_blocks)))
+        return torch.mean(torch.stack(tuple(moe.power_entropy() for moe in self.model.get_moe_layers())))
 
     def speaker_entropy(self):
-        return torch.mean(torch.stack(tuple(moe.speaker_entropy() for moe in self.model.expert_blocks)))
+        return torch.mean(torch.stack(tuple(moe.speaker_entropy() for moe in self.model.get_moe_layers())))
 
     def on_batch(self, model, x_batch, y_batch, yhat_batch, loss, valid):
 
@@ -93,10 +85,8 @@ class Moe(NNAdapter):
             metrics.push(loss=loss.item(), power_entropy=power_entropy.item(), speaker_entropy=speaker_entropy.item())
 
             if valid:
-                labels_hat = torch.argmax(yhat_batch, 1)
-                correct = (labels_hat == y_batch).float()
-                accuracy = correct.mean()
-                metrics.push(accuracy=accuracy.item())
+                metric = self.calc_task_metric(y_batch, yhat_batch)
+                self.push_task_metric(metric, metrics)
 
     def on_epoch(self, epoch: int):
 
@@ -122,16 +112,18 @@ class Moe(NNAdapter):
             power_entropies.append(self.power_entropy().item())
 
         yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step)
-
-        hatlabel = np.argmax(yhat, axis=1)
-        accuracy = (y_val == hatlabel).astype(np.float32).mean()
-
         power_entropy = np.mean(power_entropies)
         speaker_entropy = np.mean(speaker_entropies)
 
-        self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+        if self.task in {"cifar10"}:
+            accuracy = self.calc_task_metric(y_val, yhat)
+            self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            return accuracy
 
-        return accuracy
+        elif self.task in {"protein"}:
+            rmse = self.calc_task_metric(y_val, yhat)
+            self.save_test_metrics(RMSE=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            return rmse
 
 
 
@@ -142,7 +134,8 @@ class Moe(NNAdapter):
             'n_output': self.n_output,
             'folder': str(self.folder.resolve()),
             'lr': self.lr,
-            'model': self.model.get_constructor()
+            'model': self.model.get_constructor(),
+            "task": self.task
         }
 
         return constructor
@@ -155,7 +148,11 @@ class Moe(NNAdapter):
 
         instance = cls(**constructor)
 
-        model = MoeCifar10.apply_constructor(model)
+        if instance.taks == "cifar10":
+            model = MoeCifar10.apply_constructor(model)
+        else:
+            model = LongRegression.apply_constructor(model)
+
         instance.init_model(model=model)
 
         return instance

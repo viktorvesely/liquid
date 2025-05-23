@@ -3,6 +3,7 @@ from copy import deepcopy
 import json
 
 import numpy as np
+import pandas as pd
 import torch
 from torchvision import datasets, transforms
 from pathlib import Path
@@ -15,34 +16,56 @@ from .liquid_ensemble.le_adapter import LiquidLong, LiquidBlock
 from .moe.moe_adapter import Moe
 from .forests.bagging import RandomForest
 from .forests.lgbm import LightGBM
+from torch.utils.data import random_split
 
 import argparse
 
-def load_data_mnist():
-    data_dir = Path(__file__).parent.parent / 'mnist_data'
-    transform = transforms.Compose([transforms.ToTensor()])
-    train_dataset = datasets.MNIST(root=data_dir, train=True, transform=transform, download=True)
-    test_dataset = datasets.MNIST(root=data_dir, train=False, transform=transform, download=True)
 
-    return train_dataset, test_dataset
+def load_protein():
+
+    df = pd.read_csv(Path(__file__).parent.parent / "protein_train.csv")
+    df = df.reset_index(drop=True)
+
+    i_val = np.random.choice(df.shape[0], size=int(df.shape[0] * 0.1), replace=False)
+    df_val = df.iloc[i_val, ].copy()
+    df_train = df.drop(index=i_val)
+
+    x_col = df.columns[df.columns.str.contains("F")]
+    y_col = "RMSD"
+
+    train_dataset = TensorDataset(
+        torch.tensor(df_train[x_col].to_numpy(), dtype=torch.float32),
+        torch.tensor(df_train[y_col].to_numpy(), dtype=torch.float32).unsqueeze(-1)
+    )
+
+    val_dataset = TensorDataset(
+        torch.tensor(df_val[x_col].to_numpy(), dtype=torch.float32),
+        torch.tensor(df_val[y_col].to_numpy(), dtype=torch.float32).unsqueeze(-1)
+    )
+
+    return train_dataset, val_dataset
 
 def load_data_cifar10(reduction: float = 0.25):
     data_dir = Path(__file__).parent.parent / 'cifar10_data'
     transform = transforms.Compose([transforms.ToTensor()])
 
     train_dataset = datasets.CIFAR10(root=data_dir, train=True, transform=transform, download=True)
-    test_dataset = datasets.CIFAR10(root=data_dir, train=False, transform=transform, download=True)
-
     train_len = int(len(train_dataset) * reduction)
-    test_len = int(len(test_dataset) * reduction)
-
     train_indices = np.random.choice(len(train_dataset), train_len, replace=False)
-    test_indices = np.random.choice(len(test_dataset), test_len, replace=False)
+    train_dataset = Subset(train_dataset, train_indices)
 
-    train_subset = Subset(train_dataset, train_indices)
-    test_subset = Subset(test_dataset, test_indices)
+    train_size = int(0.9 * len(train_dataset))
+    val_size = len(train_dataset) - train_size
 
-    return train_subset, test_subset
+    # Split dataset
+    train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
+
+    return train_dataset, val_dataset
+
+task_to_data = {
+    "cifar10": load_data_cifar10,
+    "protein": load_protein
+}
 
 def dataset_to_numpy(dataset):
 
@@ -93,7 +116,7 @@ def train(
     else:
         experiment_folder = None
 
-    train_dataset, val_dataset = load_data_cifar10()
+    train_dataset, val_dataset = task_to_data[task]()
 
     x_train, y_train = dataset_to_numpy(train_dataset)
     train_dataset = None
@@ -102,11 +125,14 @@ def train(
     val_dataset = None
 
 
+
+
     # model_params = params[LiquidLong.name()]
     # le = LiquidLong(
     #     n_input=n_input,
     #     n_output=n_output,
     #     folder=experiment_folder,
+    #     task=task,
     #     lr=model_params["lr"]
     # )
     # le.init_model(model_kwargs=model_params["architecture"])
@@ -114,14 +140,15 @@ def train(
     # le = None
 
 
-    # moe = Moe(
-    #     n_input=n_input,
-    #     n_output=n_output,
-    #     folder=experiment_folder,
-    #     lr=params["Moe"]["lr"],
-    # )
-    # moe.init_model(model_kwargs=params["Moe"]["MoeCifar10"])
-    # val_metrics = moe.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    moe = Moe(
+        n_input=n_input,
+        task=task,
+        n_output=n_output,
+        folder=experiment_folder,
+        lr=params["Moe"]["lr"],
+    )
+    moe.init_model(model_kwargs=params["Moe"]["architecture"])
+    val_metrics = moe.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
 
 
     # bagging = RandomForest(
@@ -134,29 +161,29 @@ def train(
     # val_metrics = bagging.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
     # bagging.save()
 
-    lgbm = LightGBM(
-        n_input=n_input,
-        n_output=n_output,
-        folder=experiment_folder,
-        n_estimators=1_000
-    )
-    lgbm.init_model()
-    val_metrics = lgbm.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    lgbm.save()
+    # lgbm = LightGBM(
+    #     n_input=n_input,
+    #     n_output=n_output,
+    #     folder=experiment_folder,
+    #     n_estimators=1_000
+    # )
+    # lgbm.init_model()
+    # val_metrics = lgbm.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    # lgbm.save()
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", type=str, default="cifar10")
+    parser.add_argument("--task", type=str, default="protein")
     args = parser.parse_args()
 
     task = args.task
-    assert task in {"cifar10"}
+    assert task in set(task_to_data.keys())
     params = load_params(task)
 
     train(
-        experiment_name="check_sizes",
+        experiment_name="protein",
         params=params,
         task=task
     )

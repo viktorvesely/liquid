@@ -4,31 +4,24 @@ import numpy as np
 import optuna
 import torch
 import torch.nn as nn
-from torch.optim import AdamW
-from sklearn.metrics import normalized_mutual_info_score
+import torch.nn.functional as F
+from torch.optim import AdamW, RMSprop
 from typing import Literal, Self
 
 from ..nn_adapter import NNAdapter
 from ..adapter import Metrics
 
 from .le_cifar10architecture import LongCifar10, BlockCifar10
+from .le_regression import LongRegression
 
 
-def get_regions_classes(X: torch.Tensor) -> torch.Tensor:
+def task_to_class(task: str, arch_type: str):
+    if task == "protein":
+        return LongRegression
 
-    c = torch.zeros(X.shape[0], dtype=torch.int, device=X.device)
-    x, y = X[:, 0], X[:, 1]
-    mask_ul = (x < 0) & (y > 0)
-    mask_ur = (x >= 0) & (y > 0)
-    mask_ll = (x < 0) & (y <= 0)
-    mask_lr = (x >= 0) & (y <= 0)
-
-    c[mask_ul] = 0
-    c[mask_ur] = 1
-    c[mask_ll] = 2
-    c[mask_lr] = 3
-
-    return c
+    elif task == "cifar10":
+            ModelClass = LongCifar10 if arch_type == "long" else BlockCifar10
+            return ModelClass
 
 class LiquidBase(NNAdapter):
 
@@ -37,11 +30,12 @@ class LiquidBase(NNAdapter):
         n_input: int,
         n_output: int,
         folder: Path,
+        task: str,
         lr: float = 1e-3,
         ):
-        super().__init__(lr=lr, n_input=n_input, n_output=n_output, folder=folder)
+        super().__init__(lr=lr, n_input=n_input, n_output=n_output, folder=folder, task=task)
 
-        self.model: LongCifar10 | BlockCifar10 = None
+        self.model: LongCifar10 | BlockCifar10 | LongRegression = None
         self.optimizer: AdamW = None
         self.train_metrics: Metrics = None
         self.valid_metric: Metrics = None
@@ -58,26 +52,43 @@ class LiquidBase(NNAdapter):
 
         if model is None:
 
-            ModelClass = LongCifar10 if self.arch_type == "long" else BlockCifar10
-            model = ModelClass(
-                in_channels=self.n_input,
-                n_output=self.n_output,
-                **model_kwargs
-            )
+            if self.task == "protein":
+
+                model = LongRegression(
+                    n_input=self.n_input,
+                    n_output=self.n_output,
+                    **model_kwargs
+                )
+
+            elif self.task == "cifar10":
+
+                ModelClass = LongCifar10 if self.arch_type == "long" else BlockCifar10
+                model = ModelClass(
+                    in_channels=self.n_input,
+                    n_output=self.n_output,
+                    **model_kwargs
+                )
 
         self.model = model
         self.model = self.model.to(self.device)
-        self.optimizer = AdamW(self.model.parameters(), lr=self.lr)
+        self.optimizer = AdamW(self.model.parameters(), lr=self.lr, weight_decay=0.01)
 
     def get_nn(self):
         return self.model, self.optimizer
 
-    def auxiliary_loss(self, *args, **kwargs):
-        return self.model.auxiliary_loss(*args, **kwargs)
 
     def on_train(self):
         self.train_metrics = Metrics(loss=None, power_entropy=None, speaker_entropy=None)
-        self.valid_metric = Metrics.empty_like(self.train_metrics, accuracy=None)
+        self.valid_metric = Metrics.empty_like(self.train_metrics, **{self.get_task_metric_name(): None})
+
+    def auxiliary_loss(self, *args, **kwargs):
+        return torch.mean(torch.stack(tuple(le.auxiliary_loss() for le in self.model.get_le_layers())))
+
+    def power_entropy(self):
+        return torch.mean(torch.stack(tuple(le.power_entropy() for le in self.model.get_le_layers())))
+
+    def speaker_entropy(self):
+        return torch.mean(torch.stack(tuple(le.speaker_entropy() for le in self.model.get_le_layers())))
 
     def on_batch(self, model, x_batch, y_batch, yhat_batch, loss, valid):
 
@@ -90,10 +101,8 @@ class LiquidBase(NNAdapter):
             metrics.push(loss=loss.item(), power_entropy=power_entropy.item(), speaker_entropy=speaker_entropy.item())
 
             if valid:
-                labels_hat = torch.argmax(yhat_batch, 1)
-                correct = (labels_hat == y_batch).float()
-                accuracy = correct.mean()
-                metrics.push(accuracy=accuracy.item())
+                metric = self.calc_task_metric(y_batch, yhat_batch)
+                self.push_task_metric(metric, metrics)
 
     def on_epoch(self, epoch: int):
 
@@ -112,7 +121,6 @@ class LiquidBase(NNAdapter):
         if save_files:
             self.valid_metric.save_histories(folder, prefix=self.name())
 
-
         speaker_entropies = []
         power_entropies = []
         def step(model: nn.Module, x, yhat):
@@ -121,15 +129,18 @@ class LiquidBase(NNAdapter):
 
         yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step)
 
-        hatlabel = np.argmax(yhat, axis=1)
-        accuracy = (y_val  == hatlabel).astype(np.float32).mean()
-
         power_entropy = np.mean(power_entropies)
         speaker_entropy = np.mean(speaker_entropies)
 
-        self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+        if self.task in {"cifar10"}:
+            accuracy = self.calc_task_metric(y_val, yhat)
+            self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            return accuracy
 
-        return accuracy
+        elif self.task in {"protein"}:
+            rmse = self.calc_task_metric(y_val, yhat)
+            self.save_test_metrics(RMSE=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            return rmse
 
 
 
@@ -141,7 +152,7 @@ class LiquidBase(NNAdapter):
             'folder': str(self.folder.resolve()),
             'lr': self.lr,
             'model': self.model.get_constructor(),
-            "arch_type": self.arch_type
+            "task": self.task
         }
 
         return constructor
@@ -150,11 +161,11 @@ class LiquidBase(NNAdapter):
     def apply_constructor(cls, constructor: dict) -> Self:
 
         constructor["folder"] = Path(constructor["folder"])
-        model = constructor.pop("model")
+        task = constructor["task"]
 
         instance = cls(**constructor)
 
-        model = LongCifar10.apply_constructor(model)
+        model = task_to_class(task=task, arch_type=instance.arch_type).apply_constructor(model)
         instance.init_model(model=model)
 
         return instance

@@ -15,35 +15,21 @@ class MoELayer(nn.Module):
     This variant follows the *ReMoE* paper (Wang et al., 2024) but is simplified
     for whole‑sample routing (no token dimension).  Sparsity is enforced by the
     **adaptive L1 regularisation** scheme from Eq. (6–8) of the paper:
-
-        λ ← λ · α^{sign(target − S)}
-
-    where *S* is the batch‑averaged sparsity (fraction of zero gates).
-    The coefficient λ is stored as a buffer so it is saved with the model but is
-    *not* a learnable parameter.
     """
 
     def __init__(
         self,
         experts: list[Citizen],
         router: Citizen,
-        k_active: int,
-        sparsity_lambda: float,
-        sparsity_move: float
+        load_distribution_lambda: float = 0.0,
+        specialization_lambda: float = 0.0
     ) -> None:
         super().__init__()
 
-        num_experts = len(experts)
-        assert 0 < k_active <= num_experts, "k_active must be in 1…E"
-
         self.experts = nn.ModuleList(experts)
-        self.E = num_experts
-        self.k_active = k_active
-        self.target_sparsity = 1.0 - k_active / num_experts
-        self.sparsity_move = sparsity_move
+        self.load_distribution_lambda = load_distribution_lambda
+        self.specialization_lambda = specialization_lambda
         self.last_gate: torch.Tensor = None
-
-        self.register_buffer("sparsity_lambda", torch.tensor(sparsity_lambda))
 
         self.router = router
 
@@ -52,8 +38,8 @@ class MoELayer(nn.Module):
 
         constructor = {
             'expert_classes': [c.name() for c in self.experts],
-            'k_active': self.k_active,
-            'sparsity_move': self.sparsity_move,
+            'load_distribution_lambda': self.load_distribution_lambda,
+            'specialization_lambda': self.specialization_lambda,
             'experts': [c.get_constructor() for c in self.experts],
             'router_class': self.router.name(),
             'router': self.router.get_constructor()
@@ -90,16 +76,13 @@ class MoELayer(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         gates_raw = self.router(x)
         gates = F.relu(gates_raw)
-        gates = gates + 1e-5
-        self.last_gate = gates.clone().detach()
+        gates = gates + 1e-5 # Due to stability
 
-        with torch.no_grad():
-            sparsity = (gates == 0).float().mean()
-            self._update_lambda(sparsity)
-
-        # Normalise gates (optional—keeps scale stable)
+        # Normalise gates
         denom = gates.sum(dim=-1, keepdim=True)
         gates = gates / denom
+
+        self.last_gate = gates.clone().detach()
 
         y_accum: list[torch.Tensor] = []
         for e, expert in enumerate(self.experts):
@@ -118,16 +101,6 @@ class MoELayer(nn.Module):
         y_out = torch.stack(y_accum, 0).sum(0)
         return y_out
 
-    def sparsity_loss(self, mean_l1_gate: torch.Tensor | None = None) -> torch.Tensor:
-        mean_l1_gate = self.last_gate.mean() if  mean_l1_gate is None else mean_l1_gate
-        return self.sparsity_lambda * mean_l1_gate
-
-    def _update_lambda(self, batch_sparsity: torch.Tensor) -> None:
-        """Update λ in‑place once *per call* using eq (7)."""
-        target = self.target_sparsity
-        direction = torch.sign(target - batch_sparsity)  # +1 if too dense, ‑1 if too sparse
-        if direction != 0:
-            self.sparsity_lambda.mul_(self.sparsity_move ** direction.item())
 
     def speaker_entropy(self, gate: torch.Tensor | None = None):
         """Entropy over histogram of speakers, 1 - everybody speaks (max p) uniformly, 0 - one speaker
@@ -157,3 +130,26 @@ class MoELayer(nn.Module):
         entropy = dist.entropy() / math.log(n)
 
         return torch.mean(entropy)
+
+
+    def auxiliary_loss(self, gate: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
+
+        if gate is None:
+            gate = self.last_gate
+        # gate (n_batch, n)
+
+        bs, n = gate.shape
+
+        # (n_batch, n) differentiable argmax, weighted towards highest power citizen
+        soft_assign = torch.softmax(gate / temperature, dim=1)
+
+        # (n), how much was each citizen active
+        histogram = soft_assign.sum(dim=0)
+        dist = Categorical(probs=histogram / histogram.sum())
+
+        # close to 1 - even load, close to 0 not even load
+        speaker_entropy = dist.entropy() / math.log(n)
+
+        power_entropy = self.power_entropy(gate)
+
+        return self.specialization_lambda * power_entropy - speaker_entropy * self.load_distribution_lambda

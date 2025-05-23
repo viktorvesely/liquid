@@ -118,7 +118,7 @@ class LiquidEnsembleLayer(nn.Module):
         # (batch, out)
         return y
 
-    def distribution_specialization_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
+    def auxiliary_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
 
         if power is None:
             power = self.last_power
@@ -136,7 +136,7 @@ class LiquidEnsembleLayer(nn.Module):
         # close to 1 - even load, close to 0 not even load
         speaker_entropy = dist.entropy() / math.log(n)
 
-        power_entropy = self.power_entropy()
+        power_entropy = self.power_entropy(power)
 
         return self.specialization_lambda * power_entropy - speaker_entropy * self.load_distribution_lambda
 
