@@ -122,7 +122,7 @@ class Moe(NNAdapter):
 
         elif self.task in {"protein"}:
             rmse = self.calc_task_metric(y_val, yhat)
-            self.save_test_metrics(RMSE=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            self.save_test_metrics(rmse=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
             return rmse
 
 

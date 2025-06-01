@@ -3,9 +3,10 @@ from __future__ import annotations
 from abc import abstractmethod, ABC
 import copy
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 import numpy as np
 from optuna import Trial
+import time
 
 class Metrics:
 
@@ -47,13 +48,18 @@ class Adapter(ABC):
         self,
         n_input: int,
         n_output: int,
-        folder: Path
+        folder: Path,
+        task: str
     ):
         super().__init__()
 
         self.n_input = n_input
         self.n_output = n_output
         self.folder = folder
+        self.task = task
+
+        self._train_end: float | None = None
+        self._train_start: float | None = None
 
 
     @abstractmethod
@@ -69,6 +75,11 @@ class Adapter(ABC):
         y_val: np.ndarray,
         **kwargs):
         ...
+
+
+    @staticmethod
+    def now():
+        return time.perf_counter()
 
     @abstractmethod
     def get_size_nbytes(self) -> int:
@@ -87,6 +98,41 @@ class Adapter(ABC):
     def init_model(self, **kwargs):
         ...
 
+
+    def get_task_type(self) -> Literal["classification", "regression"]:
+        if self.task == "cifar10":
+            return "classification"
+        elif self.task == "protein":
+            return "regression"
+
+        raise ValueError(f"Invalid task {self.task}")
+
+    def calc_task_metric(self, y_hat: np.ndarray, y: np.ndarray) -> float:
+
+        task_type = self.get_task_type()
+
+        if task_type == "classification":
+            return self.metric_accuracy(y_hat, y)
+        elif task_type == "regression":
+            return self.metric_rmse(y_hat, y)
+
+    def get_task_metric_name(self) -> str:
+
+        task_type = self.get_task_type()
+        if task_type == "classification":
+            return "accuracy"
+        elif task_type == "regression":
+            return "rmse"
+
+
+    @staticmethod
+    def metric_rmse(y_hat: np.ndarray, y: np.ndarray) -> float:
+        return np.sqrt(np.square(y_hat - y).mean())
+
+    @staticmethod
+    def metric_accuracy(y_hat: np.ndarray, y: np.ndarray) -> float:
+        return (y_hat == y).astype(np.float32).mean()
+
     def save_test_metrics(self, **metrics):
 
 
@@ -94,6 +140,7 @@ class Adapter(ABC):
 
             metrics = copy.deepcopy(metrics)
             metrics["nbytes"] = self.get_size_nbytes()
+            metrics["train_time"] = self._train_end - self._train_start
 
             metrics_file = self.folder / f"{self.name()}_test_metrics.txt"
             content = "\n".join(f"{k}={v}" for k, v in metrics.items())

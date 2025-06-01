@@ -124,21 +124,17 @@ def train(
     x_val, y_val = dataset_to_numpy(val_dataset)
     val_dataset = None
 
-
-
-
-    # model_params = params[LiquidLong.name()]
-    # le = LiquidLong(
-    #     n_input=n_input,
-    #     n_output=n_output,
-    #     folder=experiment_folder,
-    #     task=task,
-    #     lr=model_params["lr"]
-    # )
-    # le.init_model(model_kwargs=model_params["architecture"])
-    # le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    # le = None
-
+    model_params = params[LiquidLong.name()]
+    le = LiquidLong(
+        n_input=n_input,
+        n_output=n_output,
+        folder=experiment_folder,
+        task=task,
+        lr=model_params["lr"]
+    )
+    le.init_model(model_kwargs=model_params["architecture"])
+    le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    le = None
 
     moe = Moe(
         n_input=n_input,
@@ -148,28 +144,32 @@ def train(
         lr=params["Moe"]["lr"],
     )
     moe.init_model(model_kwargs=params["Moe"]["architecture"])
-    val_metrics = moe.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    moe.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    moe = None
 
+    bagging = RandomForest(
+        n_input=n_input,
+        n_output=n_output,
+        task=task,
+        folder=experiment_folder,
+        n_estimators=100
+    )
+    bagging.init_model()
+    bagging.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    bagging.save()
+    bagging = None
 
-    # bagging = RandomForest(
-    #     n_input=2,
-    #     n_output=3,
-    #     folder=experiment_folder,
-    #     n_estimators=100
-    # )
-    # bagging.init_model()
-    # val_metrics = bagging.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    # bagging.save()
-
-    # lgbm = LightGBM(
-    #     n_input=n_input,
-    #     n_output=n_output,
-    #     folder=experiment_folder,
-    #     n_estimators=1_000
-    # )
-    # lgbm.init_model()
-    # val_metrics = lgbm.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    # lgbm.save()
+    lgbm = LightGBM(
+        n_input=n_input,
+        n_output=n_output,
+        task=task,
+        folder=experiment_folder,
+        n_estimators=100
+    )
+    lgbm.init_model()
+    lgbm.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
+    lgbm.save()
+    lgbm = None
 
 
 if __name__ == "__main__":

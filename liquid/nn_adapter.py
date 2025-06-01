@@ -24,12 +24,11 @@ class NNAdapter(Adapter):
         task: str,
         lr: float = 1e-3
     ):
-        super().__init__(n_input=n_input, n_output=n_output, folder=folder)
+        super().__init__(n_input=n_input, n_output=n_output, folder=folder, task=task)
 
         self.lr = lr
         self.last_bs: int = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.task = task
 
     @abstractmethod
     def get_nn(self) -> tuple[nn.Module, optim.Optimizer]:
@@ -125,26 +124,20 @@ class NNAdapter(Adapter):
         return np.concat(ys, axis=0)
 
 
-    def get_task_metric_name(self) -> str:
-        if self.task in {"cifar10"}:
-            return "accuracy"
-        elif self.task in {"protein"}:
-            return "RMSE"
-
     def calc_task_metric(self, y_batch, yhat_batch):
 
         if isinstance(y_batch, torch.Tensor):
             y_batch = y_batch.cpu().numpy()
             yhat_batch = yhat_batch.cpu().numpy()
 
-        if self.task in {"cifar10"}:
+        task_type = self.get_task_type()
+        if task_type == "classification":
             labels_hat = np.argmax(yhat_batch, 1)
             correct = (labels_hat == y_batch).astype(np.float32)
             accuracy = correct.mean()
             return accuracy
 
-        elif self.task in {"protein"}:
-
+        elif task_type == "regression":
             yhat_batch = self.denorm_features(yhat_batch, self.y_mean, self.y_std)
             y_batch = self.denorm_features(y_batch, self.y_mean, self.y_std)
             mse = np.square(y_batch - yhat_batch).mean()
@@ -152,10 +145,11 @@ class NNAdapter(Adapter):
 
     def push_task_metric(self, metric, val_metrics):
 
-        if self.task in {"cifar10"}:
+        task_type = self.get_task_type()
+        if task_type == "classification":
             val_metrics.push(accuracy=metric)
-        elif self.task in {"protein"}:
-            val_metrics.push(RMSE=metric)
+        elif task_type == "regression":
+            val_metrics.push(rmse=metric)
 
 
     def train(
@@ -189,12 +183,13 @@ class NNAdapter(Adapter):
         train_loader = DataLoader(train_dataset, batch_size)
         valid_loader = DataLoader(valid_dataset, batch_size)
 
-
         if self.task in {"cifar10"}:
             criterion = nn.CrossEntropyLoss()
         elif self.task in {"protein"}:
             criterion = nn.MSELoss()
 
+        valid_time_penalty = 0
+        self._train_start = self.now()
         for e in range(epoch):
 
             model.train()
@@ -214,8 +209,9 @@ class NNAdapter(Adapter):
 
                 self.on_batch(model, x_batch, y_batch, yhat_batch, loss, valid=False)
 
-            model.eval()
 
+            valid_start = self.now()
+            model.eval()
             with torch.no_grad():
                 for x_batch, y_batch in tqdm.tqdm(valid_loader, total=len(valid_loader), desc="Valid", disable=(verbose < 1)):
 
@@ -226,9 +222,12 @@ class NNAdapter(Adapter):
                     loss = criterion(yhat_batch, y_batch) + self.auxiliary_loss(model, x_batch, y_batch, yhat_batch)
 
                     self.on_batch(model, x_batch, y_batch, yhat_batch, loss, valid=True)
-
             self.save()
             self.on_epoch(e)
+
+            valid_time_penalty += self.now() - valid_start
+
+        self._train_end = self.now() - valid_time_penalty
 
         return self.on_end(x_val, y_val)
 

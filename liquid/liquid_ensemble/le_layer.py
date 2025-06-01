@@ -118,6 +118,54 @@ class LiquidEnsembleLayer(nn.Module):
         # (batch, out)
         return y
 
+
+    @staticmethod
+    def batch_entropy(x: torch.Tensor):
+        bs, n = x.shape
+        dist = Categorical(probs=x)
+        entropy = dist.entropy() / math.log(n)
+        return entropy
+
+    def confidence_D_entropy(self, D: torch.Tensor | None = None) -> torch.Tensor:
+
+        if D is None:
+            D = self.last_D
+
+        es = []
+        for i in range(D.shape[1]):
+            es.append(self.batch_entropy(D[:, i, :]))
+
+        es = torch.stack(es)
+        return 1 - torch.mean(es, dim=0)
+
+    def confidence_power_entropy(self, power: torch.Tensor | None = None):
+
+        if power is None:
+            power = self.last_power
+
+        return self.batch_entropy(power)
+
+    def confidence_self_delegation(self, D: torch.Tensor | None = None):
+        if D is None:
+            D = self.last_D
+
+        diagonal = D.diagonal(dim1=1, dim2=2)
+        return torch.mean(diagonal, dim=1)
+
+
+    def confidence_std(self, ys: torch.Tensor | None = None):
+
+        # (batch, n_citizen, out...)
+        if ys is None:
+            ys = self.last_y
+
+        # (batch, out...)
+        stds_per_out = torch.std(ys, dim=1)
+        other_dims = tuple(range(1, stds_per_out.ndim))
+
+        return torch.mean(stds_per_out, dim=other_dims) # (batch,)
+
+
     def auxiliary_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
 
         if power is None:
@@ -170,66 +218,6 @@ class LiquidEnsembleLayer(nn.Module):
         entropy = dist.entropy() / math.log(n)
 
         return torch.mean(entropy)
-
-    @classmethod
-    def step(cls, p_delegatable: torch.Tensor, p_kept: torch.Tensor, D: torch.Tensor):
-
-        diag_indices = torch.arange(D.shape[-1])
-
-        # Get the diagonal elements of W: shape (batch_size, n)
-        diag_W = D[:, diag_indices, diag_indices]
-
-        # Compute the amount to keep
-        keep_amount = diag_W * p_delegatable
-        outflow = p_delegatable - keep_amount
-        new_kept = p_kept + keep_amount
-
-        # Sum each row of W and subtract the diagonal, adding a small epsilon for stability.
-        outgoing_sums = D.sum(dim=2) - diag_W + 1e-6
-
-        # Create an effective W with zeros on the diagonal.
-        mask = torch.ones_like(D)
-        mask[:, diag_indices, diag_indices] = 0
-
-        W_eff = D * mask
-
-        # Normalize each row of W_eff by its outgoing sum and weight by the outflow.
-        # W_eff: (batch, n, n), outgoing_sums.unsqueeze(2): (batch, n, 1), outflow.unsqueeze(2): (batch, n, 1)
-        contribution = (W_eff / outgoing_sums.unsqueeze(2)) * outflow.unsqueeze(2)
-
-        # Sum contributions over the rows to get the new delegatable values (for each target node).
-        new_delegatable = contribution.sum(dim=1)
-
-        return new_delegatable, new_kept
-
-    @classmethod
-    def solve_delegation_iterative(cls, Ds: Delegations,  max_iter: int = 100, tol:float =1e-4) -> Power:
-
-        # TODO check dim
-        Ds_cat_ready = [torch.unsqueeze(d, 1) for d in Ds]
-        D = torch.cat(Ds_cat_ready, dim=1)
-
-        p_delegatable = torch.ones((D.shape[0], D.shape[1]), device=D.device, dtype=D.dtype)
-        p_kept = torch.zeros_like(p_delegatable)
-
-        for _ in range(max_iter):
-            old_sum = p_delegatable.sum() + p_kept.sum()
-
-            new_delegatable, new_kept = cls.step(p_delegatable, p_kept, D)
-            new_sum = new_delegatable.sum() + new_kept.sum()
-
-            if not torch.isclose(old_sum, new_sum, atol=1e-6):
-                print(f"Warning: total power changed from {old_sum.item()} to {new_sum.item()}")
-
-            if (torch.allclose(new_delegatable, p_delegatable, atol=tol) and
-                torch.allclose(new_kept, p_kept, atol=tol)):
-                return new_delegatable + new_kept, D
-
-            p_delegatable, p_kept = new_delegatable, new_kept
-
-        return p_delegatable + p_kept
-
-
 
 
     @classmethod

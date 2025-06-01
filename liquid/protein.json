@@ -1,6 +1,6 @@
 {
     "name": "protein",
-    "epoch": 100,
+    "epoch": 5,
     "batch_size": 1024,
     "n_input": 9,
     "n_output": 1,
@@ -11,8 +11,8 @@
             "layers_body": 1,
             "layers_y": 1,
             "layers_d": 1,
-            "width_body": 50,
-            "width_y": 50,
+            "width_body": 30,
+            "width_y": 30,
             "width_d": 10,
             "le_kwargs": {
                 "load_distribution_lambda": 0,

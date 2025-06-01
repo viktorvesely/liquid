@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
-from typing import Callable, Literal, Self
+from typing import Literal, Self
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 import joblib
 
 from ..adapter import Adapter
@@ -14,6 +14,7 @@ class RandomForest(Adapter):
             n_input: int,
             n_output: int,
             folder: Path,
+            task: str,
             n_estimators: int = 100,
             max_depth: int | None = None,
             min_samples_split: int = 2,
@@ -21,7 +22,7 @@ class RandomForest(Adapter):
             max_features: Literal["sqrt", "log2"] | int | float = "sqrt",
             max_leaf_nodes: int | None = None
         ):
-        super().__init__(n_input, n_output, folder)
+        super().__init__(n_input, n_output, folder, task=task)
 
         self.n_estimators = n_estimators
         self.max_depth = max_depth
@@ -31,19 +32,20 @@ class RandomForest(Adapter):
         self.max_leaf_nodes = max_leaf_nodes
 
         self.rfc: RandomForestClassifier = None
-        self.criterion: Callable[[np.ndarray, np.ndarray], float] = self.accuracy
 
-
-    @staticmethod
-    def accuracy(y_hat: np.ndarray, y: np.ndarray) -> float:
-        return (y_hat == y).mean()
 
     def init_model(
             self,
             **kwargs
         ):
 
-        self.rfc = RandomForestClassifier(
+        task_type = self.get_task_type()
+        if task_type == "classification":
+            RFClass = RandomForestClassifier
+        elif task_type == "regression":
+            RFClass = RandomForestRegressor
+
+        self.rfc = RFClass(
             n_estimators=self.n_estimators,
             max_depth=self.max_depth,
             min_samples_split=self.min_samples_split,
@@ -62,20 +64,32 @@ class RandomForest(Adapter):
             **kwargs
         ):
 
+        y = np.squeeze(y)
+        y_val = np.squeeze(y_val)
+
+        if x.ndim > 2:
+            x = np.reshape(x, (x.shape[0], -1))
+            x_val = np.reshape(x_val, (x_val.shape[0], -1))
+
+        self._train_start = self.now()
         self.rfc.fit(x, y)
+        self._train_end = self.now()
 
         y_train_hat = self.rfc.predict(x)
-        train_accuracy = self.criterion(y_train_hat, y)
+        train_metric = self.calc_task_metric(y_train_hat, y)
 
         y_val_hat = self.rfc.predict(x_val)
-        val_accuracy = self.criterion(y_val_hat, y_val)
+        val_metric = self.calc_task_metric(y_val_hat, y_val)
 
-        folder = self.folder
-        save_files = self.folder is not None
+        metric_name = self.get_task_metric_name()
+        metrics = {
+            f"train_{metric_name}": train_metric,
+            metric_name: val_metric
+        }
 
-        self.save_test_metrics(accuracy=val_accuracy, train_accuracy=train_accuracy)
+        self.save_test_metrics(**metrics)
 
-        return val_accuracy
+        return val_metric
 
 
     def inference(self, x: np.ndarray) -> np.ndarray:
@@ -137,7 +151,10 @@ class RandomForest(Adapter):
             tree.threshold.nbytes +
             tree.children_left.nbytes +
             tree.children_right.nbytes +
-            tree.value.nbytes
+            tree.value.nbytes +
+            tree.impurity.nbytes +
+            tree.n_node_samples.nbytes +
+            tree.weighted_n_node_samples.nbytes
         )
 
     @classmethod

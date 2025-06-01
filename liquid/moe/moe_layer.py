@@ -5,16 +5,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from ..citizens.citizen import Citizen, CitizenFC
+from ..citizens.citizen import Citizen
 from ..citizens.name_to_citizen import name_to_citizen
 
 
 class MoELayer(nn.Module):
-    """Mixture‑of‑Experts layer with fully differentiable **ReLU routing**.
+    """Mixture-of-Experts layer with fully differentiable **ReLU routing**.
 
-    This variant follows the *ReMoE* paper (Wang et al., 2024) but is simplified
-    for whole‑sample routing (no token dimension).  Sparsity is enforced by the
-    **adaptive L1 regularisation** scheme from Eq. (6–8) of the paper:
+    This variant follows the *ReMoE* paper (Wang et al., 2024) but is simplified
+    for whole-sample routing (no token dimension).  Sparsity is enforced by the
+    **adaptive L1 regularisation** scheme from Eq. (6-8) of the paper:
     """
 
     def __init__(
@@ -30,8 +30,10 @@ class MoELayer(nn.Module):
         self.load_distribution_lambda = load_distribution_lambda
         self.specialization_lambda = specialization_lambda
         self.last_gate: torch.Tensor = None
+        self.last_y: torch.Tensor = None
 
         self.router = router
+
 
 
     def get_constructor(self) -> dict:
@@ -85,9 +87,10 @@ class MoELayer(nn.Module):
         self.last_gate = gates.clone().detach()
 
         y_accum: list[torch.Tensor] = []
+        ys: list[torch.Tensor] = []
         for e, expert in enumerate(self.experts):
-            # TODO not compute bellow some threshold
 
+            # (batch, out)
             y = expert(x)
             g = gates[:, e]
 
@@ -97,8 +100,14 @@ class MoELayer(nn.Module):
                 g = g.unsqueeze(-1)
 
             y_accum.append(y * g)
+            ys.append(y)
 
-        y_out = torch.stack(y_accum, 0).sum(0)
+
+        ys = torch.stack(ys, dim=0) # (n_citizens, batch, out)
+        ys = torch.transpose(ys, 0, 1) # (batch, n_citizens, out)
+        self.last_y = ys.clone().detach()
+
+        y_out = torch.stack(y_accum, dim=0).sum(0)
         return y_out
 
 
@@ -131,6 +140,32 @@ class MoELayer(nn.Module):
 
         return torch.mean(entropy)
 
+
+    @staticmethod
+    def batch_entropy(x: torch.Tensor):
+        bs, n = x.shape
+        dist = Categorical(probs=x)
+        entropy = dist.entropy() / math.log(n)
+        return entropy
+
+    def confidence_power_entropy(self, power: torch.Tensor | None = None):
+
+        if power is None:
+            power = self.last_power
+
+        return self.batch_entropy(power)
+
+    def confidence_std(self, ys: torch.Tensor | None = None):
+
+        # (batch, n_citizen, out...)
+        if ys is None:
+            ys = self.last_y
+
+        # (batch, out...)
+        stds_per_out = torch.std(ys, dim=1)
+        other_dims = tuple(range(1, stds_per_out.ndim))
+
+        return torch.mean(stds_per_out, dim=other_dims) # (batch,)
 
     def auxiliary_loss(self, gate: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
 

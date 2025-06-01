@@ -90,14 +90,15 @@ class LiquidBase(NNAdapter):
     def speaker_entropy(self):
         return torch.mean(torch.stack(tuple(le.speaker_entropy() for le in self.model.get_le_layers())))
 
+
+
     def on_batch(self, model, x_batch, y_batch, yhat_batch, loss, valid):
 
         metrics = self.valid_metric if valid else self.train_metrics
-        metricor = self.model
 
         with torch.no_grad():
-            power_entropy = metricor.power_entropy()
-            speaker_entropy = metricor.speaker_entropy()
+            power_entropy = self.power_entropy()
+            speaker_entropy = self.speaker_entropy()
             metrics.push(loss=loss.item(), power_entropy=power_entropy.item(), speaker_entropy=speaker_entropy.item())
 
             if valid:
@@ -124,24 +125,24 @@ class LiquidBase(NNAdapter):
         speaker_entropies = []
         power_entropies = []
         def step(model: nn.Module, x, yhat):
-            speaker_entropies.append(self.model.speaker_entropy().item())
-            power_entropies.append(self.model.power_entropy().item())
+            speaker_entropies.append(self.speaker_entropy().item())
+            power_entropies.append(self.power_entropy().item())
 
         yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step)
 
         power_entropy = np.mean(power_entropies)
         speaker_entropy = np.mean(speaker_entropies)
 
-        if self.task in {"cifar10"}:
+        task_type = self.get_task_type()
+        if task_type == "classification":
             accuracy = self.calc_task_metric(y_val, yhat)
             self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
             return accuracy
 
-        elif self.task in {"protein"}:
+        elif task_type == "regression":
             rmse = self.calc_task_metric(y_val, yhat)
-            self.save_test_metrics(RMSE=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            self.save_test_metrics(rmse=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
             return rmse
-
 
 
     def get_constructor(self) -> dict:

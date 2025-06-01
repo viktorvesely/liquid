@@ -13,6 +13,7 @@ class LightGBM(Adapter):
         n_input: int,
         n_output: int,
         folder: Path,
+        task: str,
         learning_rate: float = 0.1,
         n_estimators: int = 100,
         max_depth: int | None = None,
@@ -23,7 +24,7 @@ class LightGBM(Adapter):
         reg_lambda: float = 0.0,
         random_state: int | None = None
     ):
-        super().__init__(n_input, n_output, folder)
+        super().__init__(n_input, n_output, folder, task=task)
         self.learning_rate = learning_rate
         self.n_estimators = n_estimators
         self.max_depth = max_depth
@@ -36,6 +37,10 @@ class LightGBM(Adapter):
         self.model: lgb.Booster | None = None
 
     def init_model(self):
+
+        objective ="multiclass" if self.get_task_type() == "classification" else "mse"
+        metric = "multi_logloss" if self.get_task_type() == "classification" else "rmse"
+
         params = {
             'learning_rate': self.learning_rate,
             'num_leaves': self.num_leaves,
@@ -45,8 +50,8 @@ class LightGBM(Adapter):
             'reg_alpha': self.reg_alpha,
             'reg_lambda': self.reg_lambda,
             'seed': self.random_state,
-            "objective": "multiclass",
-            "metric": "multi_logloss",
+            "objective": objective,
+            "metric": metric,
             "num_class": self.n_output
         }
 
@@ -61,6 +66,9 @@ class LightGBM(Adapter):
         **kwargs
     ) -> float:
 
+        y = np.squeeze(y)
+        y_val = np.squeeze(y_val)
+
         if x.ndim > 2:
             x = np.reshape(x, (x.shape[0], -1))
             x_val = np.reshape(x_val, (x_val.shape[0], -1))
@@ -68,6 +76,8 @@ class LightGBM(Adapter):
 
         train_data = lgb.Dataset(x, label=y)
         valid_data = lgb.Dataset(x_val, label=y_val, reference=train_data)
+
+        self._train_start = self.now()
         self.model = lgb.train(
             self._params,
             train_data,
@@ -75,16 +85,21 @@ class LightGBM(Adapter):
             valid_sets=[valid_data],
 
         )
+        self._train_end = self.now()
 
         y_hat_train = self.inference(x)
         y_hat_val = self.inference(x_val)
 
-        train_accuracy = (y_hat_train == y).mean()
-        val_accuracy = (y_hat_val == y_val).mean()
+        train_metric = self.calc_task_metric(y_hat_train, y)
+        val_metric = self.calc_task_metric(y_hat_val, y_val)
 
-        self.save_test_metrics(accuracy=val_accuracy, train_accuracy=train_accuracy)
+        metric_name = self.get_task_metric_name()
+        metrics = {
+            f"train_{metric_name}": train_metric,
+            metric_name: val_metric
+        }
 
-        return val_accuracy
+        self.save_test_metrics(**metrics)
 
     def inference(self, x: np.ndarray) -> np.ndarray:
 
