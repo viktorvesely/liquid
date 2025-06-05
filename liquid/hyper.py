@@ -115,7 +115,7 @@ def worker(args: tuple[str, str, str, Any], warmup: bool = False):
 
     for _ in range(MAX_TRIALS):
         params = h_func()
-        params["verbose"] = 0 if not DEBUG else 1
+        params["verbose"] = -1 if not DEBUG else 1
 
         if DEBUG:
             params["epoch"] = 1
