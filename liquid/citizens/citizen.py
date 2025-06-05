@@ -62,7 +62,7 @@ class CitizenFC(Citizen):
         self.dropout = dropout
 
         network = [n_input] + [width] * layers + [n_output]
-        self.network = get_sequential(network, last_linear_true=last_linear, dropout=dropout)
+        self.network = get_sequential(network, last_linear=last_linear, dropout=dropout)
 
     def forward(self, x: torch.Tensor):
         return self.network(x)
@@ -91,7 +91,7 @@ class RouterFC(Citizen):
         n_citizens: int,
         layers: int,
         width: int,
-        droput: float
+        dropout: float
     ):
 
         super().__init__()
@@ -100,10 +100,10 @@ class RouterFC(Citizen):
         self.n_citizens= n_citizens
         self.layers = layers
         self.width = width
-        self.dropout
+        self.dropout = dropout
 
         network = [n_input] + [width] * layers + [n_citizens]
-        self.network = get_sequential(network, last_linear_true=True)
+        self.network = get_sequential(network, last_linear=True, dropout=dropout)
 
     def forward(self, x: torch.Tensor):
         return self.network(x)
@@ -113,7 +113,8 @@ class RouterFC(Citizen):
             "n_input":  self.n_input,
             "n_citizens":  self.n_citizens,
             "layers":  self.layers,
-            "width":  self.width
+            "width":  self.width,
+            "dropout": self.dropout
         }
 
     @classmethod

@@ -60,7 +60,7 @@ def h_le():
         "LongLiquid": {
             "lr": rand_float(9 * 1e-5, 5 * 1e-3),
             "architecture": {
-                "n_citizens": rand_int(2, 80, log=True),
+                "n_citizens": rand_int(2, 50, log=True),
                 "layers_body": rand_cat([0, 1, 2, 3, 4], w=[1, 5, 5, 2, 1]),
                 "layers_y": rand_cat([1, 2, 3, 4], w=[5, 5, 2, 1]),
                 "layers_d": rand_cat([1, 2, 3, 4], w=[5, 2, 2, 1]),
@@ -104,11 +104,11 @@ def h_moe():
             "architecture": {
                 "layers_body": rand_cat([1, 2, 3, 4, 5, 6, 7, 8], w=[1, 2, 3, 4, 4, 3, 2, 1]),
                 "width_body": rand_int(10, 300),
-                "n_citizens": rand_int(2, 80, log=True),
+                "n_citizens": rand_int(2, 50, log=True),
                 "layers_router": rand_cat([1, 2, 3, 4, 5, 6, 7, 8], w=[5, 2, 2, 2, 1, 1, 0.5, 0.5]),
                 "width_router": rand_int(10, 800),
-                "body_dropout": 0.1,
-                "dropout_y": 0.3,
+                "body_dropout": dropout(),
+                "router_dropout": dropout(),
                 "moe_kwargs": {
                     "load_distribution_lambda": load_distribution_lambda,
                     "specialization_lambda": specialization_lambda
@@ -121,7 +121,52 @@ def h_moe():
 
     return params
 
-def h_
+
+def zero(zero_p, other_value, zero_value = 0):
+
+    if np.random.random() <= zero_p:
+        return zero_value
+
+    return other_value
+
+def h_rf():
+
+    params = {
+        "rf": {
+            "n_estimators": rand_int(10, 800),
+            "max_depth": zero(0.2, rand_int(5, 100), None),
+            "min_samples_split": rand_int(2, 40, log=True),
+            "min_samples_leaf": rand_int(1, 40, log=True),
+            "max_features": 1.0,
+            "max_leaf_nodes": zero(0.8, rand_int(10, 1000), None)
+        }
+    }
+
+    params = common() | params
+
+    return params
+
+
+def h_lgbm():
+
+    params = {
+        "lgbm": {
+            "learning_rate": rand_float(0.005, 0.2, log=True),
+            "n_estimators": rand_int(10, 800),
+            "max_depth": zero(0.2, rand_int(5, 100), -1),
+            "num_leaves": rand_int(15, 100),
+            "subsample": rand_float(0.7, 1.0),
+            "feature_fraction": 1.0,
+            "lambda_l2" : rand_float(0, 2),
+            "boosting": rand_cat(["gbdt", "dart"], w=[0.8, 0.2]),
+            "min_data_in_leaf": rand_int(1, 50)
+        }
+    }
+
+    params = common() | params
+
+    return params
+
 
 
 if __name__ == "__main__":

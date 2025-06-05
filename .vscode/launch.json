@@ -12,6 +12,14 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "hyper",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "liquid.hyper",
+            "console": "integratedTerminal",
+            "args": ["--algorithm", "le"]
+        },
+        {
             "name": "size",
             "type": "debugpy",
             "request": "launch",

@@ -107,7 +107,7 @@ class Adapter(ABC):
     def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
         ...
 
-    def evaluate_confidence_metrics(self, x: np.ndarray, y: np.ndarray) -> dict[str, tuple[float, float]]:
+    def evaluate_confidence_metrics(self, x: np.ndarray, y: np.ndarray) -> dict[str, float]:
         # from matplotlib import pyplot as plt
         # fig, ax = plt.subplots()
 

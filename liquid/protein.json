@@ -34,7 +34,6 @@
             "layers_router": 1,
             "width_router": 150,
             "body_dropout": 0.1,
-            "dropout_y": 0.3,
             "router_dropout": 0.3,
             "moe_kwargs": {
                 "load_distribution_lambda": 0.0,
@@ -42,12 +41,23 @@
             }
         }
     },
-    "RF": {
+    "rf": {
         "n_estimators": 100,
         "max_depth": null,
         "min_samples_split": 2,
         "min_samples_leaf": 1,
         "max_features": 1.0,
         "max_leaf_nodes": null
+    },
+    "lgbm": {
+        "learning_rate": 0.1,
+        "n_estimators":  100,
+        "max_depth": null,
+        "num_leaves": null,
+        "subsample": 1.0,
+        "colsample_bytree": 1.0,
+        "lambda_l2" : 0.2,
+        "boosting": "gbdt",
+        "min_data_in_leaf": 20
     }
 }

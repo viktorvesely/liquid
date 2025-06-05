@@ -86,12 +86,14 @@ class Moe(NNAdapter):
             if valid:
                 metric = self.calc_task_metric(yhat_batch, y_batch)
                 self.push_task_metric(metric, metrics)
+                self.register_valid_metric(metric)
 
     def on_epoch(self, epoch: int):
 
-        print(f"\n--------{self.name()} Epoch {epoch}-----------")
-        print(f"Train: {self.train_metrics}")
-        print(f"Valid: {self.valid_metric}")
+        if self.verbose > 0:
+            print(f"\n--------{self.name()} Epoch {epoch}-----------")
+            print(f"Train: {self.train_metrics}")
+            print(f"Valid: {self.valid_metric}")
 
         self.train_metrics.reset()
         self.valid_metric.reset()
@@ -114,17 +116,17 @@ class Moe(NNAdapter):
         power_entropy = np.mean(power_entropies)
         speaker_entropy = np.mean(speaker_entropies)
 
-        if self.task in {"cifar10"}:
+
+        task_type = self.get_task_type()
+        if task_type == "classification":
             accuracy = self.calc_task_metric(yhat, y_val)
-            self.set_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            self.set_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy, best_accuracy=self._best_valid_metric)
             return accuracy
 
-        elif self.task in {"protein"}:
+        elif task_type == "regression":
             rmse = self.calc_task_metric(yhat, y_val)
-            self.set_test_metrics(rmse=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            self.set_test_metrics(rmse=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy,  best_rmse=self._best_valid_metric)
             return rmse
-
-
 
     def get_constructor(self) -> dict:
 

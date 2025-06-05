@@ -32,6 +32,17 @@ class NNAdapter(Adapter):
 
         self.x_norm = None
         self.y_norm = None
+        self.verbose: int = 0
+
+        self._best_valid_metric = (-float("inf")) if (self.get_task_type() == "classification") else float("inf")
+
+
+    def register_valid_metric(self, metric: float):
+
+        if self.get_task_type() == "classification":
+            self._best_valid_metric = max(self._best_valid_metric, metric)
+        else:
+            self._best_valid_metric = min(self._best_valid_metric, metric)
 
     @abstractmethod
     def get_nn(self) -> tuple[nn.Module, optim.Optimizer]:
@@ -214,6 +225,8 @@ class NNAdapter(Adapter):
             verbose: int = 0,
             **_
         ):
+
+        self.verbose = verbose
 
         if self.task == "protein":
 

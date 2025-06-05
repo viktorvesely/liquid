@@ -16,12 +16,12 @@ class RandomForest(Adapter):
             n_output: int,
             folder: Path,
             task: str,
-            n_estimators: int = 100,
-            max_depth: int | None = None,
-            min_samples_split: int = 2,
-            min_samples_leaf: int = 1,
-            max_features: Literal["sqrt", "log2"] | int | float = "sqrt",
-            max_leaf_nodes: int | None = None
+            n_estimators: int,
+            max_depth: int,
+            min_samples_split: int,
+            min_samples_leaf: int,
+            max_features: Literal["sqrt", "log2"] | int | float,
+            max_leaf_nodes: int
         ):
         super().__init__(n_input, n_output, folder, task=task)
 
@@ -52,7 +52,7 @@ class RandomForest(Adapter):
             min_samples_split=self.min_samples_split,
             min_samples_leaf=self.min_samples_leaf,
             max_features=self.max_features,
-            max_leaf_nodes=self.max_leaf_nodes,
+            max_leaf_nodes=self.max_leaf_nodes
         )
 
     def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
@@ -89,8 +89,11 @@ class RandomForest(Adapter):
             y: np.ndarray,
             x_val: np.ndarray,
             y_val: np.ndarray,
+            verbose: int,
             **kwargs
         ):
+
+        self.rf.verbose = verbose
 
         y = np.squeeze(y)
         y_val = np.squeeze(y_val)
@@ -115,7 +118,7 @@ class RandomForest(Adapter):
             metric_name: val_metric
         }
 
-        self.save_test_metrics(**metrics)
+        self.set_test_metrics(**metrics)
 
         return val_metric
 

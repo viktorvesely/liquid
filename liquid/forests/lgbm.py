@@ -1,7 +1,9 @@
+import copy
 import json
 from pathlib import Path
+import random
 import re
-from typing import Self
+from typing import Literal, Self
 import numpy as np
 import lightgbm as lgb
 
@@ -19,22 +21,30 @@ class LightGBM(Adapter):
         max_depth: int | None = None,
         num_leaves: int | None = None,
         subsample: float = 1.0,
-        colsample_bytree: float = 1.0,
-        reg_alpha: float = 0.0,
-        reg_lambda: float = 0.0,
+        feature_fraction: float = 1.0,
+        lambda_l2 : float = 0.0,
+        boosting: Literal["gbdt", "dart"] = "gbdt",
+        min_data_in_leaf: int = 20,
         estimate_confidence: bool = False
     ):
         super().__init__(n_input, n_output, folder, task=task)
-        self.learning_rate = learning_rate
-        self.n_estimators = n_estimators
-        self.max_depth = max_depth
-        self.num_leaves = num_leaves
-        self.subsample = subsample
-        self.colsample_bytree = colsample_bytree
-        self.reg_alpha = reg_alpha
-        self.reg_lambda = reg_lambda
-        self.model: lgb.Booster | None = None
+
+        self.constructor = {
+            "learning_rate": learning_rate,
+            "n_estimators": n_estimators,
+            "max_depth": max_depth,
+            "num_leaves": num_leaves,
+            "subsample": subsample,
+            "feature_fraction": feature_fraction,
+            "lambda_l2": lambda_l2,
+            "boosting": boosting,
+            "min_data_in_leaf": min_data_in_leaf,
+            "estimate_confidence": estimate_confidence
+        }
+
         self.estimate_confidence = estimate_confidence
+        self.n_estimators = n_estimators
+        self.model: lgb.Booster | None = None
 
 
     def init_model(self):
@@ -42,14 +52,7 @@ class LightGBM(Adapter):
         objective ="multiclass" if self.get_task_type() == "classification" else "mse"
         metric = "multi_logloss" if self.get_task_type() == "classification" else "rmse"
 
-        params = {
-            'learning_rate': self.learning_rate,
-            'num_leaves': self.num_leaves,
-            'max_depth': self.max_depth,
-            'subsample': self.subsample,
-            'colsample_bytree': self.colsample_bytree,
-            'reg_alpha': self.reg_alpha,
-            'reg_lambda': self.reg_lambda,
+        params = self.constructor | {
             "objective": objective,
             "metric": metric,
             "num_class": self.n_output
@@ -63,6 +66,7 @@ class LightGBM(Adapter):
         y: np.ndarray,
         x_val: np.ndarray,
         y_val: np.ndarray,
+        verbose: int,
         **kwargs
     ) -> float:
 
@@ -76,13 +80,15 @@ class LightGBM(Adapter):
         train_data = lgb.Dataset(x, label=y)
         valid_data = lgb.Dataset(x_val, label=y_val, reference=train_data)
 
+        params = copy.deepcopy(self._params)
+        params["verbosity"] = verbose
+
         self._train_start = self.now()
         self.model = lgb.train(
             self._params,
             train_data,
             num_boost_round=self.n_estimators,
-            valid_sets=[valid_data],
-
+            valid_sets=[valid_data]
         )
         self._train_end = self.now()
 
@@ -150,21 +156,7 @@ class LightGBM(Adapter):
         return confidence, self.calc_task_metric(yhat, y, reduction="batch")
 
     def get_constructor(self) -> dict:
-        return {
-            "n_input": self.n_input,
-            "n_output": self.n_output,
-            "folder": str(self.folder.resolve()),
-            "learning_rate": self.learning_rate,
-            "n_estimators": self.n_estimators,
-            "max_depth": self.max_depth,
-            "num_leaves": self.num_leaves,
-            "subsample": self.subsample,
-            "colsample_bytree": self.colsample_bytree,
-            "reg_alpha": self.reg_alpha,
-            "reg_lambda": self.reg_lambda,
-            "verbose": 1,
-            "estimate_confidence": self.estimate_confidence
-        }
+        return self.constructor
 
 
     @classmethod
@@ -183,7 +175,7 @@ class LightGBM(Adapter):
         model_file = self.folder / f"{self.name()}.txt"
         self.model.save_model(model_file)
 
-        if constructor["estimate_confidence"]:
+        if self.estimate_confidence:
             self.upper.save_model(self.folder / f"{self.name()}_upper.txt")
             self.lower.save_model(self.folder / f"{self.name()}_lower.txt")
 
@@ -234,7 +226,9 @@ class LightGBM(Adapter):
         return int_count * int_size + float_count * float_size
 
     def get_size_nbytes(self) -> int:
-        model_file = self.folder / "delete_me_lgbm.txt"
+
+        rand = random.randint(1000, 10_000)
+        model_file = Path(__file__).parent / f"delete_me_lgbm_{rand}.txt"
         self.model.save_model(model_file)
         nbytes = self.calculate_tree_params_memory(model_file)
         model_file.unlink()

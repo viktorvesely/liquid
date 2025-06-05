@@ -127,13 +127,12 @@ def train(
         instance.evaluate_confidence_metrics(x_val, y_val)
         instance.save_metrics()
 
-        break
-
 
 def init_lgbm(params, experiment_folder):
 
     n_input = params["n_input"]
     n_output = params["n_output"]
+    verbose = params["verbose"]
     task = params["name"]
 
     lgbm = LightGBM(
@@ -141,16 +140,19 @@ def init_lgbm(params, experiment_folder):
         n_output=n_output,
         task=task,
         folder=experiment_folder,
-        n_estimators=100,
-        estimate_confidence=True
+        estimate_confidence=True,
+        **params["lgbm"]
     )
     lgbm.init_model()
-    return lgbm, {}
+    return lgbm, {
+        "verbose": verbose
+    }
 
 def init_rf(params, experiment_folder):
 
     n_input = params["n_input"]
     n_output = params["n_output"]
+    verbose = params["verbose"]
     task = params["name"]
 
     bagging = RandomForest(
@@ -158,10 +160,12 @@ def init_rf(params, experiment_folder):
         n_output=n_output,
         task=task,
         folder=experiment_folder,
-        n_estimators=100
+        **params["rf"],
     )
     bagging.init_model()
-    return bagging, {}
+    return bagging, {
+        "verbose": verbose
+    }
 
 def init_moe(params, experiment_folder):
 
