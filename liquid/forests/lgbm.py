@@ -38,8 +38,7 @@ class LightGBM(Adapter):
             "feature_fraction": feature_fraction,
             "lambda_l2": lambda_l2,
             "boosting": boosting,
-            "min_data_in_leaf": min_data_in_leaf,
-            "estimate_confidence": estimate_confidence
+            "min_data_in_leaf": min_data_in_leaf
         }
 
         self.estimate_confidence = estimate_confidence
