@@ -10,7 +10,6 @@ from typing import Self
 
 from ..nn_adapter import NNAdapter
 from ..adapter import Metrics
-from ..citizens.citizen import CitizenFC
 
 from .moe_cifar10architecture import MoeCifar10
 from .moe_regression import LongRegression
@@ -85,7 +84,7 @@ class Moe(NNAdapter):
             metrics.push(loss=loss.item(), power_entropy=power_entropy.item(), speaker_entropy=speaker_entropy.item())
 
             if valid:
-                metric = self.calc_task_metric(y_batch, yhat_batch)
+                metric = self.calc_task_metric(yhat_batch, y_batch)
                 self.push_task_metric(metric, metrics)
 
     def on_epoch(self, epoch: int):
@@ -116,13 +115,13 @@ class Moe(NNAdapter):
         speaker_entropy = np.mean(speaker_entropies)
 
         if self.task in {"cifar10"}:
-            accuracy = self.calc_task_metric(y_val, yhat)
-            self.save_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            accuracy = self.calc_task_metric(yhat, y_val)
+            self.set_test_metrics(accuracy=accuracy, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
             return accuracy
 
         elif self.task in {"protein"}:
-            rmse = self.calc_task_metric(y_val, yhat)
-            self.save_test_metrics(rmse=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
+            rmse = self.calc_task_metric(yhat, y_val)
+            self.set_test_metrics(rmse=rmse, power_entropy=power_entropy, speaker_entropy=speaker_entropy)
             return rmse
 
 

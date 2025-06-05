@@ -1,10 +1,10 @@
 from abc import abstractmethod
+from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 import tqdm
 import torch.optim as optim
@@ -29,6 +29,9 @@ class NNAdapter(Adapter):
         self.lr = lr
         self.last_bs: int = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.x_norm = None
+        self.y_norm = None
 
     @abstractmethod
     def get_nn(self) -> tuple[nn.Module, optim.Optimizer]:
@@ -74,18 +77,35 @@ class NNAdapter(Adapter):
         return nbytes
 
     @staticmethod
-    def denorm_features(x_norm: np.ndarray, mean: np.ndarray, std: np.ndarray):
+    def _denorm(x_norm: np.ndarray, mean: np.ndarray, std: np.ndarray):
         return x_norm * std + mean
 
     @staticmethod
-    def norm_features(x: np.ndarray, mean = None, std = None):
+    def get_norm(x: np.ndarray):
+        mean = x.mean(axis=0, keepdims=True)
+        std = x.std(axis=0, keepdims=True) + 1e-8
+        return mean, std
 
-        if mean is None:
-            mean = x.mean(axis=0, keepdims=True)
-            std = x.std(axis=0, keepdims=True) + 1e-8
-
+    @staticmethod
+    def _norm(x: np.ndarray, mean: np.ndarray, std: np.ndarray):
         x_norm = (x - mean) / std
-        return x_norm, mean, std
+        return x_norm
+
+    def set_norm(self, x: np.ndarray, y: np.ndarray):
+        self.x_norm = self.get_norm(x)
+        self.y_norm = self.get_norm(y)
+
+    def norm_y(self, y: np.ndarray):
+        return self._norm(y, *self.y_norm)
+
+    def norm_x(self, x: np.ndarray):
+        return self._norm(x, *self.x_norm)
+
+    def denorm_y(self, y: np.ndarray):
+        return self._denorm(y, *self.y_norm)
+
+    def denorm_x(self, x: np.ndarray):
+        return self._denorm(x, *self.x_norm)
 
     def inference(
             self,
@@ -99,7 +119,7 @@ class NNAdapter(Adapter):
 
 
         if self.task == "protein":
-            x, _, _ = self.norm_features(x, self.x_mean, self.x_std)
+            x = self.norm_x(x)
 
         self.on_train()
         model, _ = self.get_nn()
@@ -124,24 +144,54 @@ class NNAdapter(Adapter):
         return np.concat(ys, axis=0)
 
 
-    def calc_task_metric(self, y_batch, yhat_batch):
+    def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
 
-        if isinstance(y_batch, torch.Tensor):
-            y_batch = y_batch.cpu().numpy()
-            yhat_batch = yhat_batch.cpu().numpy()
+        if self.task == "protein":
+            x = self.norm_x(x)
+            y = self.norm_y(y)
 
-        task_type = self.get_task_type()
-        if task_type == "classification":
-            labels_hat = np.argmax(yhat_batch, 1)
-            correct = (labels_hat == y_batch).astype(np.float32)
-            accuracy = correct.mean()
-            return accuracy
+        model, _ = self.get_nn()
 
-        elif task_type == "regression":
-            yhat_batch = self.denorm_features(yhat_batch, self.y_mean, self.y_std)
-            y_batch = self.denorm_features(y_batch, self.y_mean, self.y_std)
-            mse = np.square(y_batch - yhat_batch).mean()
-            return np.sqrt(mse)
+        dataset = TensorDataset(torch.tensor(x), torch.tensor(y))
+        loader = DataLoader(dataset, self.last_bs)
+
+        confidence = defaultdict(list)
+        yhat = []
+
+        model.eval()
+        for (x_batch, y_batch) in loader:
+            x_batch = x_batch.to(self.device)
+            y_batch = y_batch.to(self.device)
+
+            with torch.no_grad():
+                yhat_batch = model(x_batch)
+                results = model.calculate_confidence(x_batch)
+
+                for k, v in results.items():
+                    confidence[k].append(v.cpu())
+
+                yhat.append(yhat_batch.cpu())
+
+        dataset = None
+        loader = None
+
+        for k, v in confidence.items():
+            v = torch.cat(v, dim=0)
+            confidence[k] = v.numpy()
+
+        yhat = torch.cat(yhat, dim=0).numpy()
+
+        return confidence, self.calc_task_metric(yhat, y, reduction="batch")
+
+    def calc_task_metric(self, yhat, y,  reduction: Literal["none", "batch", "metric"] = "metric"):
+
+        if isinstance(y, torch.Tensor):
+            y = y.cpu().numpy()
+
+        if isinstance(yhat, torch.Tensor):
+            yhat = yhat.cpu().numpy()
+
+        return super().calc_task_metric(yhat, y, reduction)
 
     def push_task_metric(self, metric, val_metrics):
 
@@ -166,11 +216,14 @@ class NNAdapter(Adapter):
         ):
 
         if self.task == "protein":
-            x, self.x_mean, self.x_std = self.norm_features(x)
-            y, self.y_mean, self.y_std = self.norm_features(y)
 
-            x_val, _, _ = self.norm_features(x_val)
-            y_val, _, _ = self.norm_features(y_val)
+            self.set_norm(x, y)
+
+            x = self.norm_x(x)
+            y = self.norm_y(y)
+
+            x_val = self.norm_x(x_val)
+            y_val = self.norm_y(y_val)
 
 
         self.last_bs = batch_size

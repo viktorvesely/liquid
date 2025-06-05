@@ -143,7 +143,7 @@ class LiquidEnsembleLayer(nn.Module):
         if power is None:
             power = self.last_power
 
-        return self.batch_entropy(power)
+        return 1 - self.batch_entropy(power)
 
     def confidence_self_delegation(self, D: torch.Tensor | None = None):
         if D is None:
@@ -163,7 +163,7 @@ class LiquidEnsembleLayer(nn.Module):
         stds_per_out = torch.std(ys, dim=1)
         other_dims = tuple(range(1, stds_per_out.ndim))
 
-        return torch.mean(stds_per_out, dim=other_dims) # (batch,)
+        return 1 / (torch.mean(stds_per_out, dim=other_dims) + 1e-6) # (batch,)
 
 
     def auxiliary_loss(self, power: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:

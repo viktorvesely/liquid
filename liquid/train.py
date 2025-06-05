@@ -67,6 +67,7 @@ task_to_data = {
     "protein": load_protein
 }
 
+
 def dataset_to_numpy(dataset):
 
     x = []
@@ -89,7 +90,6 @@ def load_data_synthetic(n_train: int = 50_000, n_valid: int = 5_000):
 
     return train_dataset, test_dataset
 
-
 def load_params(task: str):
 
     with open(Path(__file__).parent / f"{task}.json", "r") as f:
@@ -99,17 +99,12 @@ def load_params(task: str):
 
 def train(
         params: dict,
-        task: str,
         experiment_name: str = "experiment",
-        save_files: bool = True,
-        verbose: int = 1
+        save_files: bool = True
         ):
 
 
-    epoch = params["epoch"]
-    batch_size = params["batch_size"]
-    n_input = params["n_input"]
-    n_output = params["n_output"]
+    task = params["name"]
 
     if save_files:
         experiment_folder = utils.create_experiment_folder(task, experiment_name)
@@ -124,28 +119,39 @@ def train(
     x_val, y_val = dataset_to_numpy(val_dataset)
     val_dataset = None
 
-    model_params = params[LiquidLong.name()]
-    le = LiquidLong(
-        n_input=n_input,
-        n_output=n_output,
-        folder=experiment_folder,
-        task=task,
-        lr=model_params["lr"]
-    )
-    le.init_model(model_kwargs=model_params["architecture"])
-    le.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    le = None
+    for init_func in [init_le, init_moe, init_rf, init_lgbm]:
 
-    moe = Moe(
+        instance, train_kwargs = init_func(params, experiment_folder)
+        instance.train(x_train, y_train, x_val, y_val, **train_kwargs)
+        instance.save()
+        instance.evaluate_confidence_metrics(x_val, y_val)
+        instance.save_metrics()
+
+        break
+
+
+def init_lgbm(params, experiment_folder):
+
+    n_input = params["n_input"]
+    n_output = params["n_output"]
+    task = params["name"]
+
+    lgbm = LightGBM(
         n_input=n_input,
-        task=task,
         n_output=n_output,
+        task=task,
         folder=experiment_folder,
-        lr=params["Moe"]["lr"],
+        n_estimators=100,
+        estimate_confidence=True
     )
-    moe.init_model(model_kwargs=params["Moe"]["architecture"])
-    moe.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    moe = None
+    lgbm.init_model()
+    return lgbm, {}
+
+def init_rf(params, experiment_folder):
+
+    n_input = params["n_input"]
+    n_output = params["n_output"]
+    task = params["name"]
 
     bagging = RandomForest(
         n_input=n_input,
@@ -155,21 +161,55 @@ def train(
         n_estimators=100
     )
     bagging.init_model()
-    bagging.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    bagging.save()
-    bagging = None
+    return bagging, {}
 
-    lgbm = LightGBM(
+def init_moe(params, experiment_folder):
+
+    epoch = params["epoch"]
+    batch_size = params["batch_size"]
+    n_input = params["n_input"]
+    n_output = params["n_output"]
+    verbose = params["verbose"]
+    task = params["name"]
+
+    moe = Moe(
+        n_input=n_input,
+        task=task,
+        n_output=n_output,
+        folder=experiment_folder,
+        lr=params["Moe"]["lr"],
+    )
+    moe.init_model(model_kwargs=params["Moe"]["architecture"])
+
+    return moe, {
+        "epoch": epoch,
+        "batch_size": batch_size,
+        "verbose": verbose
+    }
+
+def init_le(params, experiment_folder):
+
+    epoch = params["epoch"]
+    batch_size = params["batch_size"]
+    n_input = params["n_input"]
+    n_output = params["n_output"]
+    verbose = params["verbose"]
+    task = params["name"]
+    model_params = params[LiquidLong.name()]
+
+    le = LiquidLong(
         n_input=n_input,
         n_output=n_output,
-        task=task,
         folder=experiment_folder,
-        n_estimators=100
+        task=task,
+        lr=model_params["lr"]
     )
-    lgbm.init_model()
-    lgbm.train(x_train, y_train, x_val, y_val, epoch=epoch, batch_size=batch_size, verbose=verbose)
-    lgbm.save()
-    lgbm = None
+    le.init_model(model_kwargs=model_params["architecture"])
+    return le, {
+        "epoch": epoch,
+        "batch_size": batch_size,
+        "verbose": verbose
+    }
 
 
 if __name__ == "__main__":
@@ -184,6 +224,5 @@ if __name__ == "__main__":
 
     train(
         experiment_name="protein",
-        params=params,
-        task=task
+        params=params
     )

@@ -7,6 +7,11 @@ from typing import Literal, Self
 import numpy as np
 from optuna import Trial
 import time
+from scipy.stats import kendalltau
+
+def kendalltau_metric(x: np.ndarray, y: np.ndarray) -> float:
+    tau, _ = kendalltau(x, y)
+    return float(tau)
 
 class Metrics:
 
@@ -43,7 +48,6 @@ class Metrics:
 
 class Adapter(ABC):
 
-
     def __init__(
         self,
         n_input: int,
@@ -60,6 +64,7 @@ class Adapter(ABC):
 
         self._train_end: float | None = None
         self._train_start: float | None = None
+        self._test_metrics: dict | None = None
 
 
     @abstractmethod
@@ -98,6 +103,44 @@ class Adapter(ABC):
     def init_model(self, **kwargs):
         ...
 
+    @abstractmethod
+    def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
+        ...
+
+    def evaluate_confidence_metrics(self, x: np.ndarray, y: np.ndarray) -> dict[str, tuple[float, float]]:
+        # from matplotlib import pyplot as plt
+        # fig, ax = plt.subplots()
+
+        confidences, error = self.calculate_confidence_and_errors(x, y)
+
+        i_sorted = np.argsort(error)
+        error = error[i_sorted]
+
+        results = dict()
+        for name, confidence in confidences.items():
+
+            confidence = confidence[i_sorted]
+            cmin, cmax = np.min(confidence), np.max(confidence)
+
+            if cmin < -0.2 or cmax > 1.2:
+                confidence_norm = (confidence - cmin) / (cmax - cmin)
+            else:
+                confidence_norm = confidence
+
+            uncertainty = -confidence
+            score = kendalltau_metric(error, uncertainty)
+            confidence_std = np.std(confidence)
+            # ax.scatter(error, confidence_norm, label=f"{name} {score:0.3f}")
+            results[f"{name}_kendall"] = score
+            results[f"{name}_spread"] = confidence_std
+
+        # ax.legend()
+        # plt.show()
+
+        self._test_metrics |= results
+
+        return results
+
 
     def get_task_type(self) -> Literal["classification", "regression"]:
         if self.task == "cifar10":
@@ -107,14 +150,26 @@ class Adapter(ABC):
 
         raise ValueError(f"Invalid task {self.task}")
 
-    def calc_task_metric(self, y_hat: np.ndarray, y: np.ndarray) -> float:
+    def calc_task_metric(self, y_hat: np.ndarray, y: np.ndarray, reduction: Literal["none", "batch", "metric"] = "metric") -> float:
 
         task_type = self.get_task_type()
 
         if task_type == "classification":
-            return self.metric_accuracy(y_hat, y)
+            metric = self.metric_accuracy(y_hat, y)
         elif task_type == "regression":
-            return self.metric_rmse(y_hat, y)
+            metric = self.metric_rmse(y_hat, y)
+
+        if reduction == "metric":
+            metric = np.mean(metric)
+        elif reduction == "batch":
+            others = tuple(range(1, metric.ndim))
+            metric = np.mean(metric, axis=others)
+        elif reduction =="none":
+            ...
+        else:
+            raise ValueError(f"reduction = {reduction}")
+
+        return metric
 
     def get_task_metric_name(self) -> str:
 
@@ -126,26 +181,33 @@ class Adapter(ABC):
 
 
     @staticmethod
-    def metric_rmse(y_hat: np.ndarray, y: np.ndarray) -> float:
-        return np.sqrt(np.square(y_hat - y).mean())
+    def metric_rmse(y_hat: np.ndarray, y: np.ndarray) -> np.ndarray:
+        return np.sqrt(np.square(y_hat - y))
 
     @staticmethod
-    def metric_accuracy(y_hat: np.ndarray, y: np.ndarray) -> float:
-        return (y_hat == y).astype(np.float32).mean()
+    def metric_accuracy(y_hat: np.ndarray, y: np.ndarray) -> np.ndarray:
+        return (y_hat == y).astype(np.float32)
 
-    def save_test_metrics(self, **metrics):
+    def save_metrics(self):
 
+        metrics = self._test_metrics
 
         if self.folder is not None:
-
-            metrics = copy.deepcopy(metrics)
-            metrics["nbytes"] = self.get_size_nbytes()
-            metrics["train_time"] = self._train_end - self._train_start
 
             metrics_file = self.folder / f"{self.name()}_test_metrics.txt"
             content = "\n".join(f"{k}={v}" for k, v in metrics.items())
             with open(metrics_file, "w") as f:
                 f.write(content)
+
+    def set_test_metrics(self, **metrics):
+
+        metrics = copy.deepcopy(metrics)
+        metrics["nbytes"] = self.get_size_nbytes()
+        metrics["train_time"] = self._train_end - self._train_start
+
+        self._test_metrics = metrics
+
+
 
 
     # @classmethod

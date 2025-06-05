@@ -140,7 +140,6 @@ class MoELayer(nn.Module):
 
         return torch.mean(entropy)
 
-
     @staticmethod
     def batch_entropy(x: torch.Tensor):
         bs, n = x.shape
@@ -148,12 +147,12 @@ class MoELayer(nn.Module):
         entropy = dist.entropy() / math.log(n)
         return entropy
 
-    def confidence_power_entropy(self, power: torch.Tensor | None = None):
+    def confidence_gate_entropy(self, gate: torch.Tensor | None = None):
 
-        if power is None:
-            power = self.last_power
+        if gate is None:
+            gate = self.last_gate
 
-        return self.batch_entropy(power)
+        return 1 - self.batch_entropy(gate)
 
     def confidence_std(self, ys: torch.Tensor | None = None):
 
@@ -165,7 +164,7 @@ class MoELayer(nn.Module):
         stds_per_out = torch.std(ys, dim=1)
         other_dims = tuple(range(1, stds_per_out.ndim))
 
-        return torch.mean(stds_per_out, dim=other_dims) # (batch,)
+        return 1 / (torch.mean(stds_per_out, dim=other_dims) + 1e-6)  # (batch,)
 
     def auxiliary_loss(self, gate: torch.Tensor | None = None, temperature: float = 0.1) -> torch.Tensor:
 
@@ -188,3 +187,4 @@ class MoELayer(nn.Module):
         power_entropy = self.power_entropy(gate)
 
         return self.specialization_lambda * power_entropy - speaker_entropy * self.load_distribution_lambda
+

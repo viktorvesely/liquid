@@ -4,6 +4,7 @@ from typing import Literal, Self
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 import joblib
+import scipy.stats as stats
 
 from ..adapter import Adapter
 
@@ -31,7 +32,7 @@ class RandomForest(Adapter):
         self.max_features = max_features
         self.max_leaf_nodes = max_leaf_nodes
 
-        self.rfc: RandomForestClassifier = None
+        self.rf: RandomForestClassifier | RandomForestRegressor = None
 
 
     def init_model(
@@ -45,7 +46,7 @@ class RandomForest(Adapter):
         elif task_type == "regression":
             RFClass = RandomForestRegressor
 
-        self.rfc = RFClass(
+        self.rf = RFClass(
             n_estimators=self.n_estimators,
             max_depth=self.max_depth,
             min_samples_split=self.min_samples_split,
@@ -53,6 +54,33 @@ class RandomForest(Adapter):
             max_features=self.max_features,
             max_leaf_nodes=self.max_leaf_nodes,
         )
+
+    def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
+
+        if self.get_task_type() == "regression":
+
+            all_tree_preds = np.array([tree.predict(x) for tree in self.rf.estimators_])
+            all_tree_preds = all_tree_preds.T # (batch, n_estimators)
+
+            y_std = all_tree_preds.std(axis=1) # shape: (batch,)
+
+            confidence =  {"confidence_std": 1 / (y_std + 1e-6)}
+        else:
+            all_tree_preds = np.array([tree.predict(x) for tree in self.rf.estimators_])
+            all_tree_preds = all_tree_preds.T # (batch, n_estimators)
+            n_estimators = all_tree_preds.shape[1]
+
+            result = stats.mode(all_tree_preds, axis=1, keepdims=True)
+            mode = result.mode
+
+            n_agree = (all_tree_preds == mode).sum(1)
+            confidence = n_agree / n_estimators
+
+            confidence = {"confidence_mode": confidence}
+
+        yhat = self.rf.predict(x)
+        return confidence, self.calc_task_metric(yhat, y, reduction="batch")
+
 
 
     def train(
@@ -72,13 +100,13 @@ class RandomForest(Adapter):
             x_val = np.reshape(x_val, (x_val.shape[0], -1))
 
         self._train_start = self.now()
-        self.rfc.fit(x, y)
+        self.rf.fit(x, y)
         self._train_end = self.now()
 
-        y_train_hat = self.rfc.predict(x)
+        y_train_hat = self.rf.predict(x)
         train_metric = self.calc_task_metric(y_train_hat, y)
 
-        y_val_hat = self.rfc.predict(x_val)
+        y_val_hat = self.rf.predict(x_val)
         val_metric = self.calc_task_metric(y_val_hat, y_val)
 
         metric_name = self.get_task_metric_name()
@@ -93,7 +121,7 @@ class RandomForest(Adapter):
 
 
     def inference(self, x: np.ndarray) -> np.ndarray:
-        return self.rfc.predict(x)
+        return self.rf.predict(x)
 
     def get_constructor(self) -> dict:
 
@@ -125,7 +153,7 @@ class RandomForest(Adapter):
         file_constructor = folder / "rf.json"
         file_tree = folder / "rf.pickle"
 
-        joblib.dump(self.rfc, file_tree)
+        joblib.dump(self.rf, file_tree)
         with open(file_constructor, "w") as f:
             json.dump(self.get_constructor(), f)
 
@@ -140,7 +168,7 @@ class RandomForest(Adapter):
             constructor = json.load(f)
 
         instance = cls.apply_constructor(constructor)
-        instance.rfc = joblib.load(file_tree)
+        instance.rf = joblib.load(file_tree)
 
         return instance
 
@@ -162,7 +190,7 @@ class RandomForest(Adapter):
         return sum(cls.count_tree_values(est.tree_) for est in forest.estimators_)
 
     def get_size_nbytes(self):
-        return self.count_random_forest_values(self.rfc)
+        return self.count_random_forest_values(self.rf)
 
 
 

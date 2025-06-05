@@ -22,7 +22,7 @@ class LightGBM(Adapter):
         colsample_bytree: float = 1.0,
         reg_alpha: float = 0.0,
         reg_lambda: float = 0.0,
-        random_state: int | None = None
+        estimate_confidence: bool = False
     ):
         super().__init__(n_input, n_output, folder, task=task)
         self.learning_rate = learning_rate
@@ -33,8 +33,9 @@ class LightGBM(Adapter):
         self.colsample_bytree = colsample_bytree
         self.reg_alpha = reg_alpha
         self.reg_lambda = reg_lambda
-        self.random_state = random_state
         self.model: lgb.Booster | None = None
+        self.estimate_confidence = estimate_confidence
+
 
     def init_model(self):
 
@@ -49,7 +50,6 @@ class LightGBM(Adapter):
             'colsample_bytree': self.colsample_bytree,
             'reg_alpha': self.reg_alpha,
             'reg_lambda': self.reg_lambda,
-            'seed': self.random_state,
             "objective": objective,
             "metric": metric,
             "num_class": self.n_output
@@ -73,7 +73,6 @@ class LightGBM(Adapter):
             x = np.reshape(x, (x.shape[0], -1))
             x_val = np.reshape(x_val, (x_val.shape[0], -1))
 
-
         train_data = lgb.Dataset(x, label=y)
         valid_data = lgb.Dataset(x_val, label=y_val, reference=train_data)
 
@@ -87,6 +86,28 @@ class LightGBM(Adapter):
         )
         self._train_end = self.now()
 
+        if self.estimate_confidence:
+            up = self._params.copy()
+            up["objective"] = "quantile"
+            up["alpha"] = 0.95
+            self.upper = lgb.train(
+                up,
+                train_data,
+                num_boost_round=self.n_estimators,
+                valid_sets=[valid_data],
+            )
+
+            lp = self._params.copy()
+            lp["objective"] = "quantile"
+            lp["alpha"] = 0.05
+            self.lower = lgb.train(
+                lp,
+                train_data,
+                num_boost_round=self.n_estimators,
+                valid_sets=[valid_data],
+            )
+
+
         y_hat_train = self.inference(x)
         y_hat_val = self.inference(x_val)
 
@@ -99,7 +120,7 @@ class LightGBM(Adapter):
             metric_name: val_metric
         }
 
-        self.save_test_metrics(**metrics)
+        self.set_test_metrics(**metrics)
 
     def inference(self, x: np.ndarray) -> np.ndarray:
 
@@ -110,6 +131,23 @@ class LightGBM(Adapter):
         if preds.ndim > 1:
             return np.argmax(preds, axis=1)
         return (preds > 0.5).astype(int)
+
+
+    def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
+
+        if x.ndim > 2:
+            x = np.reshape(x, (x.shape[0], -1))
+
+        upper = self.upper.predict(x)
+        lower = self.lower.predict(x)
+        yhat = self.model.predict(x)
+
+        difference = upper - lower
+        confidence = {
+            "confidence_quantile": 1 / (difference + 1e-6)
+        }
+
+        return confidence, self.calc_task_metric(yhat, y, reduction="batch")
 
     def get_constructor(self) -> dict:
         return {
@@ -124,9 +162,10 @@ class LightGBM(Adapter):
             "colsample_bytree": self.colsample_bytree,
             "reg_alpha": self.reg_alpha,
             "reg_lambda": self.reg_lambda,
-            "random_state": self.random_state,
-            "verbose": 1
+            "verbose": 1,
+            "estimate_confidence": self.estimate_confidence
         }
+
 
     @classmethod
     def apply_constructor(cls, constructor: dict) -> Self:
@@ -135,15 +174,22 @@ class LightGBM(Adapter):
         return cls(**data)
 
     def save(self):
+
         if self.folder is None:
             return
+
+        constructor = self.get_constructor()
 
         model_file = self.folder / f"{self.name()}.txt"
         self.model.save_model(model_file)
 
+        if constructor["estimate_confidence"]:
+            self.upper.save_model(self.folder / f"{self.name()}_upper.txt")
+            self.lower.save_model(self.folder / f"{self.name()}_lower.txt")
+
         constructor_file = self.folder / f"{self.name()}.json"
         with open(constructor_file, "w") as f:
-            json.dump(self.get_constructor(), f)
+            json.dump(constructor, f)
 
     @classmethod
     def load(cls, folder: Path) -> Self:
@@ -152,6 +198,11 @@ class LightGBM(Adapter):
         with open(constructor_file, "r") as f:
             constructor = json.load(f)
         instance = cls.apply_constructor(constructor)
+
+        if instance.estimate_confidence:
+            instance.upper = lgb.Booster(model_file=folder / f"{cls.name()}_upper.txt")
+            instance.lower = lgb.Booster(model_file=folder / f"{cls.name()}_lower.txt")
+
         instance.model = lgb.Booster(model_file=model_file)
         return instance
 

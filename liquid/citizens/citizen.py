@@ -5,11 +5,6 @@ import torch.nn as nn
 
 class Citizen(nn.Module):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     def get_constructor(self) -> dict:
         raise NotImplementedError("get_constructor")
 
@@ -22,14 +17,25 @@ class Citizen(nn.Module):
         return cls.__name__
 
 
-def get_sequential(layers: list[int], last_linear_true: bool = True) -> nn.Sequential:
+
+def get_sequential(layers: list[int], last_linear: bool = False, dropout: float = 0.0) -> nn.Sequential:
+
+    if len(layers) < 2:
+        return nn.Identity()
 
     arch = []
     for src, tar in zip(layers[:-1], layers[1:], strict=True):
         arch.append(nn.Linear(src, tar))
         arch.append(nn.LeakyReLU())
 
-    if last_linear_true:
+        if dropout > 0:
+            arch.append(nn.Dropout(p=dropout))
+
+
+    # last dropout
+    arch.pop()
+
+    if last_linear:
         arch.pop()
 
     return nn.Sequential(*arch)
@@ -42,7 +48,8 @@ class CitizenFC(Citizen):
         n_output: int,
         layers: int,
         width: int,
-        last_linear: bool
+        last_linear: bool,
+        dropout: float
     ):
 
         super().__init__()
@@ -52,9 +59,10 @@ class CitizenFC(Citizen):
         self.layers = layers
         self.width = width
         self.last_linear = last_linear
+        self.dropout = dropout
 
         network = [n_input] + [width] * layers + [n_output]
-        self.network = get_sequential(network, last_linear_true=last_linear)
+        self.network = get_sequential(network, last_linear_true=last_linear, dropout=dropout)
 
     def forward(self, x: torch.Tensor):
         return self.network(x)
@@ -66,7 +74,8 @@ class CitizenFC(Citizen):
             "n_output":  self.n_output,
             "layers":  self.layers,
             "width":  self.width,
-            "last_linear": self.last_linear
+            "last_linear": self.last_linear,
+            "dropout": self.dropout
         }
 
     @classmethod
@@ -82,6 +91,7 @@ class RouterFC(Citizen):
         n_citizens: int,
         layers: int,
         width: int,
+        droput: float
     ):
 
         super().__init__()
@@ -90,6 +100,7 @@ class RouterFC(Citizen):
         self.n_citizens= n_citizens
         self.layers = layers
         self.width = width
+        self.dropout
 
         network = [n_input] + [width] * layers + [n_citizens]
         self.network = get_sequential(network, last_linear_true=True)
