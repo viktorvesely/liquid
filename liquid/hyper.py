@@ -139,9 +139,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpu", type=int, required=False, default=1)
     parser.add_argument("--algorithm", type=str, required=True)
+    parser.add_argument("--debug", type=bool, action="store_true")
     args = parser.parse_args()
     cpu = args.cpu
     algorithm = args.algorithm
+
+    if args.debug:
+        DEBUG = True
+        MAX_TRIALS = 4
 
     if cpu > 1:
         import torch.multiprocessing as mp
