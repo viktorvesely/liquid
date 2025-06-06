@@ -23,6 +23,8 @@ def get_sequential(layers: list[int], last_linear: bool = False, dropout: float 
     if len(layers) < 2:
         return nn.Identity()
 
+
+
     arch = []
     for src, tar in zip(layers[:-1], layers[1:], strict=True):
         arch.append(nn.Linear(src, tar))
@@ -31,10 +33,11 @@ def get_sequential(layers: list[int], last_linear: bool = False, dropout: float 
         if dropout > 0:
             arch.append(nn.Dropout(p=dropout))
 
-
     # last dropout
-    arch.pop()
+    if dropout > 0:
+        arch.pop()
 
+    # Pop Leaky
     if last_linear:
         arch.pop()
 

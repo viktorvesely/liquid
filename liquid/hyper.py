@@ -1,9 +1,12 @@
 import argparse
 import csv
 from pathlib import Path
+import sys
 from typing import Any, Callable
 import numpy as np
 import traceback
+
+from tqdm import tqdm
 
 from .train import init_le, init_rf, init_lgbm, init_moe, task_to_data, dataset_to_numpy
 from .hyper_protein import h_le, h_lgbm, h_rf, h_moe
@@ -115,7 +118,7 @@ def worker(args: tuple[str, str, str, Any], warmup: bool = False):
 
     for _ in range(MAX_TRIALS):
         params = h_func()
-        params["verbose"] = 0 if not DEBUG else 1
+        params["verbose"] = 0
 
         if DEBUG:
             params["epoch"] = 1
@@ -127,6 +130,7 @@ def worker(args: tuple[str, str, str, Any], warmup: bool = False):
                 return row
             write_row(path, row, lock)
         except Exception as e:
+
             if warmup:
                 raise
 
@@ -134,7 +138,37 @@ def worker(args: tuple[str, str, str, Any], warmup: bool = False):
             print(e)
 
 
+
+def check_for_error_seed():
+    global DEBUG
+
+    import random
+    import warnings
+
+    warnings.filterwarnings("error")
+    DEBUG = True
+
+    algorithm = "le"
+    h_func = get_hyper(algorithm)
+    dummy = h_func()
+    task = dummy["name"]
+    params = (algorithm, task, None, None)
+
+    for _ in tqdm(list(range(100))):
+
+        seed = random.randint(1, 1_000_000)
+        np.random.seed(seed)
+
+        try:
+            worker(params, warmup=True)
+        except Exception as e:
+            print(f"{e} occured with seed {seed}")
+
+    sys.exit()
+
 if __name__ == "__main__":
+
+    # check_for_error_seed()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpu", type=int, required=False, default=1)

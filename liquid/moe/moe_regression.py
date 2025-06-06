@@ -48,7 +48,7 @@ class LongRegression(nn.Module):
                     n_output=n_output,
                     width = width_body,
                     last_linear=True,
-                    dropout=self.body_dropout
+                    dropout=body_dropout
                 )
             for _ in range(n_citizens) ],
             router=RouterFC(
@@ -56,7 +56,7 @@ class LongRegression(nn.Module):
                 n_citizens=n_citizens,
                 layers=layers_router,
                 width=width_router,
-                dropout=self.router_dropout
+                dropout=router_dropout
             ),
             **moe_kwargs
         )

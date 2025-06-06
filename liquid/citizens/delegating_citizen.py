@@ -49,7 +49,7 @@ class DelegatingFC(Citizen):
         self.y_head = get_sequential(y, last_linear=last_linear, dropout=dropout_y)
 
         d = [body[-1]] + [width_d] * layers_d + [n_citizens]
-        self.d_head = get_sequential(d, last_linear=True, dropout=dropout_body)
+        self.d_head = get_sequential(d, last_linear=True, dropout=dropout_d)
         self.d_head.append(nn.Softmax(dim=1))
 
     def forward(self, x: torch.Tensor):
