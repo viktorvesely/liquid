@@ -152,7 +152,7 @@ class NNAdapter(Adapter):
                 if callable(on_batch):
                     on_batch(model, x_batch, yhat_batch)
 
-        return np.concat(ys, axis=0)
+        return np.concatenate(ys, axis=0)
 
 
     def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
