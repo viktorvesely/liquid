@@ -54,9 +54,9 @@
         "n_estimators":  100,
         "max_depth": null,
         "num_leaves": null,
-        "subsample": 1.0,
-        "colsample_bytree": 1.0,
+        "subsample": 0.9,
         "lambda_l2" : 0.2,
+        "feature_fraction": 1.0,
         "boosting": "gbdt",
         "min_data_in_leaf": 20
     }

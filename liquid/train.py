@@ -119,7 +119,8 @@ def train(
     x_val, y_val = dataset_to_numpy(val_dataset)
     val_dataset = None
 
-    for init_func in [init_le, init_moe, init_rf, init_lgbm]:
+    # for init_func in [init_le, init_moe, init_rf, init_lgbm]:
+    for init_func in [init_lgbm]:
 
         instance, train_kwargs = init_func(params, experiment_folder)
         instance.train(x_train, y_train, x_val, y_val, **train_kwargs)

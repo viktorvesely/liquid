@@ -28,7 +28,8 @@ class NNAdapter(Adapter):
 
         self.lr = lr
         self.last_bs: int = None
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu")
 
         self.x_norm = None
         self.y_norm = None
@@ -144,7 +145,7 @@ class NNAdapter(Adapter):
         with torch.no_grad():
             for (x_batch,) in tqdm.tqdm(loader, total=len(loader), disable=(verbose < 1)):
 
-                x_batch = x_batch.to("cuda")
+                x_batch = x_batch.to(self.device)
                 yhat_batch = model(x_batch)
 
                 ys.append(yhat_batch.cpu().numpy())

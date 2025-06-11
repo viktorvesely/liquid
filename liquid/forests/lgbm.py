@@ -5,7 +5,9 @@ import random
 import re
 from typing import Literal, Self
 import numpy as np
+
 import lightgbm as lgb
+from lightgbm import log_evaluation
 
 from ..adapter import Adapter
 
@@ -84,15 +86,16 @@ class LightGBM(Adapter):
 
         self._train_start = self.now()
         self.model = lgb.train(
-            self._params,
+            params,
             train_data,
             num_boost_round=self.n_estimators,
-            valid_sets=[valid_data]
+            valid_sets=[valid_data],
+        callbacks=[log_evaluation(period=0)]
         )
         self._train_end = self.now()
 
         if self.estimate_confidence:
-            up = self._params.copy()
+            up = params.copy()
             up["objective"] = "quantile"
             up["alpha"] = 0.95
             self.upper = lgb.train(
@@ -100,9 +103,10 @@ class LightGBM(Adapter):
                 train_data,
                 num_boost_round=self.n_estimators,
                 valid_sets=[valid_data],
+                callbacks=[log_evaluation(period=0)]
             )
 
-            lp = self._params.copy()
+            lp = params.copy()
             lp["objective"] = "quantile"
             lp["alpha"] = 0.05
             self.lower = lgb.train(
@@ -110,6 +114,7 @@ class LightGBM(Adapter):
                 train_data,
                 num_boost_round=self.n_estimators,
                 valid_sets=[valid_data],
+                callbacks=[log_evaluation(period=0)]
             )
 
 

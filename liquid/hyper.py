@@ -121,6 +121,7 @@ def worker(args: tuple[str, str, str, Any], warmup: bool = False):
         params["verbose"] = 0
 
         if DEBUG:
+            params["verbose"] = 1
             params["epoch"] = 1
 
         try:
