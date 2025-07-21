@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mem=18GB
-#SBATCH --time=8:00:00
+#SBATCH --time=16:00:00
 #SBATCH --job-name=lgbmhyper
 #SBATCH --partition=regular
 #SBATCH --nodes=1
