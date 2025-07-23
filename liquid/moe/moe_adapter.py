@@ -100,6 +100,7 @@ class Moe(NNAdapter):
 
     def on_end(self, x_val: np.ndarray, y_val: np.ndarray):
 
+
         folder = self.folder
         save_files = self.folder is not None
 
@@ -112,10 +113,9 @@ class Moe(NNAdapter):
             speaker_entropies.append(self.speaker_entropy().item())
             power_entropies.append(self.power_entropy().item())
 
-        yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step)
+        yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step, norm_x=False)
         power_entropy = np.mean(power_entropies)
         speaker_entropy = np.mean(speaker_entropies)
-
 
         task_type = self.get_task_type()
         if task_type == "classification":

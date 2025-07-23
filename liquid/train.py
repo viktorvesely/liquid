@@ -120,7 +120,7 @@ def train(
     val_dataset = None
 
     # for init_func in [init_le, init_moe, init_rf, init_lgbm]:
-    for init_func in [init_lgbm]:
+    for init_func in [init_moe]:
 
         instance, train_kwargs = init_func(params, experiment_folder)
         instance.train(x_train, y_train, x_val, y_val, **train_kwargs)
@@ -221,6 +221,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="protein")
+    parser.add_argument("--name", type=str, default="protein")
     args = parser.parse_args()
 
     task = args.task
@@ -228,6 +229,6 @@ if __name__ == "__main__":
     params = load_params(task)
 
     train(
-        experiment_name="protein",
+        experiment_name=args.name,
         params=params
     )

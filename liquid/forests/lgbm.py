@@ -138,9 +138,16 @@ class LightGBM(Adapter):
             x = np.reshape(x, (x.shape[0], -1))
 
         preds = self.model.predict(x)
-        if preds.ndim > 1:
-            return np.argmax(preds, axis=1)
-        return (preds > 0.5).astype(int)
+
+        if self.get_task_type() == "classification":
+            raise NotImplementedError("Check if this is correct implementation for classification")
+            if preds.ndim > 1:
+                return np.argmax(preds, axis=1)
+            return (preds > 0.5).astype(int)
+
+        else:
+            return preds
+
 
 
     def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:

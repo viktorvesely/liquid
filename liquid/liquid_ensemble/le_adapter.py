@@ -130,7 +130,7 @@ class LiquidBase(NNAdapter):
             speaker_entropies.append(self.speaker_entropy().item())
             power_entropies.append(self.power_entropy().item())
 
-        yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step)
+        yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step, norm_x=False)
 
         power_entropy = np.mean(power_entropies)
         speaker_entropy = np.mean(speaker_entropies)

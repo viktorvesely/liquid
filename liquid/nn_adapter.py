@@ -126,11 +126,12 @@ class NNAdapter(Adapter):
             batch_size: int = 512,
             verbose: int = 0,
             on_batch: Callable[[nn.Module, torch.Tensor, torch.Tensor], None] = None,
+            norm_x: bool = True,
             **_
         ) -> np.ndarray:
 
 
-        if self.task == "protein":
+        if self.get_task_type() == "regression" and norm_x:
             x = self.norm_x(x)
 
         self.on_train()
@@ -158,7 +159,7 @@ class NNAdapter(Adapter):
 
     def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
 
-        if self.task == "protein":
+        if self.get_task_type() == "regression":
             x = self.norm_x(x)
             y = self.norm_y(y)
 
@@ -203,6 +204,11 @@ class NNAdapter(Adapter):
         if isinstance(yhat, torch.Tensor):
             yhat = yhat.cpu().numpy()
 
+
+        if self.get_task_type() == "regression":
+            y = self.denorm_y(y)
+            yhat = self.denorm_y(yhat)
+
         return super().calc_task_metric(yhat, y, reduction)
 
     def push_task_metric(self, metric, val_metrics):
@@ -229,7 +235,7 @@ class NNAdapter(Adapter):
 
         self.verbose = verbose
 
-        if self.task == "protein":
+        if self.get_task_type() == "regression":
 
             self.set_norm(x, y)
 
