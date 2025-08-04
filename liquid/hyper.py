@@ -195,7 +195,7 @@ if __name__ == "__main__":
     dummy = h_func()
     task = dummy["name"]
 
-    folder = create_experiment_folder(task, name=algorithm, hyper=True)
+    folder = create_experiment_folder(task, name=algorithm, hyper=True, rand=True)
     result_path = str(folder / f"{algorithm}.csv")
 
     params = []
