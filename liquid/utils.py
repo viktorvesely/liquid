@@ -6,7 +6,6 @@ import numpy as np
 def create_experiment_folder(task: str, name: str = "experiment", hyper: bool = False, rand: bool = False) -> Path:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-
     rand_string = np.random.choice([char for char in ascii_letters], size=6, replace=True)
     rand_string = ''.join(rand_string)
 

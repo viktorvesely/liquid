@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Self
 import numpy as np
 import torch
 import torch.nn as nn
@@ -9,7 +9,7 @@ from torch.utils.data import TensorDataset, DataLoader
 import tqdm
 import torch.optim as optim
 
-from .adapter import Adapter
+from .adapter import Adapter, Metrics
 
 
 class NNAdapter(Adapter):
@@ -35,6 +35,8 @@ class NNAdapter(Adapter):
         self.y_norm = None
         self.verbose: int = 0
 
+        self.train_metrics: Metrics = None
+        self.valid_metric: Metrics = None
         self._best_valid_metric = (-float("inf")) if (self.get_task_type() == "classification") else float("inf")
 
 
@@ -61,13 +63,27 @@ class NNAdapter(Adapter):
         ...
 
     def on_train(self):
-        ...
+        self.train_metrics = Metrics(loss=None)
+        self.valid_metric = Metrics.empty_like(self.train_metrics, **{self.get_task_metric_name(): None})
 
     def on_epoch(self, epoch: int):
-        ...
+
+        if self.verbose > 0:
+            print(f"\n--------{self.name()} Epoch {epoch}-----------")
+            print(f"Train: {self.train_metrics}")
+            print(f"Valid: {self.valid_metric}")
+
+        self.train_metrics.reset()
+        self.valid_metric.reset()
 
     def on_end(self, x_val: np.ndarray, y_val: np.ndarray) -> Any:
-        ...
+
+        folder = self.folder
+        save_files = self.folder is not None
+
+        if save_files:
+            self.valid_metric.save_histories(folder, prefix=self.name())
+
 
     def auxiliary_loss(
             self,
@@ -118,6 +134,12 @@ class NNAdapter(Adapter):
 
     def denorm_x(self, x: np.ndarray):
         return self._denorm(x, *self.x_norm)
+
+
+    @abstractmethod
+    def batch_active_parameters(self, *xs: torch.Tensor) -> float:
+        ...
+
 
     def inference(
             self,
@@ -303,4 +325,34 @@ class NNAdapter(Adapter):
         self._train_end = self.now() - valid_time_penalty
 
         return self.on_end(x_val, y_val)
+
+
+    def save(self):
+        folder = self.folder
+
+        if folder is None:
+            return
+
+        file = folder / f"{self.name()}.pt"
+
+        constructor = self.get_constructor()
+        constructor["__optimizer_state_dict"] = self.optimizer.state_dict()
+        constructor["__model_state_dict"] =  self.model.state_dict()
+
+        torch.save(constructor, file)
+
+
+    @classmethod
+    def load(cls, folder: Path) -> Self:
+        constructor = torch.load(folder / f"{cls.name()}.pt", weights_only=False)
+
+        msd = constructor.pop("__model_state_dict")
+        osd = constructor.pop("__optimizer_state_dict")
+
+        instance = cls.apply_constructor(constructor)
+
+        instance.model.load_state_dict(msd)
+        instance.optimizer.load_state_dict(osd)
+
+        return instance
 

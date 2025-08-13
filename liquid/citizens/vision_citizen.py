@@ -10,6 +10,46 @@ import torch.nn.functional as F
 from .citizen import Citizen
 
 
+class CNN2FC(Citizen):
+
+    def __init__(
+        self,
+        in_channels: int,
+        n_square_output: int = 2
+    ):
+
+        super().__init__()
+
+        self.in_channels = in_channels
+        self.n_square_output = n_square_output
+
+        self.out = nn.Sequential(
+            nn.AdaptiveMaxPool2d(output_size=n_square_output),
+            nn.Flatten()
+        )
+
+
+    @property
+    def out_size(self) -> float:
+        return (self.n_square_output ** 2) * self.in_channels
+
+    def forward(self, x: torch.Tensor):
+        y = self.out(x)
+        return y
+
+    def get_constructor(self) -> dict:
+        return {
+            "in_channels": self.in_channels,
+            "n_square_output": self.n_square_output
+        }
+
+    @classmethod
+    def apply_constructor(cls, constructor: dict) -> Self:
+        instance = cls(**constructor)
+        return instance
+
+
+
 class FinalGlobalHead(Citizen):
 
     def __init__(
@@ -57,7 +97,7 @@ def get_sequential(layers: list[int], max_pool_every: int = 1) -> nn.Sequential:
         arch.append(nn.BatchNorm2d(tar))
         arch.append(nn.LeakyReLU())
 
-        if ((i + 0) % max_pool_every) == 0:
+        if ((i + 1) % max_pool_every) == 0:
             arch.append(nn.MaxPool2d(kernel_size=2, stride=2))
 
 

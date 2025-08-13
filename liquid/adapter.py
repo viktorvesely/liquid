@@ -19,11 +19,40 @@ class Metrics:
         self.metrics = {name: [] for name in metrics.keys()}
         self.history = {name: [] for name in metrics.keys()}
 
+    def metrics_unused(self) -> bool:
+
+        return (
+            all([ len(metric) == 0 for metric in self.metrics.values() ]) and
+            all([ len(history) == 0 for history in self.history.values() ])
+        )
+
+    def add_metrics(self, **metrics):
+
+        assert self.metrics_unused(), "Adding metrics after usage"
+
+        new_metrics = {name: [] for name in metrics.keys()}
+        new_histories = {name: [] for name in metrics.keys()}
+
+        self.metrics |= new_metrics
+        self.history |= new_histories
+
+
     def push(self, **metrics):
         for name, value in metrics.items():
             self.metrics[name].append(value)
 
+    def validate_lengths(self):
+
+        metrics = list(self.metrics.values())
+        length = len(metrics[0])
+
+        if not all([ len(metric) == length for metric in metrics ]):
+                raise ValueError("Length mismatch between the metrics")
+
     def reset(self):
+
+        self.validate_lengths()
+
         for name, values in self.metrics.items():
             if len(values) == 0:
                 continue
@@ -180,13 +209,14 @@ class Adapter(ABC):
             return "rmse"
 
 
+
     @staticmethod
     def metric_rmse(y_hat: np.ndarray, y: np.ndarray) -> np.ndarray:
-        return np.sqrt(np.square(y_hat - y))
+        return np.sqrt(np.square(y_hat - y)) # Per sample
 
     @staticmethod
     def metric_accuracy(y_hat: np.ndarray, y: np.ndarray) -> np.ndarray:
-        return (y_hat == y).astype(np.float32)
+        return (y_hat == y).astype(np.float32) # Per sample
 
     def save_metrics(self):
 
@@ -208,13 +238,10 @@ class Adapter(ABC):
         self._test_metrics = metrics
 
 
-
-
     # @classmethod
     # @abstractmethod
     # def hyperoptimize_step(cls, trial: Trial) -> float:
     #     ...
-
 
 
     @classmethod

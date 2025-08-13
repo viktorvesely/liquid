@@ -6,13 +6,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
 
-from typing import Self
+from typing import Literal, Self
 
 from ..nn_adapter import NNAdapter
 from ..adapter import Metrics
 
-from .moe_cifar10architecture import MoeCifar10
+from .moe_cifar10architecture import MoeBlockCifar, MoeLongCifar
 from .moe_regression import LongRegression
+
+type MoeModel = MoeBlockCifar | LongRegression | MoeLongCifar
+
+def task_to_class(task: str, arch_type: str) -> MoeModel:
+    if task == "protein":
+        return LongRegression
+
+    elif task == "cifar10":
+            ModelClass = MoeLongCifar if arch_type == "long" else MoeBlockCifar
+            return ModelClass
 
 class Moe(NNAdapter):
 
@@ -26,40 +36,37 @@ class Moe(NNAdapter):
         ):
         super().__init__(lr=lr, n_input=n_input, n_output=n_output, folder=folder, task=task)
 
-        self.model: MoeCifar10 | LongRegression = None
+        self.model: MoeModel = None
         self.optimizer: AdamW = None
-        self.train_metrics: Metrics = None
-        self.valid_metric: Metrics = None
+        self.arch_type: Literal["long", "block"] = self.child_type()
 
+
+    def child_type(self) -> str:
+        raise NotImplementedError()
 
     def init_model(
         self,
-        model: MoeCifar10 = None,
+        model: MoeModel = None,
         model_kwargs: dict = None
     ):
 
         if model is None:
 
-            if self.task == "cifar10":
-                model = MoeCifar10(
-                    in_channels=self.n_input,
-                    n_output=self.n_output,
-                    **model_kwargs
-                )
-            else:
-                model = LongRegression(
-                    n_input=self.n_input,
-                    n_output=self.n_output,
-                    **model_kwargs
-                )
+            ModelClass = task_to_class(self.task, self.arch_type)
+
+            model = ModelClass(
+                in_channels=self.n_input,
+                n_output=self.n_output,
+                **model_kwargs
+            )
+
 
         self.model = model
         self.model = self.model.to(self.device)
-        self.optimizer = AdamW(self.model.parameters(), lr=self.lr)
+        self.optimizer = AdamW(self.model.parameters(), lr=self.lr,  weight_decay=0.01)
 
     def get_nn(self):
         return self.model, self.optimizer
-
 
     def on_train(self):
         self.train_metrics = Metrics(loss=None, power_entropy=None, speaker_entropy=None)
@@ -88,24 +95,9 @@ class Moe(NNAdapter):
                 self.push_task_metric(metric, metrics)
                 self.register_valid_metric(metric)
 
-    def on_epoch(self, epoch: int):
-
-        if self.verbose > 0:
-            print(f"\n--------{self.name()} Epoch {epoch}-----------")
-            print(f"Train: {self.train_metrics}")
-            print(f"Valid: {self.valid_metric}")
-
-        self.train_metrics.reset()
-        self.valid_metric.reset()
-
     def on_end(self, x_val: np.ndarray, y_val: np.ndarray):
 
-
-        folder = self.folder
-        save_files = self.folder is not None
-
-        if save_files:
-            self.valid_metric.save_histories(folder, prefix=self.name())
+        self.on_end(x_val, y_val)
 
         speaker_entropies = []
         power_entropies = []
@@ -149,40 +141,26 @@ class Moe(NNAdapter):
 
         instance = cls(**constructor)
 
-        if instance.taks == "cifar10":
-            model = MoeCifar10.apply_constructor(model)
-        else:
-            model = LongRegression.apply_constructor(model)
-
+        model = task_to_class(instance.task, instance.arch_type).apply_constructor(model)
         instance.init_model(model=model)
 
         return instance
 
-    def save(self):
-        folder = self.folder
 
-        if folder is None:
-            return
+class MoeLong(Moe):
 
-        file = folder / f"{self.name()}.pt"
-
-        constructor = self.get_constructor()
-        constructor["__optimizer_state_dict"] = self.optimizer.state_dict()
-        constructor["__model_state_dict"] =  self.model.state_dict()
-
-        torch.save(constructor, file)
-
+    def child_type(self):
+        return "long"
 
     @classmethod
-    def load(cls, folder: Path) -> Self:
-        constructor = torch.load(folder / f"{cls.name()}.pt", weights_only=False)
+    def name(cls):
+        return "LongMoe"
 
-        msd = constructor.pop("__model_state_dict")
-        osd = constructor.pop("__optimizer_state_dict")
+class MoeBlock(Moe):
 
-        instance = cls.apply_constructor(constructor)
+    def child_type(self):
+        return "block"
 
-        instance.model.load_state_dict(msd)
-        instance.optimizer.load_state_dict(osd)
-
-        return instance
+    @classmethod
+    def name(cls):
+        return "BlockMoe"
