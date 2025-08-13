@@ -202,8 +202,8 @@ class Adapter(ABC):
             if reduction == "metric":
                 return np.sqrt(np.mean(se_error))
             elif reduction == "batch":
-                others = tuple(range(1, same_mask_float.ndim))
-                return np.sqrt(np.mean(same_mask_float, axis=others))
+                others = tuple(range(1, se_error.ndim))
+                return np.sqrt(np.mean(se_error, axis=others))
 
 
 
