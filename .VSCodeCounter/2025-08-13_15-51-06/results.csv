@@ -1,0 +1,72 @@
+"filename", "language", "Python", "JSON", "Shell Script", "comment", "blank", "total"
+"c:\Users\viktor\Documents\liquid\liquid\__init__.py", "Python", 0, 0, 0, 0, 1, 1
+"c:\Users\viktor\Documents\liquid\liquid\adapter.py", "Python", 170, 0, 0, 9, 72, 251
+"c:\Users\viktor\Documents\liquid\liquid\cifar10.json", "JSON", 0, 53, 0, 0, 0, 53
+"c:\Users\viktor\Documents\liquid\liquid\cifar10_hyper.json", "JSON", 0, 52, 0, 0, 0, 52
+"c:\Users\viktor\Documents\liquid\liquid\citizens\__init__.py", "Python", 0, 0, 0, 0, 1, 1
+"c:\Users\viktor\Documents\liquid\liquid\citizens\citizen.py", "Python", 91, 0, 0, 2, 36, 129
+"c:\Users\viktor\Documents\liquid\liquid\citizens\delegating_citizen.py", "Python", 68, 0, 0, 0, 17, 85
+"c:\Users\viktor\Documents\liquid\liquid\citizens\name_to_citizen.py", "Python", 6, 0, 0, 0, 3, 9
+"c:\Users\viktor\Documents\liquid\liquid\citizens\routers.py", "Python", 37, 0, 0, 0, 9, 46
+"c:\Users\viktor\Documents\liquid\liquid\citizens\vision_citizen.py", "Python", 216, 0, 0, 0, 75, 291
+"c:\Users\viktor\Documents\liquid\liquid\experiment.sh", "Shell Script", 0, 0, 4, 8, 2, 14
+"c:\Users\viktor\Documents\liquid\liquid\experiments.py", "Python", 122, 0, 0, 0, 48, 170
+"c:\Users\viktor\Documents\liquid\liquid\forests\__init__.py", "Python", 0, 0, 0, 0, 1, 1
+"c:\Users\viktor\Documents\liquid\liquid\forests\bagging.py", "Python", 146, 0, 0, 0, 56, 202
+"c:\Users\viktor\Documents\liquid\liquid\forests\lgbm.py", "Python", 196, 0, 0, 0, 51, 247
+"c:\Users\viktor\Documents\liquid\liquid\hyper.py", "Python", 158, 0, 0, 1, 59, 218
+"c:\Users\viktor\Documents\liquid\liquid\hyper_le.sh", "Shell Script", 0, 0, 4, 7, 2, 13
+"c:\Users\viktor\Documents\liquid\liquid\hyper_lgbm.sh", "Shell Script", 0, 0, 4, 6, 2, 12
+"c:\Users\viktor\Documents\liquid\liquid\hyper_moe.sh", "Shell Script", 0, 0, 4, 7, 2, 13
+"c:\Users\viktor\Documents\liquid\liquid\hyper_protein.py", "Python", 131, 0, 0, 0, 51, 182
+"c:\Users\viktor\Documents\liquid\liquid\hyper_rf.sh", "Shell Script", 0, 0, 4, 6, 2, 12
+"c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\__init__.py", "Python", 0, 0, 0, 0, 1, 1
+"c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\le_adapter.py", "Python", 128, 0, 0, 3, 54, 185
+"c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\le_cifar10architecture.py", "Python", 214, 0, 0, 0, 47, 261
+"c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\le_layer.py", "Python", 236, 0, 0, 50, 111, 397
+"c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\le_regression.py", "Python", 96, 0, 0, 0, 20, 116
+"c:\Users\viktor\Documents\liquid\liquid\moe\__init__.py", "Python", 0, 0, 0, 0, 1, 1
+"c:\Users\viktor\Documents\liquid\liquid\moe\moe_adapter.py", "Python", 125, 0, 0, 3, 53, 181
+"c:\Users\viktor\Documents\liquid\liquid\moe\moe_cifar10architecture.py", "Python", 247, 0, 0, 1, 33, 281
+"c:\Users\viktor\Documents\liquid\liquid\moe\moe_layer.py", "Python", 124, 0, 0, 22, 65, 211
+"c:\Users\viktor\Documents\liquid\liquid\moe\moe_regression.py", "Python", 88, 0, 0, 0, 21, 109
+"c:\Users\viktor\Documents\liquid\liquid\multi_hyper_le.sh", "Shell Script", 0, 0, 4, 7, 2, 13
+"c:\Users\viktor\Documents\liquid\liquid\multi_hyper_lgbm.sh", "Shell Script", 0, 0, 4, 7, 2, 13
+"c:\Users\viktor\Documents\liquid\liquid\multi_hyper_moe.sh", "Shell Script", 0, 0, 4, 7, 2, 13
+"c:\Users\viktor\Documents\liquid\liquid\multi_hyper_rf.sh", "Shell Script", 0, 0, 4, 7, 2, 13
+"c:\Users\viktor\Documents\liquid\liquid\nn_adapter.py", "Python", 260, 0, 0, 1, 120, 381
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\common_run_eval.ipynb", "JSON", 0, 39, 0, 0, 1, 40
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\experiment_eval.ipynb", "JSON", 0, 522, 0, 0, 1, 523
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\explore.ipynb", "JSON", 0, 2449, 0, 0, 1, 2450
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\le_conf_analysis.ipynb", "JSON", 0, 660, 0, 0, 1, 661
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\main_analysis.ipynb", "JSON", 0, 356, 0, 0, 1, 357
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\optimize_nmi_analysis.ipynb", "JSON", 0, 282, 0, 0, 1, 283
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\random_protein_eval.ipynb", "JSON", 0, 1237, 0, 0, 1, 1238
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\setup.ipynb", "JSON", 0, 1618, 0, 0, 1, 1619
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\synth_eval.ipynb", "JSON", 0, 349, 0, 0, 1, 350
+"c:\Users\viktor\Documents\liquid\liquid\notebooks\test_particle.ipynb", "JSON", 0, 94, 0, 0, 1, 95
+"c:\Users\viktor\Documents\liquid\liquid\optimize.py", "Python", 34, 0, 0, 0, 6, 40
+"c:\Users\viktor\Documents\liquid\liquid\optimize.sh", "Shell Script", 0, 0, 4, 8, 2, 14
+"c:\Users\viktor\Documents\liquid\liquid\plain\cifar10.py", "Python", 69, 0, 0, 1, 13, 83
+"c:\Users\viktor\Documents\liquid\liquid\plain\simple_adapter.py", "Python", 82, 0, 0, 0, 37, 119
+"c:\Users\viktor\Documents\liquid\liquid\protein.json", "JSON", 0, 63, 0, 0, 0, 63
+"c:\Users\viktor\Documents\liquid\liquid\synth_metrics.py", "Python", 62, 0, 0, 0, 24, 86
+"c:\Users\viktor\Documents\liquid\liquid\synthetic.py", "Python", 132, 0, 0, 29, 50, 211
+"c:\Users\viktor\Documents\liquid\liquid\test_size.py", "Python", 70, 0, 0, 0, 21, 91
+"c:\Users\viktor\Documents\liquid\liquid\train.py", "Python", 174, 0, 0, 2, 60, 236
+"c:\Users\viktor\Documents\liquid\liquid\train.sh", "Shell Script", 0, 0, 4, 8, 2, 14
+"c:\Users\viktor\Documents\liquid\liquid\utils.py", "Python", 17, 0, 0, 0, 7, 24
+"c:\Users\viktor\Documents\liquid\liquid\vae\auto_encoder.py", "Python", 70, 0, 0, 30, 19, 119
+"c:\Users\viktor\Documents\liquid\liquid\vae\cifar10_dataset.py", "Python", 57, 0, 0, 26, 15, 98
+"c:\Users\viktor\Documents\liquid\liquid\vae\configuration.py", "Python", 83, 0, 0, 66, 25, 174
+"c:\Users\viktor\Documents\liquid\liquid\vae\decoder.py", "Python", 50, 0, 0, 29, 15, 94
+"c:\Users\viktor\Documents\liquid\liquid\vae\encoder.py", "Python", 50, 0, 0, 29, 14, 93
+"c:\Users\viktor\Documents\liquid\liquid\vae\evaluator.py", "Python", 40, 0, 0, 26, 16, 82
+"c:\Users\viktor\Documents\liquid\liquid\vae\main.py", "Python", 47, 0, 0, 27, 12, 86
+"c:\Users\viktor\Documents\liquid\liquid\vae\residual.py", "Python", 35, 0, 0, 27, 9, 71
+"c:\Users\viktor\Documents\liquid\liquid\vae\residual_stack.py", "Python", 13, 0, 0, 26, 8, 47
+"c:\Users\viktor\Documents\liquid\liquid\vae\trainer.py", "Python", 66, 0, 0, 30, 17, 113
+"c:\Users\viktor\Documents\liquid\liquid\vae\vector_quantizer.py", "Python", 32, 0, 0, 73, 18, 123
+"c:\Users\viktor\Documents\liquid\liquid\vae\vector_quantizer_ema.py", "Python", 47, 0, 0, 81, 24, 152
+"c:\Users\viktor\Documents\liquid\liquid\vae\visualize.ipynb", "JSON", 0, 164, 0, 0, 1, 165
+"Total", "-", 4089, 7938, 44, 672, 1449, 14192

@@ -28,6 +28,8 @@ class LiquidEnsembleLayer(nn.Module):
         n_citizens = len(citizens)
         self.n_citizens = n_citizens
         self.citizens = nn.ModuleList(citizens)
+        self.citizens_param_count = torch.tensor([self.count_params(citizen) for citizen in self.citizens], dtype=torch.int)
+        self.all_param_count = torch.sum(self.citizens_param_count)
 
         self.load_distribution_lambda = load_distribution_lambda
         self.specialization_lambda = specialization_lambda
@@ -109,11 +111,11 @@ class LiquidEnsembleLayer(nn.Module):
             power = power.unsqueeze(-1)  # (batch, n_citizen, 1)
 
         # (batch, out)
-        y = torch.sum(ys * power, dim=1)
+        y = torch.sum(ys * power, dim=1) / self.n_citizens
 
         self.last_y = ys
         self.last_D = D
-        self.last_power = power.squeeze()
+        self.last_power = power.squeeze().clone().detach()
 
         # (batch, out)
         return y
@@ -218,6 +220,30 @@ class LiquidEnsembleLayer(nn.Module):
         entropy = dist.entropy() / math.log(n)
 
         return torch.mean(entropy)
+
+
+    @staticmethod
+    def count_params(model: nn.Module) -> int:
+        return sum(p.numel() for p in model.parameters())
+
+    def p_active_parameters(self, power: torch.Tensor | None = None, T: float = 0.01) -> torch.Tensor:
+        """Return (batch,) of [0, 1]
+        """
+
+        if power is None:
+            power = self.last_power
+        # power (n_batch, n)
+
+        power = power / self.n_citizens
+
+        used_mask = (power > T).to(torch.int)
+
+        if self.citizens_param_count.device != used_mask.device:
+            self.citizens_param_count = self.citizens_param_count.to(device=used_mask.device)
+
+        used_params = self.citizens_param_count.unsqueeze(0) * used_mask
+
+        return used_params.sum(dim=1) / self.all_param_count
 
 
     @classmethod

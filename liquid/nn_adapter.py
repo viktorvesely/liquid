@@ -51,6 +51,12 @@ class NNAdapter(Adapter):
     def get_nn(self) -> tuple[nn.Module, optim.Optimizer]:
         ...
 
+    def p_active_parameters_batch(
+        self,
+        x_batch: torch.Tensor
+    ) -> torch.Tensor:
+        return torch.ones(x_batch.shape[0], device=x_batch.device, dtype=torch.float)
+
     def on_batch(
             self,
             model: nn.Module,
@@ -62,7 +68,9 @@ class NNAdapter(Adapter):
             ):
         ...
 
-    def on_train(self):
+
+
+    def on_dataset_start(self):
         self.train_metrics = Metrics(loss=None)
         self.valid_metric = Metrics.empty_like(self.train_metrics, **{self.get_task_metric_name(): None})
 
@@ -104,6 +112,7 @@ class NNAdapter(Adapter):
 
         return nbytes
 
+
     @staticmethod
     def _denorm(x_norm: np.ndarray, mean: np.ndarray, std: np.ndarray):
         return x_norm * std + mean
@@ -135,12 +144,6 @@ class NNAdapter(Adapter):
     def denorm_x(self, x: np.ndarray):
         return self._denorm(x, *self.x_norm)
 
-
-    @abstractmethod
-    def batch_active_parameters(self, *xs: torch.Tensor) -> float:
-        ...
-
-
     def inference(
             self,
             x: np.ndarray,
@@ -156,7 +159,7 @@ class NNAdapter(Adapter):
         if self.get_task_type() == "regression" and norm_x:
             x = self.norm_x(x)
 
-        self.on_train()
+        self.on_dataset_start()
         model, _ = self.get_nn()
         dataset = TensorDataset(torch.tensor(x))
         loader = DataLoader(dataset, batch_size)
@@ -178,6 +181,25 @@ class NNAdapter(Adapter):
 
         return np.concatenate(ys, axis=0)
 
+
+    def evaluate_p_active_params(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+
+        p_active = []
+
+        def batch(model: nn.Module, x_batch: torch.Tensor, yhat_batch: torch.Tensor):
+            p_active_batch = model.p_active_parameters_batch(x_batch)
+            p_active.append(p_active_batch.detach().cpu().numpy())
+
+        self.inference(x, batch_size=self.last_bs, on_batch=batch)
+
+        p_active = np.concatenate(p_active)
+
+        p_active_metrics = {}
+        q = np.linspace(0, 1, num=7, endpoint=True)
+        for qv in zip(q, np.quantile(p_active, q), strict=True):
+            p_active_metrics[f"p_active_q_{q:.2f}"] = qv
+
+        self._test_metrics |= p_active_metrics
 
     def calculate_confidence_and_errors(self, x: np.ndarray, y: np.ndarray) -> tuple[dict[str, np.ndarray], np.ndarray]:
 
@@ -269,7 +291,7 @@ class NNAdapter(Adapter):
 
 
         self.last_bs = batch_size
-        self.on_train()
+        self.on_dataset_start()
         model, optimizer = self.get_nn()
 
         train_dataset = TensorDataset(torch.tensor(x), torch.tensor(y))

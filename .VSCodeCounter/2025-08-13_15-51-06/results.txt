@@ -1,0 +1,104 @@
+Date : 2025-08-13 15:51:06
+Directory : c:\Users\viktor\Documents\liquid\liquid
+Total : 70 files,  12071 codes, 672 comments, 1449 blanks, all 14192 lines
+
+Languages
++--------------+------------+------------+------------+------------+------------+
+| language     | files      | code       | comment    | blank      | total      |
++--------------+------------+------------+------------+------------+------------+
+| JSON         |         14 |      7,938 |          0 |         11 |      7,949 |
+| Python       |         45 |      4,089 |        594 |      1,416 |      6,099 |
+| Shell Script |         11 |         44 |         78 |         22 |        144 |
++--------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                              | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                 |         70 |     12,071 |        672 |      1,449 |     14,192 |
+| . (Files)                                                                         |         26 |      1,542 |        120 |        541 |      2,203 |
+| citizens                                                                          |          6 |        418 |          2 |        141 |        561 |
+| forests                                                                           |          3 |        342 |          0 |        108 |        450 |
+| liquid_ensemble                                                                   |          5 |        674 |         53 |        233 |        960 |
+| moe                                                                               |          5 |        584 |         26 |        173 |        783 |
+| notebooks                                                                         |         10 |      7,606 |          0 |         10 |      7,616 |
+| plain                                                                             |          2 |        151 |          1 |         50 |        202 |
+| vae                                                                               |         13 |        754 |        470 |        193 |      1,417 |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+
+| filename                                                                          | language     | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+
+| c:\Users\viktor\Documents\liquid\liquid\__init__.py                               | Python       |          0 |          0 |          1 |          1 |
+| c:\Users\viktor\Documents\liquid\liquid\adapter.py                                | Python       |        170 |          9 |         72 |        251 |
+| c:\Users\viktor\Documents\liquid\liquid\cifar10.json                              | JSON         |         53 |          0 |          0 |         53 |
+| c:\Users\viktor\Documents\liquid\liquid\cifar10_hyper.json                        | JSON         |         52 |          0 |          0 |         52 |
+| c:\Users\viktor\Documents\liquid\liquid\citizens\__init__.py                      | Python       |          0 |          0 |          1 |          1 |
+| c:\Users\viktor\Documents\liquid\liquid\citizens\citizen.py                       | Python       |         91 |          2 |         36 |        129 |
+| c:\Users\viktor\Documents\liquid\liquid\citizens\delegating_citizen.py            | Python       |         68 |          0 |         17 |         85 |
+| c:\Users\viktor\Documents\liquid\liquid\citizens\name_to_citizen.py               | Python       |          6 |          0 |          3 |          9 |
+| c:\Users\viktor\Documents\liquid\liquid\citizens\routers.py                       | Python       |         37 |          0 |          9 |         46 |
+| c:\Users\viktor\Documents\liquid\liquid\citizens\vision_citizen.py                | Python       |        216 |          0 |         75 |        291 |
+| c:\Users\viktor\Documents\liquid\liquid\experiment.sh                             | Shell Script |          4 |          8 |          2 |         14 |
+| c:\Users\viktor\Documents\liquid\liquid\experiments.py                            | Python       |        122 |          0 |         48 |        170 |
+| c:\Users\viktor\Documents\liquid\liquid\forests\__init__.py                       | Python       |          0 |          0 |          1 |          1 |
+| c:\Users\viktor\Documents\liquid\liquid\forests\bagging.py                        | Python       |        146 |          0 |         56 |        202 |
+| c:\Users\viktor\Documents\liquid\liquid\forests\lgbm.py                           | Python       |        196 |          0 |         51 |        247 |
+| c:\Users\viktor\Documents\liquid\liquid\hyper.py                                  | Python       |        158 |          1 |         59 |        218 |
+| c:\Users\viktor\Documents\liquid\liquid\hyper_le.sh                               | Shell Script |          4 |          7 |          2 |         13 |
+| c:\Users\viktor\Documents\liquid\liquid\hyper_lgbm.sh                             | Shell Script |          4 |          6 |          2 |         12 |
+| c:\Users\viktor\Documents\liquid\liquid\hyper_moe.sh                              | Shell Script |          4 |          7 |          2 |         13 |
+| c:\Users\viktor\Documents\liquid\liquid\hyper_protein.py                          | Python       |        131 |          0 |         51 |        182 |
+| c:\Users\viktor\Documents\liquid\liquid\hyper_rf.sh                               | Shell Script |          4 |          6 |          2 |         12 |
+| c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\__init__.py               | Python       |          0 |          0 |          1 |          1 |
+| c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\le_adapter.py             | Python       |        128 |          3 |         54 |        185 |
+| c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\le_cifar10architecture.py | Python       |        214 |          0 |         47 |        261 |
+| c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\le_layer.py               | Python       |        236 |         50 |        111 |        397 |
+| c:\Users\viktor\Documents\liquid\liquid\liquid_ensemble\le_regression.py          | Python       |         96 |          0 |         20 |        116 |
+| c:\Users\viktor\Documents\liquid\liquid\moe\__init__.py                           | Python       |          0 |          0 |          1 |          1 |
+| c:\Users\viktor\Documents\liquid\liquid\moe\moe_adapter.py                        | Python       |        125 |          3 |         53 |        181 |
+| c:\Users\viktor\Documents\liquid\liquid\moe\moe_cifar10architecture.py            | Python       |        247 |          1 |         33 |        281 |
+| c:\Users\viktor\Documents\liquid\liquid\moe\moe_layer.py                          | Python       |        124 |         22 |         65 |        211 |
+| c:\Users\viktor\Documents\liquid\liquid\moe\moe_regression.py                     | Python       |         88 |          0 |         21 |        109 |
+| c:\Users\viktor\Documents\liquid\liquid\multi_hyper_le.sh                         | Shell Script |          4 |          7 |          2 |         13 |
+| c:\Users\viktor\Documents\liquid\liquid\multi_hyper_lgbm.sh                       | Shell Script |          4 |          7 |          2 |         13 |
+| c:\Users\viktor\Documents\liquid\liquid\multi_hyper_moe.sh                        | Shell Script |          4 |          7 |          2 |         13 |
+| c:\Users\viktor\Documents\liquid\liquid\multi_hyper_rf.sh                         | Shell Script |          4 |          7 |          2 |         13 |
+| c:\Users\viktor\Documents\liquid\liquid\nn_adapter.py                             | Python       |        260 |          1 |        120 |        381 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\common_run_eval.ipynb           | JSON         |         39 |          0 |          1 |         40 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\experiment_eval.ipynb           | JSON         |        522 |          0 |          1 |        523 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\explore.ipynb                   | JSON         |      2,449 |          0 |          1 |      2,450 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\le_conf_analysis.ipynb          | JSON         |        660 |          0 |          1 |        661 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\main_analysis.ipynb             | JSON         |        356 |          0 |          1 |        357 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\optimize_nmi_analysis.ipynb     | JSON         |        282 |          0 |          1 |        283 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\random_protein_eval.ipynb       | JSON         |      1,237 |          0 |          1 |      1,238 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\setup.ipynb                     | JSON         |      1,618 |          0 |          1 |      1,619 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\synth_eval.ipynb                | JSON         |        349 |          0 |          1 |        350 |
+| c:\Users\viktor\Documents\liquid\liquid\notebooks\test_particle.ipynb             | JSON         |         94 |          0 |          1 |         95 |
+| c:\Users\viktor\Documents\liquid\liquid\optimize.py                               | Python       |         34 |          0 |          6 |         40 |
+| c:\Users\viktor\Documents\liquid\liquid\optimize.sh                               | Shell Script |          4 |          8 |          2 |         14 |
+| c:\Users\viktor\Documents\liquid\liquid\plain\cifar10.py                          | Python       |         69 |          1 |         13 |         83 |
+| c:\Users\viktor\Documents\liquid\liquid\plain\simple_adapter.py                   | Python       |         82 |          0 |         37 |        119 |
+| c:\Users\viktor\Documents\liquid\liquid\protein.json                              | JSON         |         63 |          0 |          0 |         63 |
+| c:\Users\viktor\Documents\liquid\liquid\synth_metrics.py                          | Python       |         62 |          0 |         24 |         86 |
+| c:\Users\viktor\Documents\liquid\liquid\synthetic.py                              | Python       |        132 |         29 |         50 |        211 |
+| c:\Users\viktor\Documents\liquid\liquid\test_size.py                              | Python       |         70 |          0 |         21 |         91 |
+| c:\Users\viktor\Documents\liquid\liquid\train.py                                  | Python       |        174 |          2 |         60 |        236 |
+| c:\Users\viktor\Documents\liquid\liquid\train.sh                                  | Shell Script |          4 |          8 |          2 |         14 |
+| c:\Users\viktor\Documents\liquid\liquid\utils.py                                  | Python       |         17 |          0 |          7 |         24 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\auto_encoder.py                       | Python       |         70 |         30 |         19 |        119 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\cifar10_dataset.py                    | Python       |         57 |         26 |         15 |         98 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\configuration.py                      | Python       |         83 |         66 |         25 |        174 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\decoder.py                            | Python       |         50 |         29 |         15 |         94 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\encoder.py                            | Python       |         50 |         29 |         14 |         93 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\evaluator.py                          | Python       |         40 |         26 |         16 |         82 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\main.py                               | Python       |         47 |         27 |         12 |         86 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\residual.py                           | Python       |         35 |         27 |          9 |         71 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\residual_stack.py                     | Python       |         13 |         26 |          8 |         47 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\trainer.py                            | Python       |         66 |         30 |         17 |        113 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\vector_quantizer.py                   | Python       |         32 |         73 |         18 |        123 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\vector_quantizer_ema.py               | Python       |         47 |         81 |         24 |        152 |
+| c:\Users\viktor\Documents\liquid\liquid\vae\visualize.ipynb                       | JSON         |        164 |          0 |          1 |        165 |
+| Total                                                                             |              |     12,071 |        672 |      1,449 |     14,192 |
++-----------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+

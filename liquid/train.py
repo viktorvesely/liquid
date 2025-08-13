@@ -125,7 +125,9 @@ def train(
         instance, train_kwargs = init_func(params, experiment_folder)
         instance.train(x_train, y_train, x_val, y_val, **train_kwargs)
         instance.save()
-        instance.evaluate_confidence_metrics(x_val, y_val)
+
+        if instance._track_confidence:
+            instance.evaluate_confidence_metrics(x_val, y_val)
         instance.save_metrics()
 
 

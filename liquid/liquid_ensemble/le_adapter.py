@@ -41,6 +41,7 @@ class LiquidBase(NNAdapter):
         self.model: LeModel = None
         self.optimizer: AdamW = None
         self.arch_type: Literal["long", "block"] = self.child_type()
+        self.n_all_params: int = None
 
     def child_type(self) -> str:
         raise NotImplementedError()
@@ -64,13 +65,28 @@ class LiquidBase(NNAdapter):
         self.model = model
         self.model = self.model.to(self.device)
         self.optimizer = AdamW(self.model.parameters(), lr=self.lr, weight_decay=0.01)
+        self.n_all_params = sum(p.numel() for p in self.model.parameters())
 
     def get_nn(self):
         return self.model, self.optimizer
 
-    def on_train(self):
+    def on_dataset_start(self):
         self.train_metrics = Metrics(loss=None, power_entropy=None, speaker_entropy=None)
         self.valid_metric = Metrics.empty_like(self.train_metrics, **{self.get_task_metric_name(): None})
+
+    def p_active_parameters_batch(self, x_batch: torch.Tensor) -> torch.Tensor:
+
+        p_actives = []
+        for le_layer in self.model.get_le_layers():
+            # (batch,)
+            p_active = le_layer.p_active_parameters()
+            p_actives.append(p_active)
+
+        # (batch, le_layers)
+        p_actives = torch.stack(p_actives)
+
+        # (batch,)
+        return p_actives.mean(dim=1)
 
     def auxiliary_loss(self, *args, **kwargs):
         return torch.mean(torch.stack(tuple(le.auxiliary_loss() for le in self.model.get_le_layers())))

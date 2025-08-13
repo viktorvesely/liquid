@@ -68,9 +68,24 @@ class Moe(NNAdapter):
     def get_nn(self):
         return self.model, self.optimizer
 
-    def on_train(self):
+    def on_dataset_start(self):
         self.train_metrics = Metrics(loss=None, power_entropy=None, speaker_entropy=None)
         self.valid_metric = Metrics.empty_like(self.train_metrics, **{self.get_task_metric_name(): None})
+
+
+    def p_active_parameters_batch(self, x_batch: torch.Tensor) -> torch.Tensor:
+
+        p_actives = []
+        for le_layer in self.model.get_moe_layers():
+            # (batch,)
+            p_active = le_layer.p_active_parameters()
+            p_actives.append(p_active)
+
+        # (batch, le_layers)
+        p_actives = torch.stack(p_actives)
+
+        # (batch,)
+        return p_actives.mean(dim=1)
 
     def auxiliary_loss(self, *args, **kwargs):
         return torch.mean(torch.stack(tuple(moe.auxiliary_loss() for moe in self.model.get_moe_layers())))

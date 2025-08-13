@@ -91,6 +91,8 @@ class Adapter(ABC):
         self.folder = folder
         self.task = task
 
+        self._track_confidence: bool = task == "protein"
+
         self._train_end: float | None = None
         self._train_start: float | None = None
         self._test_metrics: dict | None = None

@@ -13,8 +13,7 @@ class MoELayer(nn.Module):
     """Mixture-of-Experts layer with fully differentiable **ReLU routing**.
 
     This variant follows the *ReMoE* paper (Wang et al., 2024) but is simplified
-    for whole-sample routing (no token dimension).  Sparsity is enforced by the
-    **adaptive L1 regularisation** scheme from Eq. (6-8) of the paper:
+    for whole-sample routing (no token dimension).
     """
 
     def __init__(
@@ -31,6 +30,9 @@ class MoELayer(nn.Module):
         self.specialization_lambda = specialization_lambda
         self.last_gate: torch.Tensor = None
         self.last_y: torch.Tensor = None
+
+        self.experts_param_count = torch.tensor([self.count_params(citizen) for citizen in self.citizens], dtype=torch.int)
+        self.all_param_count = torch.sum(self.experts_param_count)
 
         self.router = router
 
@@ -187,4 +189,22 @@ class MoELayer(nn.Module):
         power_entropy = self.power_entropy(gate)
 
         return self.specialization_lambda * power_entropy - speaker_entropy * self.load_distribution_lambda
+
+
+    def p_active_parameters(self, gate: torch.Tensor | None = None, T: float = 0.01) -> torch.Tensor:
+        """Return (batch,) of [0, 1]
+        """
+
+        if gate is None:
+            gate = self.last_gate
+        # gate (n_batch, n)
+
+        used_mask = (gate > T).to(torch.int)
+
+        if self.experts_param_count.device != used_mask.device:
+            self.experts_param_count = self.experts_param_count.to(device=used_mask.device)
+
+        used_params = self.experts_param_count.unsqueeze(0) * used_mask
+
+        return used_params.sum(dim=1) / self.all_param_count
 
