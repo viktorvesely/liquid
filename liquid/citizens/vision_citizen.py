@@ -169,12 +169,12 @@ class DelegatingVisionCitizen(Citizen):
     def forward(self, x: torch.Tensor):
 
         b = self.body(x)
-        c = self.y_head(b)
+        y = self.y_head(b)
 
         d_h = self.d_head(b)
         d = F.softmax(self.global_d(d_h), dim=1)
 
-        return c, d
+        return y, d
 
 
     def get_constructor(self) -> dict:

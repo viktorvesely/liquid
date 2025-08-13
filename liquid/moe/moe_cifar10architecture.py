@@ -67,6 +67,7 @@ class MoeLongCifar(nn.Module):
                 CitizenFC(
                     n_input=n_cnn_output,
                     n_output=n_output,
+                    last_linear=True,
                     **moe_fc_kwargs,
                 )
                 for _ in range(n_citizens)
@@ -118,6 +119,7 @@ def moe_cnn_block(
     block_kwargs: dict,
     router_kwargs: dict,
     moe_kwargs: dict,
+    max_pool: bool
 ):
     return MoELayer(
         experts=[
@@ -125,6 +127,7 @@ def moe_cnn_block(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 layers=1,
+                max_pool_every=1 if max_pool else 1000,
                 **block_kwargs,
             )
             for _ in range(n_citizens)
@@ -134,6 +137,7 @@ def moe_cnn_block(
             out_channels=out_channels,
             n_citizens=n_citizens,
             layers=1,
+            max_pool_every=1 if max_pool else 1000,
             **router_kwargs,
         ),
         **moe_kwargs,
@@ -147,6 +151,7 @@ def moe_fc_block(
     block_kwargs: dict,
     router_kwargs: dict,
     moe_kwargs: dict,
+    linear_output: bool
 ):
     return MoELayer(
         experts=[
@@ -154,6 +159,7 @@ def moe_fc_block(
                 n_input=n_input,
                 n_output=n_output,
                 layers=1,
+                last_linear=linear_output,
                 **block_kwargs,
             )
             for _ in range(n_citizens)
@@ -177,6 +183,7 @@ class MoeBlockCifar(nn.Module):
         n_citizens: int,
         n_cnn_moe_blocks: int,
         n_fc_moe_blocks: int,
+        max_pool_every: int,
         moe_kwargs: dict | None = None,
         moe_cnn_kwargs: dict | None = None,
         moe_fc_kwargs: dict | None = None,
@@ -216,8 +223,9 @@ class MoeBlockCifar(nn.Module):
                     block_kwargs=moe_cnn_kwargs,
                     router_kwargs=router_cnn_kwargs,
                     moe_kwargs=moe_kwargs,
+                    max_pool=((i + 1) % max_pool_every) == 0
                 )
-                for prev, fol in zip(channels[:-1], channels[1:], strict=True)
+                for i, (prev, fol) in enumerate(zip(channels[:-1], channels[1:], strict=True))
             ]
         )
 
@@ -237,8 +245,9 @@ class MoeBlockCifar(nn.Module):
                     block_kwargs=moe_fc_kwargs,
                     router_kwargs=router_fc_kwargs,
                     moe_kwargs=moe_kwargs,
+                    linear_output=(i == (layers.size - 2)) # last layer
                 )
-                for prev, fol in zip(layers[:-1], layers[1:], strict=True)
+                for i, (prev, fol) in enumerate(zip(layers[:-1], layers[1:], strict=True))
             ]
         )
 

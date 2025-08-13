@@ -48,6 +48,7 @@ class SimpleCifar(nn.Module):
             n_input=n_cnn_output,
             n_output=n_output,
             layers=n_fc_layers,
+            last_linear=True,
             **fc_kwargs,
         )
 

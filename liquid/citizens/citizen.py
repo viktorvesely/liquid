@@ -23,8 +23,6 @@ def get_sequential(layers: list[int], last_linear: bool = False, dropout: float 
     if len(layers) < 2:
         return nn.Identity()
 
-
-
     arch = []
     for src, tar in zip(layers[:-1], layers[1:], strict=True):
         arch.append(nn.Linear(src, tar))

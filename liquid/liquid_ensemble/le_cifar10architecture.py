@@ -63,6 +63,7 @@ class LeLongCifar(nn.Module):
                     n_input=n_cnn_output,
                     n_citizens=n_citizens,
                     n_output=n_output,
+                    last_linear=True,
                     **le_fc_kwargs
                 )
             for _ in range(n_citizens) ],
@@ -133,7 +134,8 @@ def le_fc_block(
     n_output: int,
     n_citizens: int,
     block_kwargs: dict,
-    le_kwargs: dict
+    le_kwargs: dict,
+    linear_output: bool
 ):
     return LiquidEnsembleLayer(
             [
@@ -144,7 +146,8 @@ def le_fc_block(
                     layers_body=1,
                     layers_d=1,
                     layers_y=1,
-                    *block_kwargs
+                    last_linear=linear_output,
+                    **block_kwargs
                 )
             for _ in range(n_citizens) ],
             **le_kwargs
@@ -185,7 +188,9 @@ class LeBlockCifar(nn.Module):
         self.n_output = n_output
         self.max_pool_every = max_pool_every
 
-        channels = np.linspace(in_channels, last_channels, num=(n_cnn_le_blocks + 1), endpoint=True).round().astype(int)
+        channels = np.linspace(
+            in_channels, last_channels, num=(n_cnn_le_blocks + 1), endpoint=True
+        ).round().astype(int)
 
         self.le_cnn_blocks = nn.Sequential(
             *[
@@ -216,6 +221,7 @@ class LeBlockCifar(nn.Module):
                     n_citizens=n_citizens,
                     le_kwargs=le_kwargs,
                     block_kwargs=le_fc_kwargs,
+                    linear_output=(i == (layers.size - 2)) # last layer
                 )
             for i, (prev, fol) in enumerate(zip(layers[:-1], layers[1:], strict=True))]
         )
