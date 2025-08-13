@@ -181,26 +181,33 @@ class Adapter(ABC):
 
         raise ValueError(f"Invalid task {self.task}")
 
-    def calc_task_metric(self, y_hat: np.ndarray, y: np.ndarray, reduction: Literal["none", "batch", "metric"] = "metric") -> float:
+    def calc_task_metric(self, y_hat: np.ndarray, y: np.ndarray, reduction: Literal["batch", "metric"] = "metric") -> float:
 
         task_type = self.get_task_type()
 
+
         if task_type == "classification":
-            metric = self.metric_accuracy(y_hat, y)
+            same_mask_float = self.metric_accuracy(y_hat, y)
+
+            if reduction == "metric":
+                return np.mean(same_mask_float)
+            elif reduction == "batch":
+                others = tuple(range(1, same_mask_float.ndim))
+                return np.mean(same_mask_float, axis=others)
+
+
         elif task_type == "regression":
-            metric = self.metric_rmse(y_hat, y)
+            se_error = self.metric_se(y_hat, y)
 
-        if reduction == "metric":
-            metric = np.mean(metric)
-        elif reduction == "batch":
-            others = tuple(range(1, metric.ndim))
-            metric = np.mean(metric, axis=others)
-        elif reduction =="none":
-            ...
-        else:
-            raise ValueError(f"reduction = {reduction}")
+            if reduction == "metric":
+                return np.sqrt(np.mean(se_error))
+            elif reduction == "batch":
+                others = tuple(range(1, same_mask_float.ndim))
+                return np.sqrt(np.mean(same_mask_float, axis=others))
 
-        return metric
+
+
+        return same_mask_float
 
     def get_task_metric_name(self) -> str:
 
@@ -213,8 +220,8 @@ class Adapter(ABC):
 
 
     @staticmethod
-    def metric_rmse(y_hat: np.ndarray, y: np.ndarray) -> np.ndarray:
-        return np.sqrt(np.square(y_hat - y)) # Per sample
+    def metric_se(y_hat: np.ndarray, y: np.ndarray) -> np.ndarray:
+        return np.square(y_hat - y) # Per sample
 
     @staticmethod
     def metric_accuracy(y_hat: np.ndarray, y: np.ndarray) -> np.ndarray:

@@ -112,7 +112,7 @@ class Moe(NNAdapter):
 
     def on_end(self, x_val: np.ndarray, y_val: np.ndarray):
 
-        self.on_end(x_val, y_val)
+        super().on_end(x_val, y_val)
 
         speaker_entropies = []
         power_entropies = []
@@ -120,7 +120,7 @@ class Moe(NNAdapter):
             speaker_entropies.append(self.speaker_entropy().item())
             power_entropies.append(self.power_entropy().item())
 
-        yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step, norm_x=False)
+        yhat = self.inference(x_val, batch_size=self.last_bs, on_batch=step, regression_norm_x=False)
         power_entropy = np.mean(power_entropies)
         speaker_entropy = np.mean(speaker_entropies)
 

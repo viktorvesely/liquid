@@ -216,7 +216,7 @@ class VisionCitizen(Citizen):
         self.max_pool_every = max_pool_every
         self.layers = layers
 
-        self.layers = monotonically_increasing_cnn(
+        self.cnns = monotonically_increasing_cnn(
             in_channels,
             out_channels,
             depth=layers,
@@ -226,7 +226,7 @@ class VisionCitizen(Citizen):
 
 
     def forward(self, x: torch.Tensor):
-        y = self.layers(x)
+        y = self.cnns(x)
         return y
 
     def get_constructor(self) -> dict:
@@ -261,7 +261,7 @@ class VisionRouter(Citizen):
         self.max_pool_every = max_pool_every
         self.n_citizens = n_citizens
 
-        self.layers = monotonically_increasing_cnn(
+        self.cnns = monotonically_increasing_cnn(
             in_channels,
             out_channels,
             depth=layers,
@@ -272,7 +272,7 @@ class VisionRouter(Citizen):
 
 
     def forward(self, x: torch.Tensor):
-        h = self.layers(x)
+        h = self.cnns(x)
         return self.out(h)
 
     def get_constructor(self) -> dict:

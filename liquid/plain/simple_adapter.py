@@ -11,7 +11,7 @@ from typing import Self
 from ..nn_adapter import NNAdapter
 from ..adapter import Metrics
 
-from cifar10 import SimpleCifar
+from .cifar10 import SimpleCifar
 
 type SimpleModel = SimpleCifar
 
@@ -106,7 +106,7 @@ class SimpleNN(NNAdapter):
 
         instance = cls(**constructor)
 
-        if instance.taks == "cifar10":
+        if instance.task == "cifar10":
             model = SimpleCifar.apply_constructor(model)
         else:
             raise NotImplementedError("Only cifar for simple")

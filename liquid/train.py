@@ -1,6 +1,7 @@
 from __future__ import annotations
 from copy import deepcopy
 import json
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -13,7 +14,8 @@ from torch.utils.data import TensorDataset, Subset
 import liquid.utils as utils
 from .synthetic import sample
 from .liquid_ensemble.le_adapter import LiquidLong, LiquidBlock
-from .moe.moe_adapter import Moe
+from .moe.moe_adapter import MoeBlock, MoeLong
+from .plain.simple_adapter import SimpleNN
 from .forests.bagging import RandomForest
 from .forests.lgbm import LightGBM
 from torch.utils.data import random_split
@@ -67,7 +69,6 @@ task_to_data = {
     "protein": load_protein
 }
 
-
 def dataset_to_numpy(dataset):
 
     x = []
@@ -119,8 +120,13 @@ def train(
     x_val, y_val = dataset_to_numpy(val_dataset)
     val_dataset = None
 
+    if task == "protein":
+        algos = [init_long_le, init_long_moe, init_rf, init_lgbm]
+    elif task == "cifar10":
+        algos = [init_long_le, init_block_le, init_long_moe, init_block_moe, init_simple]
+
     # for init_func in [init_le, init_moe, init_rf, init_lgbm]:
-    for init_func in [init_moe]:
+    for init_func in algos:
 
         instance, train_kwargs = init_func(params, experiment_folder)
         instance.train(x_train, y_train, x_val, y_val, **train_kwargs)
@@ -170,7 +176,10 @@ def init_rf(params, experiment_folder):
         "verbose": verbose
     }
 
-def init_moe(params, experiment_folder):
+
+def init_moe(params, experiment_folder,  variation: Literal["block", "long"]):
+
+    ModelClass = MoeLong if variation == "long" else MoeBlock
 
     epoch = params["epoch"]
     batch_size = params["batch_size"]
@@ -178,15 +187,16 @@ def init_moe(params, experiment_folder):
     n_output = params["n_output"]
     verbose = params["verbose"]
     task = params["name"]
+    model_params = params[ModelClass.name()]
 
-    moe = Moe(
+    moe = ModelClass(
         n_input=n_input,
         task=task,
         n_output=n_output,
         folder=experiment_folder,
-        lr=params["Moe"]["lr"],
+        lr=model_params["lr"],
     )
-    moe.init_model(model_kwargs=params["Moe"]["architecture"])
+    moe.init_model(model_kwargs=model_params["architecture"])
 
     return moe, {
         "epoch": epoch,
@@ -194,7 +204,9 @@ def init_moe(params, experiment_folder):
         "verbose": verbose
     }
 
-def init_le(params, experiment_folder):
+def init_le(params, experiment_folder, variation: Literal["block", "long"]):
+
+    ModelClass = LiquidLong if variation == "long" else LiquidBlock
 
     epoch = params["epoch"]
     batch_size = params["batch_size"]
@@ -202,9 +214,46 @@ def init_le(params, experiment_folder):
     n_output = params["n_output"]
     verbose = params["verbose"]
     task = params["name"]
-    model_params = params[LiquidLong.name()]
+    model_params = params[ModelClass.name()]
 
-    le = LiquidLong(
+    le = ModelClass(
+        n_input=n_input,
+        n_output=n_output,
+        folder=experiment_folder,
+        task=task,
+        lr=model_params["lr"]
+    )
+    le.init_model(model_kwargs=model_params["architecture"])
+    return le, {
+        "epoch": epoch,
+        "batch_size": batch_size,
+        "verbose": verbose
+    }
+
+
+def init_long_moe(*args, **kwargs):
+    return init_moe(*args, **kwargs, variation="long")
+
+def init_block_moe(*args, **kwargs):
+    return init_moe(*args, **kwargs, variation="block")
+
+def init_long_le(*args, **kwargs):
+    return init_le(*args, **kwargs, variation="long")
+
+def init_block_le(*args, **kwargs):
+    return init_le(*args, **kwargs, variation="block")
+
+def init_simple(params, experiment_folder):
+
+    epoch = params["epoch"]
+    batch_size = params["batch_size"]
+    n_input = params["n_input"]
+    n_output = params["n_output"]
+    verbose = params["verbose"]
+    task = params["name"]
+    model_params = params[SimpleNN.name()]
+
+    le = SimpleNN(
         n_input=n_input,
         n_output=n_output,
         folder=experiment_folder,

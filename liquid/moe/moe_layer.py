@@ -31,7 +31,7 @@ class MoELayer(nn.Module):
         self.last_gate: torch.Tensor = None
         self.last_y: torch.Tensor = None
 
-        self.experts_param_count = torch.tensor([self.count_params(citizen) for citizen in self.citizens], dtype=torch.int)
+        self.experts_param_count = torch.tensor([self.count_params(citizen) for citizen in self.experts], dtype=torch.int)
         self.all_param_count = torch.sum(self.experts_param_count)
 
         self.router = router
@@ -66,7 +66,7 @@ class MoELayer(nn.Module):
             experts.append(expert)
 
         RouterClass = name_to_citizen[r_class]
-        router = RouterClass(**r_constructor)
+        router = RouterClass.apply_constructor(r_constructor)
 
         constructor["router"] = router
         constructor["experts"] = experts

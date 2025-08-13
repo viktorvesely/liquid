@@ -19,25 +19,26 @@ class Citizen(nn.Module):
 
 
 def get_sequential(layers: list[int], last_linear: bool = False, dropout: float = 0.0) -> nn.Sequential:
+    # last_linear here means last layer
 
     if len(layers) < 2:
         return nn.Identity()
 
     arch = []
-    for src, tar in zip(layers[:-1], layers[1:], strict=True):
+    n_pairs = len(layers) - 1
+    is_dropout = dropout > 0
+
+    for i, (src, tar) in enumerate(zip(layers[:-1], layers[1:], strict=True)):
         arch.append(nn.Linear(src, tar))
+        is_last = (i == n_pairs - 1)
+
+        if is_last and last_linear:
+            continue
+
         arch.append(nn.LeakyReLU())
 
-        if dropout > 0:
-            arch.append(nn.Dropout(p=dropout))
-
-    # last dropout
-    if dropout > 0:
-        arch.pop()
-
-    # Pop Leaky
-    if last_linear:
-        arch.pop()
+        if is_dropout:
+            arch.append(nn.Dropout())
 
     return nn.Sequential(*arch)
 

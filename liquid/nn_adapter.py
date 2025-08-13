@@ -151,12 +151,16 @@ class NNAdapter(Adapter):
             batch_size: int = 512,
             verbose: int = 0,
             on_batch: Callable[[nn.Module, torch.Tensor, torch.Tensor], None] = None,
-            norm_x: bool = True,
+            regression_norm_x: bool = True,
+            classification_output_labels = True,
             **_
         ) -> np.ndarray:
 
 
-        if self.get_task_type() == "regression" and norm_x:
+        is_classification = self.get_task_type() == "classification"
+        is_regression = self.get_task_type() == "regression"
+
+        if is_regression and regression_norm_x:
             x = self.norm_x(x)
 
         self.on_dataset_start()
@@ -174,7 +178,10 @@ class NNAdapter(Adapter):
                 x_batch = x_batch.to(self.device)
                 yhat_batch = model(x_batch)
 
-                ys.append(yhat_batch.cpu().numpy())
+                if is_classification and classification_output_labels:
+                    ys.append(torch.argmax(yhat_batch, dim=1).cpu().numpy())
+                else:
+                    ys.append(yhat_batch.cpu().numpy())
 
                 if callable(on_batch):
                     on_batch(model, x_batch, yhat_batch)
