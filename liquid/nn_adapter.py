@@ -11,6 +11,10 @@ import torch.optim as optim
 
 from .adapter import Adapter, Metrics
 
+from .globals import config
+from .visualizer import loss_landscape_2d, plot_landscape_3d, make_two_directions
+from matplotlib import pyplot as plt
+
 
 class NNAdapter(Adapter):
 
@@ -77,9 +81,9 @@ class NNAdapter(Adapter):
     def on_epoch(self, epoch: int):
 
         if self.verbose > 0:
-            print(f"\n--------{self.name()} Epoch {epoch}-----------")
+            print(f"-------{self.name()} Epoch {epoch}-----------")
             print(f"Train: {self.train_metrics}")
-            print(f"Valid: {self.valid_metric}")
+            print(f"Valid: {self.valid_metric}\n")
 
         self.train_metrics.reset()
         self.valid_metric.reset()
@@ -101,6 +105,16 @@ class NNAdapter(Adapter):
             yhat_batch: torch.Tensor
     ) -> torch.Tensor:
         return torch.zeros(1, dtype=x_batch.dtype, device=x_batch.device)
+
+    def get_size_nparams(self) -> int:
+
+        model, _ = self.get_nn()
+        nparams = 0
+
+        for params in model.parameters():
+            nparams += params.nelement()
+
+        return nparams
 
     def get_size_nbytes(self) -> int:
 
@@ -346,6 +360,10 @@ class NNAdapter(Adapter):
                     loss = criterion(yhat_batch, y_batch) + self.auxiliary_loss(model, x_batch, y_batch, yhat_batch)
 
                     self.on_batch(model, x_batch, y_batch, yhat_batch, loss, valid=True)
+
+            if config.display_loss_landscape and (e % config.ll_every == 0) and (e >= config.ll_start):
+                self.visualize_landscape(model, train_loader, criterion, resolution=config.ll_resolution, distance=config.ll_distance)
+
             self.save()
             self.on_epoch(e)
 
@@ -354,6 +372,56 @@ class NNAdapter(Adapter):
         self._train_end = self.now() - valid_time_penalty
 
         return self.on_end(x_val, y_val)
+
+    def visualize_landscape(
+            self,
+            model: nn.Module,
+            loader: DataLoader,
+            criterion: nn.Module,
+            distance: float = 0.5,
+            resolution: int = 25
+        ):
+
+        was_training = model.training
+
+        if was_training:
+            model.eval()
+
+
+        d1, d2 = make_two_directions(model)
+        X, Y, Z = loss_landscape_2d(
+            model,
+            criterion,
+            loader,
+            device=self.device,
+            max_batches=1,
+            radius_alpha=distance,
+            radius_beta=distance,
+            grid_n=resolution,
+            d1=d1,
+            d2=d2
+        )
+        plot_landscape_3d(X, Y, Z, title="Normal")
+        config.make_delegation_uniform = True
+
+        X, Y, Z = loss_landscape_2d(
+            model,
+            criterion,
+            loader,
+            device=self.device,
+            max_batches=1,
+            radius_alpha=distance,
+            radius_beta=distance,
+            grid_n=resolution,
+            d1=d1,
+            d2=d2
+        )
+        plot_landscape_3d(X, Y, Z, title="Uniform")
+        plt.show()
+        config.make_delegation_uniform = False
+
+        if was_training:
+            model.train()
 
 
     def save(self):

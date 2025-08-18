@@ -12,6 +12,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "laws",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "liquid.scaling_laws",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "hyper",
             "type": "debugpy",
             "request": "launch",

@@ -1,18 +1,32 @@
 {
     "name": "cifar10",
     "verbose": 1,
-    "epoch": 10,
-    "batch_size": 256,
+    "epoch": 1,
+    "batch_size": 300,
     "n_input": 3,
     "n_output": 10,
     "LongLiquid": {
         "lr": 0.001,
         "architecture": {
-            "last_channels": 40,
             "n_citizens": 10,
-            "layers_body": 3,
-            "layers_y": 3,
-            "layers_d": 1,
+            "last_channels": 50,
+            "le_cnn_kwargs": {
+                "layers_y": 3,
+                "layers_d": 2,
+                "layers_body": 5,
+                "max_pool_every": 2
+            },
+            "le_fc_kwargs": {
+                "layers_y": 2,
+                "layers_body": 2,
+                "layers_d": 1,
+                "width_body": 100,
+                "width_y": 100,
+                "width_d": 50,
+                "dropout_body": 0.2,
+                "dropout_y": 0.2,
+                "dropout_d": 0.2
+            },
             "le_kwargs": {
                 "load_distribution_lambda": 0.0,
                 "specialization_lambda": 0.0,
@@ -23,30 +37,88 @@
     "BlockLiquid": {
         "lr": 0.001,
         "architecture": {
-            "last_channels": 40,
             "n_citizens": 10,
-            "layers_body": 1,
-            "layers_y": 1,
-            "layers_d": 1,
-            "n_le_blocks": 6,
+            "last_channels": 50,
+            "n_cnn_le_blocks": 4,
+            "n_fc_le_blocks": 2,
+            "max_pool_every": 2,
+            "le_cnn_kwargs": {},
+            "le_fc_kwargs": {
+                "width_body": 100,
+                "width_y": 100,
+                "width_d": 50,
+                "dropout_body": 0.2,
+                "dropout_y": 0.2,
+                "dropout_d": 0.2
+            },
             "le_kwargs": {
-                "load_distribution_lambda": 0.3,
-                "specialization_lambda": 0.3,
+                "load_distribution_lambda": 0.0,
+                "specialization_lambda": 0.0,
                 "solver": "sink_many"
             }
         }
     },
-    "Moe": {
+    "LongMoe": {
         "lr": 0.001,
         "architecture": {
-            "last_channels": 40,
+            "last_channels": 50,
             "n_citizens": 10,
-            "n_moe_blocks": 4,
-            "layers_in_moe_blocks": 2,
-            "layers_router": 1,
+            "moe_cnn_kwargs": {
+                "max_pool_every": 2,
+                "layers": 6
+            },
+            "moe_fc_kwargs": {
+                "layers": 3,
+                "width": 100,
+                "dropout": 0.2
+            },
+            "router_cnn_kwargs": {
+                "layers": 2
+            },
+            "router_fc_kwargs": {
+                "layers": 2,
+                "dropout": 0.2,
+                "width": 50
+            },
             "moe_kwargs": {
-                "load_distribution_lambda": 0.3,
-                "specialization_lambda": 0.3
+                "load_distribution_lambda": 0.0,
+                "specialization_lambda": 0.0
+            }
+        }
+    },
+    "BlockMoe": {
+        "lr": 0.001,
+        "architecture": {
+            "n_citizens": 10,
+            "last_channels": 50,
+            "n_cnn_moe_blocks": 4,
+            "n_fc_moe_blocks": 2,
+            "max_pool_every": 2,
+            "moe_fc_kwargs": {
+                "width": 100,
+                "dropout": 0.2
+            },
+            "moe_kwargs": {
+                "load_distribution_lambda": 0.0,
+                "specialization_lambda": 0.0
+            },
+            "router_cnn_kwargs": {},
+            "router_fc_kwargs": {
+                "width": 50,
+                "dropout": 0.2
+            }
+        }
+    },
+    "SimpleNN": {
+        "lr": 0.001,
+        "architecture": {
+            "last_channels": 400,
+            "n_cnn_layers": 8,
+            "n_fc_layers": 4,
+            "max_pool_every": 2,
+            "fc_kwargs": {
+                "width": 200,
+                "dropout": 0.2
             }
         }
     }

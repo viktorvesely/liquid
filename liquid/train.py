@@ -18,6 +18,7 @@ from .moe.moe_adapter import MoeBlock, MoeLong
 from .plain.simple_adapter import SimpleNN
 from .forests.bagging import RandomForest
 from .forests.lgbm import LightGBM
+
 from torch.utils.data import random_split
 
 import argparse
@@ -47,7 +48,7 @@ def load_protein():
 
     return train_dataset, val_dataset
 
-def load_data_cifar10(reduction: float = 0.25):
+def load_data_cifar10(reduction: float = 1.0):
     data_dir = Path(__file__).parent.parent / 'cifar10_data'
     transform = transforms.Compose([transforms.ToTensor()])
 
@@ -56,7 +57,7 @@ def load_data_cifar10(reduction: float = 0.25):
     train_indices = np.random.choice(len(train_dataset), train_len, replace=False)
     train_dataset = Subset(train_dataset, train_indices)
 
-    train_size = int(0.9 * len(train_dataset))
+    train_size = int(0.95 * len(train_dataset))
     val_size = len(train_dataset) - train_size
 
     # Split dataset
@@ -125,7 +126,9 @@ def train(
     elif task == "cifar10":
         algos = [init_long_le, init_block_le, init_long_moe, init_block_moe, init_simple]
 
-    # for init_func in [init_le, init_moe, init_rf, init_lgbm]:
+
+    algos = [init_long_moe, init_block_moe, init_simple]
+
     for init_func in algos:
 
         instance, train_kwargs = init_func(params, experiment_folder)
@@ -271,8 +274,10 @@ def init_simple(params, experiment_folder):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", type=str, default="protein")
-    parser.add_argument("--name", type=str, default="protein")
+
+    default_task = "cifar10"
+    parser.add_argument("--task", type=str, default=default_task)
+    parser.add_argument("--name", type=str, default=default_task)
     args = parser.parse_args()
 
     task = args.task

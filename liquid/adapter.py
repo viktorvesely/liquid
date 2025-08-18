@@ -185,8 +185,16 @@ class Adapter(ABC):
 
         task_type = self.get_task_type()
 
-
         if task_type == "classification":
+
+            # Probabilities/logits
+            y = y.squeeze()
+            y_hat = y_hat.squeeze()
+            if y_hat.ndim == 2:
+                y_hat = np.argmax(y_hat, axis=1)
+            elif y_hat.ndim > 2:
+                raise ValueError(f"Classification yhat has {y_hat.ndim} ndims, don't know how to reduce to labels")
+
             same_mask_float = self.metric_accuracy(y_hat, y)
 
             if reduction == "metric":

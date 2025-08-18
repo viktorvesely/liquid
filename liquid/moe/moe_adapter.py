@@ -54,10 +54,14 @@ class Moe(NNAdapter):
 
             ModelClass = task_to_class(self.task, self.arch_type)
 
+            init_kwargs = {
+                ("n_input" if self.task == "protein" else "in_channels"): self.n_input,
+                "n_output": self.n_output
+            }
+            all_kwargs = model_kwargs | init_kwargs
+
             model = ModelClass(
-                in_channels=self.n_input,
-                n_output=self.n_output,
-                **model_kwargs
+                **all_kwargs
             )
 
 

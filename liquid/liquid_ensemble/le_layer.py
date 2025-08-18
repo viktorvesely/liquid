@@ -9,6 +9,8 @@ from typing import Literal
 from ..citizens.citizen import Citizen
 from ..citizens.name_to_citizen import name_to_citizen
 
+from ..globals import config
+
 Delegations = list[torch.Tensor]
 Power = torch.Tensor
 DelegationMatrix = torch.Tensor
@@ -221,7 +223,6 @@ class LiquidEnsembleLayer(nn.Module):
 
         return torch.mean(entropy)
 
-
     @staticmethod
     def count_params(model: nn.Module) -> int:
         return sum(p.numel() for p in model.parameters())
@@ -252,7 +253,7 @@ class LiquidEnsembleLayer(nn.Module):
         Ds: Delegations,
         epsilon: float = 0.01,
         long_delegation_penalty: float = 0.90,
-        threshold: float = 0.01
+        threshold: float = 0.05
         ) -> Power:
 
 
@@ -263,6 +264,11 @@ class LiquidEnsembleLayer(nn.Module):
         D = torch.cat(Ds_cat_ready, dim=1)
         n_batch, n, _ = D.shape
         n2 = 2 * n
+
+        if config.make_delegation_uniform:
+            uniform_power = torch.ones((n_batch, n), dtype=torch.float, device=D.device)
+            return uniform_power, D
+
 
         mask = torch.ones((n_batch, n, n), dtype=D.dtype, device=D.device)
         batch_indices = torch.arange(n_batch).unsqueeze(1).unsqueeze(2)
@@ -333,6 +339,10 @@ class LiquidEnsembleLayer(nn.Module):
         D = torch.cat(Ds_cat_ready, dim=-1)
         n_batch, n, _ = D.shape
 
+        if config.make_delegation_uniform:
+            uniform_power = torch.ones((n_batch, n), dtype=torch.float, device=D.device)
+            return uniform_power, D
+
         # Extend the delegation matrix to include the additional agent (agent n+1)
         # For agents 1..n, redefine preferences as ((1 - epsilon)*x_i, epsilon)
         # For the new agent, set its preference to (0, ..., 0, 1)
@@ -371,6 +381,8 @@ class LiquidEnsembleLayer(nn.Module):
         power = torch.clone(power_ext[:, :-1])
         power += power_ext[:, [-1]] / n
         power -= 1 / n
+
+        # print(f"\nResidual power per citizen={torch.mean(power_ext[:, [-1]] / n):.3f}\n")
 
         return power, torch.transpose(D, 1, 2)
 

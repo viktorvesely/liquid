@@ -88,7 +88,16 @@ class FinalGlobalHead(Citizen):
         return instance
 
 
-def get_sequential(layers: list[int], max_pool_every: int = 1) -> nn.Sequential:
+def get_sequential(
+        layers: list[int],
+        max_pool_every: int = 1,
+        start_pool_rotation: int = 0
+    ) -> nn.Sequential:
+
+    if len(layers) < 2:
+        return nn.Sequential(
+            nn.Identity()
+        )
 
     arch = []
     for i, (src, tar) in enumerate(zip(layers[:-1], layers[1:], strict=True)):
@@ -97,7 +106,7 @@ def get_sequential(layers: list[int], max_pool_every: int = 1) -> nn.Sequential:
         arch.append(nn.BatchNorm2d(tar))
         arch.append(nn.LeakyReLU())
 
-        if ((i + 1) % max_pool_every) == 0:
+        if ((start_pool_rotation + i + 1) % max_pool_every) == 0:
             arch.append(nn.MaxPool2d(kernel_size=2, stride=2))
 
 
@@ -109,10 +118,11 @@ def monotonically_increasing_cnn(
         out_channels: int,
         depth: int,
         addition: int = 1,
-        max_pool_every: int = 1
+        max_pool_every: int = 1,
+        start_pool_rotation: int = 0,
     ):
     layers = np.linspace(in_channels, out_channels, num=(depth + addition), endpoint=True).round().astype(int)
-    return get_sequential(layers, max_pool_every=max_pool_every)
+    return get_sequential(layers, max_pool_every=max_pool_every, start_pool_rotation=start_pool_rotation)
 
 
 class DelegatingVisionCitizen(Citizen):
@@ -125,7 +135,7 @@ class DelegatingVisionCitizen(Citizen):
         layers_body: int,
         layers_y: int,
         layers_d: int,
-        max_pool_every: int = 2,
+        max_pool_every: int = 2
     ):
 
         super().__init__()
@@ -153,14 +163,16 @@ class DelegatingVisionCitizen(Citizen):
             body_out_channels,
             out_channels,
             depth=layers_y,
-            max_pool_every=max_pool_every
+            max_pool_every=max_pool_every,
+            start_pool_rotation=layers_body
         )
 
         self.d_head = monotonically_increasing_cnn(
             body_out_channels,
             out_channels,
             depth=layers_d,
-            max_pool_every=max_pool_every
+            max_pool_every=max_pool_every,
+            start_pool_rotation=layers_body
         )
 
         self.global_d = FinalGlobalHead(out_channels, n_citizens)

@@ -1,15 +1,15 @@
 {
     "name": "protein",
     "verbose": 1,
-    "epoch": 10,
+    "epoch": 100,
     "batch_size": 1024,
     "n_input": 9,
     "n_output": 1,
     "LongLiquid": {
         "lr": 0.001,
         "architecture": {
-            "n_citizens": 3,
-            "layers_body": 1,
+            "n_citizens": 8,
+            "layers_body": 2,
             "layers_y": 2,
             "layers_d": 1,
             "width_body": 200,

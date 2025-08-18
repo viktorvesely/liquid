@@ -22,7 +22,9 @@ def get_sequential(layers: list[int], last_linear: bool = False, dropout: float 
     # last_linear here means last layer
 
     if len(layers) < 2:
-        return nn.Identity()
+        return nn.Sequential(
+            nn.Identity()
+        )
 
     arch = []
     n_pairs = len(layers) - 1
@@ -49,12 +51,16 @@ class CitizenFC(Citizen):
         n_input: int,
         n_output: int,
         layers: int,
-        width: int,
+        width: int | None,
         last_linear: bool,
         dropout: float
     ):
 
         super().__init__()
+
+        half = int(n_input + (n_output - n_input) / 2)
+
+        width = width or half
 
         self.n_input= n_input
         self.n_output= n_output
@@ -92,11 +98,15 @@ class RouterFC(Citizen):
         n_input: int,
         n_citizens: int,
         layers: int,
-        width: int,
+        width: int | None,
         dropout: float
     ):
 
         super().__init__()
+
+        half = int(n_input + (n_citizens - n_input) / 2)
+
+        width = width or half
 
         self.n_input= n_input
         self.n_citizens= n_citizens

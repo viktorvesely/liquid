@@ -126,8 +126,8 @@ def moe_cnn_block(
             VisionCitizen(
                 in_channels=in_channels,
                 out_channels=out_channels,
-                layers=1,
-                max_pool_every=1 if max_pool else 1000,
+                layers=2,
+                max_pool_every=2 if max_pool else 1000,
                 **block_kwargs,
             )
             for _ in range(n_citizens)
@@ -136,8 +136,8 @@ def moe_cnn_block(
             in_channels=in_channels,
             out_channels=out_channels,
             n_citizens=n_citizens,
-            layers=1,
-            max_pool_every=1 if max_pool else 1000,
+            layers=2,
+            max_pool_every=2 if max_pool else 1000,
             **router_kwargs,
         ),
         **moe_kwargs,

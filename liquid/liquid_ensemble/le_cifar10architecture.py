@@ -122,7 +122,7 @@ def le_cnn_block(
                     layers_body=1,
                     layers_d=1,
                     layers_y=1,
-                    max_pool_every=1 if max_pool else 1000,
+                    max_pool_every=2 if max_pool else 1000,
                     **block_kwargs
                 )
             for _ in range(n_citizens) ],

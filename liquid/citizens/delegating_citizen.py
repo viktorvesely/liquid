@@ -17,9 +17,9 @@ class DelegatingFC(Citizen):
         layers_body: int,
         layers_y: int,
         layers_d: int,
-        width_body: int,
-        width_y: int,
-        width_d: int,
+        width_body: int | None,
+        width_y: int | None,
+        width_d: int | None,
         dropout_body: float,
         dropout_y: float,
         dropout_d: float,
@@ -27,6 +27,12 @@ class DelegatingFC(Citizen):
     ):
 
         super().__init__()
+
+        half = int(n_input + (n_output - n_input) / 2)
+
+        width_body = width_body or half
+        width_y = width_y or half
+        width_d = width_d or half
 
         self.n_input = n_input
         self.n_citizens = n_citizens
