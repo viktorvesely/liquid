@@ -250,8 +250,8 @@ def train_arch_variations(
 def train(
     arch_name: str,
     experiment_prefix: str,
-    N: int = 10,
-    variations: int = 10
+    N: int = 8,
+    variations: int = 8
 ):
 
     train_dataset, val_dataset = load_data_cifar10(reduction=1.0)
@@ -285,93 +285,93 @@ def train(
     else:
         raise ValueError(arch_name)
 
-def make_arch_param(name: str, cnn_range: tuple[int, int], fc_range: tuple[int, int], n_citizens: int, N: int, variations: int):
-    cnns = np.linspace(*cnn_range, num=N, endpoint=True).astype(int)
-    fcs = np.linspace(*fc_range, num=N, endpoint=True).astype(int)
-    return [model.get_size_nparams() for model in yield_architectures(name, zip(cnns, fcs), variations=variations, n_citizens=n_citizens)]
+# def make_arch_param(name: str, cnn_range: tuple[int, int], fc_range: tuple[int, int], n_citizens: int, N: int, variations: int):
+#     cnns = np.linspace(*cnn_range, num=N, endpoint=True).astype(int)
+#     fcs = np.linspace(*fc_range, num=N, endpoint=True).astype(int)
+#     return [model.get_size_nparams() for model in yield_architectures(name, zip(cnns, fcs), variations=variations, n_citizens=n_citizens)]
 
 
-from scipy import stats
-perfect_sample = np.random.uniform(low=50_000, high=1_000_000, size=100)
-def cost(params):
-    return stats.wasserstein_distance(params, perfect_sample)
+# from scipy import stats
+# perfect_sample = np.random.uniform(low=50_000, high=1_000_000, size=100)
+# def cost(params):
+#     return stats.wasserstein_distance(params, perfect_sample)
 
 
-def plot_dist():
-    import matplotlib.pyplot as plt
-    import seaborn as sns
+# def plot_dist():
+#     import matplotlib.pyplot as plt
+#     import seaborn as sns
 
-    N = 10
-    variations = 10
+#     N = 8
+#     variations = 8
 
-    lle_param_c_5  = make_arch_param("LongLiquid",  (20, 65), (30, 65), n_citizens=5,  N=N, variations=variations)
-    lle_param_c_10 = make_arch_param("LongLiquid",  (20, 45), (30, 45), n_citizens=10, N=N, variations=variations)
-    lle_param_c_15 = make_arch_param("LongLiquid",  (15, 35), (30, 35), n_citizens=15, N=N, variations=variations)
+#     lle_param_c_5  = make_arch_param("LongLiquid",  (20, 65), (30, 65), n_citizens=5,  N=N, variations=variations)
+#     lle_param_c_10 = make_arch_param("LongLiquid",  (20, 45), (30, 45), n_citizens=10, N=N, variations=variations)
+#     lle_param_c_15 = make_arch_param("LongLiquid",  (15, 35), (30, 35), n_citizens=15, N=N, variations=variations)
 
-    # Block Liquid
-    ble_param_c_5  = make_arch_param("BlockLiquid", (20, 60), (30, 50), n_citizens=5,  N=N, variations=variations)
-    ble_param_c_10 = make_arch_param("BlockLiquid", (15, 40), (30, 40), n_citizens=10, N=N, variations=variations)
-    ble_param_c_15 = make_arch_param("BlockLiquid", (15, 30), (20, 30), n_citizens=15, N=N, variations=variations)
+#     # Block Liquid
+#     ble_param_c_5  = make_arch_param("BlockLiquid", (20, 60), (30, 50), n_citizens=5,  N=N, variations=variations)
+#     ble_param_c_10 = make_arch_param("BlockLiquid", (15, 40), (30, 40), n_citizens=10, N=N, variations=variations)
+#     ble_param_c_15 = make_arch_param("BlockLiquid", (15, 30), (20, 30), n_citizens=15, N=N, variations=variations)
 
-    # Long Moe
-    lmoe_param_c_5  = make_arch_param("LongMoe",   (30, 85), (30, 55), n_citizens=5,  N=N, variations=variations)
-    lmoe_param_c_10 = make_arch_param("LongMoe",   (20, 65), (30, 65), n_citizens=10, N=N, variations=variations)
-    lmoe_param_c_15 = make_arch_param("LongMoe",   (20, 50), (30, 50), n_citizens=15, N=N, variations=variations)
+#     # Long Moe
+#     lmoe_param_c_5  = make_arch_param("LongMoe",   (30, 85), (30, 55), n_citizens=5,  N=N, variations=variations)
+#     lmoe_param_c_10 = make_arch_param("LongMoe",   (20, 65), (30, 65), n_citizens=10, N=N, variations=variations)
+#     lmoe_param_c_15 = make_arch_param("LongMoe",   (20, 50), (30, 50), n_citizens=15, N=N, variations=variations)
 
-    # Block Moe
-    bmoe_param_c_5  = make_arch_param("BlockMoe",  (30, 65), (30, 65), n_citizens=5,  N=N, variations=variations)
-    bmoe_param_c_10 = make_arch_param("BlockMoe",  (20, 50), (30, 50), n_citizens=10, N=N, variations=variations)
-    bmoe_param_c_15 = make_arch_param("BlockMoe",  (20, 40), (30, 50), n_citizens=15, N=N, variations=variations)
+#     # Block Moe
+#     bmoe_param_c_5  = make_arch_param("BlockMoe",  (30, 65), (30, 65), n_citizens=5,  N=N, variations=variations)
+#     bmoe_param_c_10 = make_arch_param("BlockMoe",  (20, 50), (30, 50), n_citizens=10, N=N, variations=variations)
+#     bmoe_param_c_15 = make_arch_param("BlockMoe",  (20, 40), (30, 50), n_citizens=15, N=N, variations=variations)
 
-    # Simple
-    simple_param = make_arch_param("SimpleNN", (75, 200), (75, 100), n_citizens=None, N=N, variations=variations)
+#     # Simple
+#     simple_param = make_arch_param("SimpleNN", (75, 200), (75, 100), n_citizens=None, N=N, variations=variations)
 
-    fig, ax = plt.subplots()
+#     fig, ax = plt.subplots()
 
-    # mapping
-    colors = {
-        "LongLiquid": "tab:blue",
-        "BlockLiquid": "tab:orange",
-        "LongMoe": "tab:green",
-        "BlockMoe": "tab:red",
-        "SimpleNN": "tab:purple",
-    }
-    linestyles = {5: "-", 10: "--", 15: ":"}
+#     # mapping
+#     colors = {
+#         "LongLiquid": "tab:blue",
+#         "BlockLiquid": "tab:orange",
+#         "LongMoe": "tab:green",
+#         "BlockMoe": "tab:red",
+#         "SimpleNN": "tab:purple",
+#     }
+#     linestyles = {5: "-", 10: "--", 15: ":"}
 
-    # plot each group
-    for label, params in [
-        ("LongLiquid", [lle_param_c_5, lle_param_c_10, lle_param_c_15]),
-        ("BlockLiquid", [ble_param_c_5, ble_param_c_10, ble_param_c_15]),
-        ("LongMoe", [lmoe_param_c_5, lmoe_param_c_10, lmoe_param_c_15]),
-        ("BlockMoe", [bmoe_param_c_5, bmoe_param_c_10, bmoe_param_c_15]),
-        ("SimpleNN", [simple_param]),
-    ]:
-        for n_citizens, param in zip([5, 10, 15][:len(params)], params):
-            sns.kdeplot(
-                param,
-                bw_adjust=0.65,
-                color=colors[label],
-                linestyle=linestyles.get(n_citizens, "-"),
-                ax=ax,
-            )
+#     # plot each group
+#     for label, params in [
+#         ("LongLiquid", [lle_param_c_5, lle_param_c_10, lle_param_c_15]),
+#         ("BlockLiquid", [ble_param_c_5, ble_param_c_10, ble_param_c_15]),
+#         ("LongMoe", [lmoe_param_c_5, lmoe_param_c_10, lmoe_param_c_15]),
+#         ("BlockMoe", [bmoe_param_c_5, bmoe_param_c_10, bmoe_param_c_15]),
+#         ("SimpleNN", [simple_param]),
+#     ]:
+#         for n_citizens, param in zip([5, 10, 15][:len(params)], params):
+#             sns.kdeplot(
+#                 param,
+#                 bw_adjust=0.65,
+#                 color=colors[label],
+#                 linestyle=linestyles.get(n_citizens, "-"),
+#                 ax=ax,
+#             )
 
 
-    # --- build custom legends ---
-    from matplotlib.lines import Line2D
+#     # --- build custom legends ---
+#     from matplotlib.lines import Line2D
 
-    # color legend
-    color_handles = [Line2D([0], [0], color=c, lw=2) for c in colors.values()]
-    color_labels = list(colors.keys())
-    legend1 = ax.legend(color_handles, color_labels, title="Architecture", loc="upper left")
+#     # color legend
+#     color_handles = [Line2D([0], [0], color=c, lw=2) for c in colors.values()]
+#     color_labels = list(colors.keys())
+#     legend1 = ax.legend(color_handles, color_labels, title="Architecture", loc="upper left")
 
-    # style legend
-    style_handles = [Line2D([0], [0], color="black", lw=2, linestyle=ls) for ls in linestyles.values()]
-    style_labels = [f"{n} citizens" for n in linestyles.keys()]
-    legend2 = ax.legend(style_handles, style_labels, title="Citizens", loc="upper right")
+#     # style legend
+#     style_handles = [Line2D([0], [0], color="black", lw=2, linestyle=ls) for ls in linestyles.values()]
+#     style_labels = [f"{n} citizens" for n in linestyles.keys()]
+#     legend2 = ax.legend(style_handles, style_labels, title="Citizens", loc="upper right")
 
-    ax.add_artist(legend1)  # keep both
-    # ax.set_xscale("log")
-    plt.show()
+#     ax.add_artist(legend1)  # keep both
+#     # ax.set_xscale("log")
+#     plt.show()
 
 if __name__ == "__main__":
 

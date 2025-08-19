@@ -1,7 +1,7 @@
 {
     "name": "cifar10",
     "verbose": 1,
-    "epoch": 30,
+    "epoch": 25,
     "batch_size": 800,
     "n_input": 3,
     "n_output": 10,
