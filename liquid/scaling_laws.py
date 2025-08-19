@@ -254,7 +254,7 @@ def train(
     variations: int = 10
 ):
 
-    train_dataset, val_dataset = load_data_cifar10(reduction=0.1)
+    train_dataset, val_dataset = load_data_cifar10(reduction=1.0)
 
     x_train, y_train = dataset_to_numpy(train_dataset)
     del train_dataset
