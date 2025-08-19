@@ -14,7 +14,7 @@ from ..adapter import Metrics
 from .moe_cifar10architecture import MoeBlockCifar, MoeLongCifar
 from .moe_regression import LongRegression
 
-type MoeModel = MoeBlockCifar | LongRegression | MoeLongCifar
+MoeModel = MoeBlockCifar | LongRegression | MoeLongCifar
 
 def task_to_class(task: str, arch_type: str) -> MoeModel:
     if task == "protein":

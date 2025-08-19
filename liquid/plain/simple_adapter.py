@@ -13,7 +13,7 @@ from ..adapter import Metrics
 
 from .cifar10 import SimpleCifar
 
-type SimpleModel = SimpleCifar
+SimpleModel = SimpleCifar
 
 class SimpleNN(NNAdapter):
 

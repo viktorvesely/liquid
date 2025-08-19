@@ -14,7 +14,7 @@ from ..adapter import Metrics
 from .le_cifar10architecture import LeLongCifar, LeBlockCifar
 from .le_regression import LongRegression
 
-type LeModel = LeLongCifar | LeBlockCifar | LongRegression
+LeModel = LeLongCifar | LeBlockCifar | LongRegression
 
 def task_to_class(task: str, arch_type: str) -> LeModel:
     if task == "protein":
