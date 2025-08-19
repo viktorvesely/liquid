@@ -1,8 +1,8 @@
 {
     "name": "cifar10",
     "verbose": 1,
-    "epoch": 1,
-    "batch_size": 300,
+    "epoch": 30,
+    "batch_size": 800,
     "n_input": 3,
     "n_output": 10,
     "LongLiquid": {

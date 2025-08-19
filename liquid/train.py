@@ -48,7 +48,7 @@ def load_protein():
 
     return train_dataset, val_dataset
 
-def load_data_cifar10(reduction: float = 1.0):
+def load_data_cifar10(reduction: float = 0.05):
     data_dir = Path(__file__).parent.parent / 'cifar10_data'
     transform = transforms.Compose([transforms.ToTensor()])
 
@@ -127,16 +127,17 @@ def train(
         algos = [init_long_le, init_block_le, init_long_moe, init_block_moe, init_simple]
 
 
-    algos = [init_long_moe, init_block_moe, init_simple]
-
     for init_func in algos:
 
         instance, train_kwargs = init_func(params, experiment_folder)
         instance.train(x_train, y_train, x_val, y_val, **train_kwargs)
         instance.save()
 
-        if instance._track_confidence:
+        if task == "protein":
             instance.evaluate_confidence_metrics(x_val, y_val)
+        elif task == "cifar10":
+            instance.evaluate_p_active_params(x_val, y_val)
+
         instance.save_metrics()
 
 

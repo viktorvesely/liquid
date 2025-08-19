@@ -208,7 +208,7 @@ class NNAdapter(Adapter):
         p_active = []
 
         def batch(model: nn.Module, x_batch: torch.Tensor, yhat_batch: torch.Tensor):
-            p_active_batch = model.p_active_parameters_batch(x_batch)
+            p_active_batch = self.p_active_parameters_batch(x_batch)
             p_active.append(p_active_batch.detach().cpu().numpy())
 
         self.inference(x, batch_size=self.last_bs, on_batch=batch)
@@ -216,9 +216,11 @@ class NNAdapter(Adapter):
         p_active = np.concatenate(p_active)
 
         p_active_metrics = {}
-        q = np.linspace(0, 1, num=7, endpoint=True)
-        for qv in zip(q, np.quantile(p_active, q), strict=True):
+        qs = np.linspace(0, 1, num=7, endpoint=True)
+        for q, qv in zip(qs, np.quantile(p_active, qs), strict=True):
             p_active_metrics[f"p_active_q_{q:.2f}"] = qv
+
+        p_active_metrics["n_params"] = self.get_size_nparams()
 
         self._test_metrics |= p_active_metrics
 
@@ -326,6 +328,9 @@ class NNAdapter(Adapter):
         elif self.task in {"protein"}:
             criterion = nn.MSELoss()
 
+
+
+
         valid_time_penalty = 0
         self._train_start = self.now()
         for e in range(epoch):
@@ -346,6 +351,10 @@ class NNAdapter(Adapter):
                 optimizer.step()
 
                 self.on_batch(model, x_batch, y_batch, yhat_batch, loss, valid=False)
+
+                # from torchsummary import summary
+                # summary(model, x_batch)
+                # break
 
 
             valid_start = self.now()

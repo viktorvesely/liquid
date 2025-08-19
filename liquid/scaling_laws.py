@@ -182,8 +182,6 @@ params_funcs = {
 }
 
 
-
-
 def yield_architectures(
     arch_name: str,
     cnn_fc_widths: list[tuple[int, int]],
@@ -237,17 +235,22 @@ def train_arch_variations(
 
     for (model, train_kwargs), params, path in yield_architectures(arch_name, zip(cnns, fcs), variations=variations, n_citizens=n_citizens, exp_name=exp_name):
 
+        save_params = {k: v for k, v in params.items() if (not isinstance(v, dict) or (k == arch_name))}
+
+        with open(path / "params.json", "w") as f:
+            json.dump(save_params, f)
+
         try:
-            with open(path / "params.json", "w") as f:
-                json.dump(params, f)
             model.train(x_train, y_train, x_val, y_val, **train_kwargs)
+            model.evaluate_p_active_params(x_val, y_val)
+            model.save_metrics()
         except Exception as e:
             print(e)
 
 def train(
     arch_name: str,
     experiment_prefix: str,
-    N: int = 8,
+    N: int = 10,
     variations: int = 10
 ):
 
