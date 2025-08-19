@@ -193,8 +193,6 @@ def yield_architectures(
     with open(Path(__file__).parent / "cifar10.json", "r") as f:
         base_params = json.load(f)
 
-    params = []
-
     init_func = INIT_FNS[arch_name]
     setup_func, pertube_func = params_funcs[arch_name]
 
@@ -281,7 +279,7 @@ def train(
         train_arch_variations(f"{exp_base}_{10}",  (20, 50), (30, 50), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
         train_arch_variations(f"{exp_base}_{15}",  (20, 40), (30, 50), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "SimpleNN":
-        train_arch_variations("SimpleNN", (75, 200), (75, 100), n_citizens=None, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(exp_base, (75, 200), (75, 100), n_citizens=None, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     else:
         raise ValueError(arch_name)
 
