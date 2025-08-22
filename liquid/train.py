@@ -14,7 +14,7 @@ from torch.utils.data import TensorDataset, Subset
 import liquid.utils as utils
 from .synthetic import sample
 from .liquid_ensemble.le_adapter import LiquidLong, LiquidBlock
-from .moe.moe_adapter import MoeBlock, MoeLong
+from .moe.moe_adapter import MoeBlock, MoeLong, Moe
 from .plain.simple_adapter import SimpleNN
 from .forests.bagging import RandomForest
 from .forests.lgbm import LightGBM
@@ -102,14 +102,19 @@ def load_params(task: str):
 def train(
         params: dict,
         experiment_name: str = "experiment",
-        save_files: bool = True
+        save_files: bool = True,
+        algos: list | None = None,
+        folder_kwargs: dict | None = None
         ):
 
 
     task = params["name"]
 
+
+
     if save_files:
-        experiment_folder = utils.create_experiment_folder(task, experiment_name)
+        folder_kwargs = folder_kwargs or dict()
+        experiment_folder = utils.create_experiment_folder(task, experiment_name, **folder_kwargs)
     else:
         experiment_folder = None
 
@@ -121,8 +126,10 @@ def train(
     x_val, y_val = dataset_to_numpy(val_dataset)
     val_dataset = None
 
-    if task == "protein":
-        algos = [init_long_le, init_long_moe, init_rf, init_lgbm]
+    if algos is not None:
+        ...
+    elif task == "protein":
+        algos = [init_long_le, init_moe, init_rf, init_lgbm]
     elif task == "cifar10":
         algos = [init_long_le, init_block_le, init_long_moe, init_block_moe, init_simple]
 
@@ -181,9 +188,13 @@ def init_rf(params, experiment_folder):
     }
 
 
-def init_moe(params, experiment_folder,  variation: Literal["block", "long"]):
+def init_moe(params, experiment_folder,  variation: Literal["block", "long"] = "long"):
 
-    ModelClass = MoeLong if variation == "long" else MoeBlock
+
+    ModelClass = {
+        "block": MoeBlock,
+        "long": MoeLong
+    }[variation]
 
     epoch = params["epoch"]
     batch_size = params["batch_size"]

@@ -160,6 +160,7 @@ class LiquidBase(NNAdapter):
 
         constructor["folder"] = Path(constructor["folder"])
         task = constructor["task"]
+        model = constructor.pop("model")
 
         instance = cls(**constructor)
 

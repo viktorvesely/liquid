@@ -143,20 +143,36 @@ class NNAdapter(Adapter):
         return x_norm
 
     def set_norm(self, x: np.ndarray, y: np.ndarray):
-        self.x_norm = self.get_norm(x)
-        self.y_norm = self.get_norm(y)
+        model, _ = self.get_nn()
+
+        mu_x, std_x = self.get_norm(x)
+        model.register_buffer("_mu_x", torch.tensor(mu_x, dtype=torch.float, device=self.device))
+        model.register_buffer("_std_x", torch.tensor(std_x, dtype=torch.float, device=self.device))
+
+        mu_y, std_y = self.get_norm(y)
+        model.register_buffer("_mu_y", torch.tensor(mu_y, dtype=torch.float, device=self.device))
+        model.register_buffer("_std_y", torch.tensor(std_y, dtype=torch.float, device=self.device))
+
+    def get_norm_params(self, which: Literal["x", "y"]) -> tuple[np.ndarray, np.ndarray]:
+        model, _ = self.get_nn()
+
+        mu = getattr(model, f"_mu_{which}")
+        std = getattr(model, f"_std_{which}")
+
+        return mu.cpu().numpy(), std.cpu().numpy()
 
     def norm_y(self, y: np.ndarray):
-        return self._norm(y, *self.y_norm)
+
+        return self._norm(y, *self.get_norm_params("y"))
 
     def norm_x(self, x: np.ndarray):
-        return self._norm(x, *self.x_norm)
+        return self._norm(x, *self.get_norm_params("x"))
 
     def denorm_y(self, y: np.ndarray):
-        return self._denorm(y, *self.y_norm)
+        return self._denorm(y, *self.get_norm_params("y"))
 
     def denorm_x(self, x: np.ndarray):
-        return self._denorm(x, *self.x_norm)
+        return self._denorm(x, *self.get_norm_params("x"))
 
     def inference(
             self,
