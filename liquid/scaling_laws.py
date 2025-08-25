@@ -50,6 +50,8 @@ def setup_le_long(
         architecture = params["LongLiquid"]["architecture"]
         architecture["last_channels"] = last_channels
         architecture["le_fc_kwargs"]["width_body"] = fc_width
+        architecture["le_fc_kwargs"]["width_y"] = fc_width
+        architecture["le_fc_kwargs"]["width_d"] = fc_width // 4
         architecture["n_citizens"] = n_citizens
 
         return params
@@ -79,6 +81,8 @@ def setup_le_block(
         architecture = params["BlockLiquid"]["architecture"]
         architecture["last_channels"] = last_channels
         architecture["le_fc_kwargs"]["width_body"] = fc_width
+        architecture["le_fc_kwargs"]["width_y"] = fc_width
+        architecture["le_fc_kwargs"]["width_d"] = fc_width // 2
         architecture["n_citizens"] = n_citizens
 
         return params
@@ -186,8 +190,8 @@ def yield_architectures(
     arch_name: str,
     cnn_fc_widths: list[tuple[int, int]],
     n_citizens: int,
-    variations: int,
-    exp_name: str
+    exp_name: str | None = None,
+    variations: int = 1
 ):
 
     with open(Path(__file__).parent / "cifar10.json", "r") as f:
@@ -200,20 +204,18 @@ def yield_architectures(
 
         set_up_params: dict = setup_func(base_params, last_channels=last_channels, fc_width=fc_width, n_citizens=n_citizens)
 
-        path = create_experiment_folder(task="cifar10", name=exp_name, hyper=True, rand=True)
-        yield init_func(set_up_params, path), set_up_params, path
+        for i_var in range(variations):
 
-        for i_var in range(variations - 1):
-            params: dict = pertube_func(set_up_params)
-
-            path = create_experiment_folder(task="cifar10", name=exp_name, hyper=True, rand=True)
-            yield init_func(params, path), params, path
+            if exp_name is not None:
+                path = create_experiment_folder(task="cifar10", name=exp_name, hyper=True, rand=True)
+            else:
+                path = None
+            yield init_func(set_up_params, path), set_up_params, path
 
 
 def train_arch_variations(
         exp_name: str,
-        cnn_range: tuple[int, int],
-        fc_range: tuple[int, int],
+        _range: tuple[int, int],
         n_citizens: int,
         N: int,
         variations: int,
@@ -224,8 +226,8 @@ def train_arch_variations(
         arch_name: str
     ):
 
-    cnns = np.linspace(*cnn_range, num=N, endpoint=True).astype(int)
-    fcs = np.linspace(*fc_range, num=N, endpoint=True).astype(int)
+    cnns = np.linspace(*_range, num=N, endpoint=True).astype(int)
+    fcs = np.linspace(*_range, num=N, endpoint=True).astype(int)
 
     cnns = [int(x) for x in cnns]
     fcs = [int(x) for x in fcs]
@@ -245,11 +247,32 @@ def train_arch_variations(
         except Exception as e:
             print(e)
 
+
+def count_arch_variations(
+        _range: tuple[int, int],
+        n_citizens: int,
+        N: int,
+        arch_name: str
+    ) -> list[int]:
+
+    cnns = np.linspace(*_range, num=N, endpoint=True).astype(int)
+    fcs = np.linspace(*_range, num=N, endpoint=True).astype(int)
+
+    cnns = [int(x) for x in cnns]
+    fcs = [int(x) for x in fcs]
+
+    params = []
+    for (model, _), _, _ in yield_architectures(arch_name, zip(cnns, fcs), n_citizens=n_citizens):
+        params.append(model.get_size_nparams())
+
+    return params
+
+
 def train(
     arch_name: str,
     experiment_prefix: str,
-    N: int = 8,
-    variations: int = 8
+    N: int = 16,
+    variations: int = 3
 ):
 
     train_dataset, val_dataset = load_data_cifar10(reduction=1.0)
@@ -263,113 +286,117 @@ def train(
     exp_base = f"{experiment_prefix}_{arch_name}"
 
     if arch_name == "LongLiquid":
-        train_arch_variations(f"{exp_base}_{5}",  (20, 65), (30, 65), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{10}",  (20, 45), (30, 45), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{15}",  (15, 35), (30, 35), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{5}", (27, 67), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{10}", (20, 47), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{15}", (16, 37), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "BlockLiquid":
-        train_arch_variations(f"{exp_base}_{5}", (20, 60), (30, 50), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{10}", (15, 40), (30, 40), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{15}", (15, 30), (20, 30), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{5}", (25, 62), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{10}", (18, 42), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{15}", (13, 33), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "LongMoe":
-        train_arch_variations(f"{exp_base}_{5}",  (30, 85), (30, 55), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{10}",  (20, 65), (30, 65), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{15}",   (20, 50), (30, 50), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{5}", (38, 86), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{10}", (25, 62), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{15}", (22, 50), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "BlockMoe":
-        train_arch_variations(f"{exp_base}_{5}",  (30, 65), (30, 65), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{10}",  (20, 50), (30, 50), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{15}",  (20, 40), (30, 50), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{5}", (30, 70), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{10}", (22, 52), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(f"{exp_base}_{15}", (17, 42), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "SimpleNN":
-        train_arch_variations(exp_base, (75, 200), (75, 100), n_citizens=None, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        train_arch_variations(exp_base, (75, 180), n_citizens=None, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     else:
         raise ValueError(arch_name)
 
-# def make_arch_param(name: str, cnn_range: tuple[int, int], fc_range: tuple[int, int], n_citizens: int, N: int, variations: int):
-#     cnns = np.linspace(*cnn_range, num=N, endpoint=True).astype(int)
-#     fcs = np.linspace(*fc_range, num=N, endpoint=True).astype(int)
-#     return [model.get_size_nparams() for model in yield_architectures(name, zip(cnns, fcs), variations=variations, n_citizens=n_citizens)]
+
+def plot_sizes():
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    N = 10
+
+    # collect all parameter distributions
+    lle_param_c_5  = count_arch_variations((27, 67), n_citizens=5,  N=N, arch_name="LongLiquid")
+    lle_param_c_10 = count_arch_variations((20, 47), n_citizens=10, N=N, arch_name="LongLiquid")
+    lle_param_c_15 = count_arch_variations((16, 37), n_citizens=15, N=N, arch_name="LongLiquid")
+
+    ble_param_c_5  = count_arch_variations((25, 62), n_citizens=5,  N=N, arch_name="BlockLiquid")
+    ble_param_c_10 = count_arch_variations((18, 42), n_citizens=10, N=N, arch_name="BlockLiquid")
+    ble_param_c_15 = count_arch_variations((13, 33), n_citizens=15, N=N, arch_name="BlockLiquid")
+
+    lmoe_param_c_5  = count_arch_variations((38, 86), n_citizens=5,  N=N, arch_name="LongMoe")
+    lmoe_param_c_10 = count_arch_variations((25, 62), n_citizens=10, N=N, arch_name="LongMoe")
+    lmoe_param_c_15 = count_arch_variations((22, 50), n_citizens=15, N=N, arch_name="LongMoe")
+
+    bmoe_param_c_5  = count_arch_variations((30, 70), n_citizens=5,  N=N, arch_name="BlockMoe")
+    bmoe_param_c_10 = count_arch_variations((22, 52), n_citizens=10, N=N, arch_name="BlockMoe")
+    bmoe_param_c_15 = count_arch_variations((17, 42), n_citizens=15, N=N, arch_name="BlockMoe")
+
+    simple_param = count_arch_variations((75, 180), n_citizens=None, N=N, arch_name="SimpleNN")
+
+    fig, ax = plt.subplots()
+
+    # mapping
+    colors = {
+        "LongLiquid": "tab:blue",
+        "BlockLiquid": "tab:orange",
+        "LongMoe": "tab:green",
+        "BlockMoe": "tab:red",
+        "SimpleNN": "tab:purple",
+    }
+    markers = {5: "o", 10: "s", 15: "D"}
+
+    # data container for labeling
+    ytick_labels = []
+    ytick_pos = []
+
+    # iterate and plot
+    index = 0
+    for label, params in [
+        ("LongLiquid", [lle_param_c_5, lle_param_c_10, lle_param_c_15]),
+        ("BlockLiquid", [ble_param_c_5, ble_param_c_10, ble_param_c_15]),
+        ("LongMoe", [lmoe_param_c_5, lmoe_param_c_10, lmoe_param_c_15]),
+        ("BlockMoe", [bmoe_param_c_5, bmoe_param_c_10, bmoe_param_c_15]),
+        ("SimpleNN", [simple_param]),
+    ]:
+        for n_citizens, param in zip([5, 10, 15][:len(params)], params):
+
+            if label == "SimpleNN":
+                n_citizens = None
+
+            ytick_labels.append(f"{label}:{n_citizens}" if n_citizens is not None else f"{label}")
+            ytick_pos.append(index)
+            ax.scatter(
+                param, [index] * len(param),
+                color=colors[label],
+                marker=markers.get(n_citizens, "x"),
+                alpha=0.7,
+            )
+            index += 1
+
+    # apply yticks
+    ax.set_yticks(ytick_pos)
+    ax.set_yticklabels(ytick_labels)
+
+    ax.set_xlabel("Parameter count")
+    ax.set_ylabel("Architecture:n_citizens")
+
+    ax.axvline(200_000, linestyle="dashed", color="black")
+    ax.axvline(1_000_000, linestyle="dashed", color="black")
+
+    # optional legend
+    # color_handles = [Line2D([0], [0], color=c, lw=0, marker="o") for c in colors.values()]
+    # color_labels = list(colors.keys())
+    # legend1 = ax.legend(color_handles, color_labels, title="Architecture", loc="upper right")
+
+    # marker_handles = [Line2D([0], [0], color="black", lw=0, marker=m) for m in markers.values()]
+    # marker_labels = [f"{n} citizens" for n in markers.keys()]
+    # legend2 = ax.legend(marker_handles, marker_labels, title="Citizens", loc="lower right")
+
+    # ax.add_artist(legend1)
 
 
-# from scipy import stats
-# perfect_sample = np.random.uniform(low=50_000, high=1_000_000, size=100)
-# def cost(params):
-#     return stats.wasserstein_distance(params, perfect_sample)
+    plt.tight_layout()
+    plt.show()
 
-
-# def plot_dist():
-#     import matplotlib.pyplot as plt
-#     import seaborn as sns
-
-#     N = 8
-#     variations = 8
-
-#     lle_param_c_5  = make_arch_param("LongLiquid",  (20, 65), (30, 65), n_citizens=5,  N=N, variations=variations)
-#     lle_param_c_10 = make_arch_param("LongLiquid",  (20, 45), (30, 45), n_citizens=10, N=N, variations=variations)
-#     lle_param_c_15 = make_arch_param("LongLiquid",  (15, 35), (30, 35), n_citizens=15, N=N, variations=variations)
-
-#     # Block Liquid
-#     ble_param_c_5  = make_arch_param("BlockLiquid", (20, 60), (30, 50), n_citizens=5,  N=N, variations=variations)
-#     ble_param_c_10 = make_arch_param("BlockLiquid", (15, 40), (30, 40), n_citizens=10, N=N, variations=variations)
-#     ble_param_c_15 = make_arch_param("BlockLiquid", (15, 30), (20, 30), n_citizens=15, N=N, variations=variations)
-
-#     # Long Moe
-#     lmoe_param_c_5  = make_arch_param("LongMoe",   (30, 85), (30, 55), n_citizens=5,  N=N, variations=variations)
-#     lmoe_param_c_10 = make_arch_param("LongMoe",   (20, 65), (30, 65), n_citizens=10, N=N, variations=variations)
-#     lmoe_param_c_15 = make_arch_param("LongMoe",   (20, 50), (30, 50), n_citizens=15, N=N, variations=variations)
-
-#     # Block Moe
-#     bmoe_param_c_5  = make_arch_param("BlockMoe",  (30, 65), (30, 65), n_citizens=5,  N=N, variations=variations)
-#     bmoe_param_c_10 = make_arch_param("BlockMoe",  (20, 50), (30, 50), n_citizens=10, N=N, variations=variations)
-#     bmoe_param_c_15 = make_arch_param("BlockMoe",  (20, 40), (30, 50), n_citizens=15, N=N, variations=variations)
-
-#     # Simple
-#     simple_param = make_arch_param("SimpleNN", (75, 200), (75, 100), n_citizens=None, N=N, variations=variations)
-
-#     fig, ax = plt.subplots()
-
-#     # mapping
-#     colors = {
-#         "LongLiquid": "tab:blue",
-#         "BlockLiquid": "tab:orange",
-#         "LongMoe": "tab:green",
-#         "BlockMoe": "tab:red",
-#         "SimpleNN": "tab:purple",
-#     }
-#     linestyles = {5: "-", 10: "--", 15: ":"}
-
-#     # plot each group
-#     for label, params in [
-#         ("LongLiquid", [lle_param_c_5, lle_param_c_10, lle_param_c_15]),
-#         ("BlockLiquid", [ble_param_c_5, ble_param_c_10, ble_param_c_15]),
-#         ("LongMoe", [lmoe_param_c_5, lmoe_param_c_10, lmoe_param_c_15]),
-#         ("BlockMoe", [bmoe_param_c_5, bmoe_param_c_10, bmoe_param_c_15]),
-#         ("SimpleNN", [simple_param]),
-#     ]:
-#         for n_citizens, param in zip([5, 10, 15][:len(params)], params):
-#             sns.kdeplot(
-#                 param,
-#                 bw_adjust=0.65,
-#                 color=colors[label],
-#                 linestyle=linestyles.get(n_citizens, "-"),
-#                 ax=ax,
-#             )
-
-
-#     # --- build custom legends ---
-#     from matplotlib.lines import Line2D
-
-#     # color legend
-#     color_handles = [Line2D([0], [0], color=c, lw=2) for c in colors.values()]
-#     color_labels = list(colors.keys())
-#     legend1 = ax.legend(color_handles, color_labels, title="Architecture", loc="upper left")
-
-#     # style legend
-#     style_handles = [Line2D([0], [0], color="black", lw=2, linestyle=ls) for ls in linestyles.values()]
-#     style_labels = [f"{n} citizens" for n in linestyles.keys()]
-#     legend2 = ax.legend(style_handles, style_labels, title="Citizens", loc="upper right")
-
-#     ax.add_artist(legend1)  # keep both
-#     # ax.set_xscale("log")
-#     plt.show()
 
 if __name__ == "__main__":
 
@@ -384,4 +411,5 @@ if __name__ == "__main__":
         experiment_prefix=args.prefix
     )
 
+    # plot_sizes()
 

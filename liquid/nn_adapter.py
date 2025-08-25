@@ -369,7 +369,7 @@ class NNAdapter(Adapter):
                 self.on_batch(model, x_batch, y_batch, yhat_batch, loss, valid=False)
 
                 # from torchsummary import summary
-                # summary(model, x_batch)
+                # summary(model, x_batch, depth=10)
                 # break
 
 

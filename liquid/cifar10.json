@@ -1,8 +1,8 @@
 {
     "name": "cifar10",
     "verbose": 1,
-    "epoch": 25,
-    "batch_size": 800,
+    "epoch": 50,
+    "batch_size": 720,
     "n_input": 3,
     "n_output": 10,
     "LongLiquid": {
@@ -28,8 +28,8 @@
                 "dropout_d": 0.2
             },
             "le_kwargs": {
-                "load_distribution_lambda": 0.0,
-                "specialization_lambda": 0.0,
+                "load_distribution_lambda": 0.2,
+                "specialization_lambda": 0.15,
                 "solver": "sink_many"
             }
         }
@@ -37,7 +37,7 @@
     "BlockLiquid": {
         "lr": 0.001,
         "architecture": {
-            "n_citizens": 10,
+            "n_citizens": 15,
             "last_channels": 50,
             "n_cnn_le_blocks": 4,
             "n_fc_le_blocks": 2,
@@ -52,8 +52,8 @@
                 "dropout_d": 0.2
             },
             "le_kwargs": {
-                "load_distribution_lambda": 0.0,
-                "specialization_lambda": 0.0,
+                "load_distribution_lambda": 0.2,
+                "specialization_lambda": 0.15,
                 "solver": "sink_many"
             }
         }

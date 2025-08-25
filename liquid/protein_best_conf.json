@@ -1,0 +1,63 @@
+{
+    "name": "protein",
+    "verbose": 1,
+    "epoch": 300,
+    "batch_size": 1024,
+    "n_input": 9,
+    "n_output": 1,
+    "LongLiquid": {
+        "lr": 0.004,
+        "architecture": {
+            "n_citizens": 20,
+            "layers_body": 4,
+            "layers_y": 1,
+            "layers_d": 1,
+            "width_body": 50,
+            "width_y": 50,
+            "width_d": 50,
+            "dropout_body": 0.0,
+            "dropout_y": 0.0,
+            "dropout_d": 0.31,
+            "le_kwargs": {
+                "load_distribution_lambda": 0.5,
+                "specialization_lambda": 0.2,
+                "solver": "sink_many"
+            }
+        }
+    },
+    "LongMoe": {
+        "lr": 0.0008,
+        "architecture": {
+            "layers_body": 6,
+            "width_body": 50,
+            "n_citizens": 5,
+            "layers_router": 5,
+            "width_router": 800,
+            "body_dropout": 0.0,
+            "router_dropout": 0.01,
+            "moe_kwargs": {
+                "load_distribution_lambda": 1,
+                "specialization_lambda": 1
+            }
+        }
+    },
+    "rf": {
+        "n_estimators": 350,
+        "max_depth": 16,
+        "min_samples_split": 6,
+        "min_samples_leaf": 1,
+        "max_features": 1.0,
+        "max_leaf_nodes": null
+    },
+    "lgbm": {
+        "learning_rate": 0.01,
+        "n_estimators": 25,
+        "max_depth": 70,
+        "num_leaves": 100,
+        "subsample": 0.98,
+        "lambda_l2" : 1,
+        "feature_fraction": 1.0,
+        "boosting": "dart",
+        "min_data_in_leaf": 1
+    }
+}

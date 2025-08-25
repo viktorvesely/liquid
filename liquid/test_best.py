@@ -9,9 +9,9 @@ from .train import train, init_long_le, init_moe
 from .liquid_ensemble.le_adapter import LiquidLong
 from .moe.moe_adapter import MoeLong
 
-def load_params(task: str = "protein"):
+def load_params(metric: str, task: str = "protein"):
 
-    with open(Path(__file__).parent / f"{task}_best.json", "r") as f:
+    with open(Path(__file__).parent / f"{task}_best_{metric}.json", "r") as f:
         params = json.load(f)
 
     return params
@@ -95,23 +95,23 @@ def generate_partition_dataset(
 
 def train_n_best(
     metric: str,
-    n: int = 1
+    n: int = 10
 ):
 
-    params = load_params()
+    params = load_params(metric)
 
     for _ in range(n):
         train(
             experiment_name=f"best_{metric}",
             params=params,
-            algos=[init_moe, init_long_le],
             folder_kwargs={"inner": "best"}
         )
 
 
 if __name__ == "__main__":
 
-    #train_n_best("rmse")
-
-    x, y = dataset()
-    generate_partition_dataset(x, y, gather_best("rmse"))
+    # train_n_best("conf")
+    # train_n_best("rmse")
+    ...
+    # x, y = dataset()
+    # generate_partition_dataset(x, y, gather_best("rmse"))

@@ -72,6 +72,9 @@ class SimpleNN(NNAdapter):
 
     def on_end(self, x_val: np.ndarray, y_val: np.ndarray):
 
+        super().on_end(x_val, y_val)
+
+
         yhat = self.inference(x_val, batch_size=self.last_bs)
 
         task_type = self.get_task_type()
