@@ -2,7 +2,7 @@
     "name": "protein",
     "verbose": 1,
     "epoch": 300,
-    "batch_size": 1024,
+    "batch_size": 2056,
     "n_input": 9,
     "n_output": 1,
     "LongLiquid": {

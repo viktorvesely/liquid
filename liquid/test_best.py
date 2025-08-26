@@ -95,7 +95,7 @@ def generate_partition_dataset(
 
 def train_n_best(
     metric: str,
-    n: int = 10
+    n: int = 8
 ):
 
     params = load_params(metric)
@@ -107,11 +107,10 @@ def train_n_best(
             folder_kwargs={"inner": "best"}
         )
 
-
 if __name__ == "__main__":
 
-    # train_n_best("conf")
-    # train_n_best("rmse")
-    ...
+    train_n_best("conf")
+    train_n_best("rmse")
+
     # x, y = dataset()
     # generate_partition_dataset(x, y, gather_best("rmse"))
