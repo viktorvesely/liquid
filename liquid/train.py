@@ -186,12 +186,13 @@ def init_rf(params, experiment_folder):
     }
 
 
-def init_moe(params, experiment_folder,  variation: Literal["block", "long"] = "long"):
+def init_moe(params, experiment_folder,  variation: Literal["block", "long", "moe"] = "moe"):
 
 
     ModelClass = {
         "block": MoeBlock,
-        "long": MoeLong
+        "long": MoeLong,
+        "moe": Moe
     }[variation]
 
     epoch = params["epoch"]

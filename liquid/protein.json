@@ -1,7 +1,7 @@
 {
     "name": "protein",
     "verbose": 1,
-    "epoch": 100,
+    "epoch": 60,
     "batch_size": 1024,
     "n_input": 9,
     "n_output": 1,
