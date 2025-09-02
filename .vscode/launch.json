@@ -5,11 +5,20 @@
     "version": "0.2.0",
     "configurations": [
        {
-            "name": "train",
+            "name": "train_protein",
             "type": "debugpy",
             "request": "launch",
             "module": "liquid.train",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "args": ["--task", "protein"]
+        },
+        {
+            "name": "train_cifar10",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "liquid.train",
+            "console": "integratedTerminal",
+            "args": ["--task", "cifar10"]
         },
         {
             "name": "laws",

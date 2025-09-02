@@ -67,7 +67,6 @@ class SimpleNN(NNAdapter):
             if valid:
                 metric = self.calc_task_metric(yhat_batch, y_batch)
                 self.push_task_metric(metric, metrics)
-                self.register_valid_metric(metric)
 
 
     def on_end(self, x_val: np.ndarray, y_val: np.ndarray):

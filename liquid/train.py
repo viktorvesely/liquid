@@ -110,8 +110,6 @@ def train(
 
     task = params["name"]
 
-
-
     if save_files:
         folder_kwargs = folder_kwargs or dict()
         experiment_folder = utils.create_experiment_folder(task, experiment_name, **folder_kwargs)

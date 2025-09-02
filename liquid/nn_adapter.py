@@ -44,7 +44,9 @@ class NNAdapter(Adapter):
         self._best_valid_metric = (-float("inf")) if (self.get_task_type() == "classification") else float("inf")
 
 
-    def register_valid_metric(self, metric: float):
+    def register_valid_metric(self):
+
+        metric = np.mean(self.valid_metric.metrics[self.get_task_metric_name()])
 
         if self.get_task_type() == "classification":
             self._best_valid_metric = max(self._best_valid_metric, metric)
@@ -79,6 +81,8 @@ class NNAdapter(Adapter):
         self.valid_metric = Metrics.empty_like(self.train_metrics, **{self.get_task_metric_name(): None})
 
     def on_epoch(self, epoch: int):
+
+        self.register_valid_metric()
 
         if self.verbose > 0:
             print(f"-------{self.name()} Epoch {epoch}-----------")
