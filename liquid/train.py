@@ -219,7 +219,7 @@ def init_moe(params, experiment_folder,  variation: Literal["block", "long"] = "
         "verbose": verbose
     }
 
-def init_le(params, experiment_folder, variation: Literal["block", "long"]):
+def init_le(params, experiment_folder, variation: Literal["block", "long"] = "long"):
 
     ModelClass = LiquidLong if variation == "long" else LiquidBlock
 

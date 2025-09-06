@@ -99,7 +99,7 @@ def h_moe():
 
     params = {
         "epoch": rand_int(100, 450),
-        "Moe": {
+        "LongMoe": {
             "lr": rand_float(9 * 1e-5, 5 * 1e-3),
             "architecture": {
                 "layers_body": rand_cat([1, 2, 3, 4, 5, 6, 7, 8], w=[1, 2, 3, 4, 4, 3, 2, 1]),
