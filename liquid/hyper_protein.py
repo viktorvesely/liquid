@@ -5,8 +5,8 @@ from .train import init_le, init_moe
 def common():
     return {
         "name": "protein",
-        "verbose": 1,
-        "batch_size": 1024,
+        "verbose": 0,
+        "batch_size": 1800,
         "n_input": 9,
         "n_output": 1,
     }
@@ -56,7 +56,7 @@ def h_le():
         specialization_lambda = 0.0
 
     params = {
-        "epoch": rand_int(50, 200),
+        "epoch": rand_int(100, 450),
         "LongLiquid": {
             "lr": rand_float(9 * 1e-5, 5 * 1e-3),
             "architecture": {
@@ -98,7 +98,7 @@ def h_moe():
         specialization_lambda = 0.0
 
     params = {
-        "epoch": rand_int(50, 200),
+        "epoch": rand_int(100, 450),
         "Moe": {
             "lr": rand_float(9 * 1e-5, 5 * 1e-3),
             "architecture": {

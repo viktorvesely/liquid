@@ -1,7 +1,7 @@
 {
     "name": "protein",
     "verbose": 1,
-    "epoch": 60,
+    "epoch": 40,
     "batch_size": 1024,
     "n_input": 9,
     "n_output": 1,
@@ -25,7 +25,7 @@
             }
         }
     },
-    "Moe": {
+    "LongMoe": {
         "lr": 0.001,
         "architecture": {
             "layers_body": 1,

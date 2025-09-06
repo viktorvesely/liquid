@@ -14,7 +14,7 @@ from torch.utils.data import TensorDataset, Subset
 import liquid.utils as utils
 from .synthetic import sample
 from .liquid_ensemble.le_adapter import LiquidLong, LiquidBlock
-from .moe.moe_adapter import MoeBlock, MoeLong, Moe
+from .moe.moe_adapter import MoeBlock, MoeLong
 from .plain.simple_adapter import SimpleNN
 from .forests.bagging import RandomForest
 from .forests.lgbm import LightGBM
@@ -132,6 +132,8 @@ def train(
         algos = [init_long_le, init_block_le, init_long_moe, init_block_moe, init_simple]
 
 
+    algos = [init_moe]
+
     for init_func in algos:
 
         instance, train_kwargs = init_func(params, experiment_folder)
@@ -186,13 +188,12 @@ def init_rf(params, experiment_folder):
     }
 
 
-def init_moe(params, experiment_folder,  variation: Literal["block", "long", "moe"] = "moe"):
+def init_moe(params, experiment_folder,  variation: Literal["block", "long"] = "long"):
 
 
     ModelClass = {
         "block": MoeBlock,
-        "long": MoeLong,
-        "moe": Moe
+        "long": MoeLong
     }[variation]
 
     epoch = params["epoch"]
