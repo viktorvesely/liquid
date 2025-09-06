@@ -400,16 +400,16 @@ def plot_sizes():
 
 if __name__ == "__main__":
 
-    # parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-    # parser.add_argument("--algorithm", type=str)
-    # parser.add_argument("--prefix", type=str, default="experiment")
-    # args = parser.parse_args()
+    parser.add_argument("--algorithm", type=str)
+    parser.add_argument("--prefix", type=str, default="experiment")
+    args = parser.parse_args()
 
-    # train(
-    #     arch_name=args.algorithm,
-    #     experiment_prefix=args.prefix
-    # )
+    train(
+        arch_name=args.algorithm,
+        experiment_prefix=args.prefix
+    )
 
-    plot_sizes()
+    # plot_sizes()
 
