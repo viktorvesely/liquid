@@ -311,7 +311,7 @@ def plot_sizes():
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
-    N = 10
+    N = 16
 
     # collect all parameter distributions
     lle_param_c_5  = count_arch_variations((27, 67), n_citizens=5,  N=N, arch_name="LongLiquid")
@@ -400,16 +400,16 @@ def plot_sizes():
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser()
+    # parser = argparse.ArgumentParser()
 
-    parser.add_argument("--algorithm", type=str)
-    parser.add_argument("--prefix", type=str, default="experiment")
-    args = parser.parse_args()
+    # parser.add_argument("--algorithm", type=str)
+    # parser.add_argument("--prefix", type=str, default="experiment")
+    # args = parser.parse_args()
 
-    train(
-        arch_name=args.algorithm,
-        experiment_prefix=args.prefix
-    )
+    # train(
+    #     arch_name=args.algorithm,
+    #     experiment_prefix=args.prefix
+    # )
 
-    # plot_sizes()
+    plot_sizes()
 
