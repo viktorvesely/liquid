@@ -198,7 +198,7 @@ def yield_architectures(
         base_params = json.load(f)
 
     init_func = INIT_FNS[arch_name]
-    setup_func, pertube_func = params_funcs[arch_name]
+    setup_func, _ = params_funcs[arch_name]
 
     for last_channels, fc_width in tqdm.tqdm(list(cnn_fc_widths), disable=True):
 
