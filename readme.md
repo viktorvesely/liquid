@@ -103,7 +103,7 @@ $y(x) = \frac{1}{N}\sum_j p_j(x)\, y_j(x).$
 
 ---
 
-## Research Use
+## Experiments in this repo
 
 ### Protein Tertiary Structure (regression)
 
@@ -119,21 +119,16 @@ $y(x) = \frac{1}{N}\sum_j p_j(x)\, y_j(x).$
 
 ---
 
-## Design Patterns
-
-* **Long LE**: one LE layer, deep experts.
-* **Block LE**: multiple LE layers, shallow experts per block.
-
 ## Citation
 
 If you use Liquid Ensemble in academic work, please cite:
 
 ```bibtex
-@misc {vesely2025liquidensemble,
+@misc{vesely2025liquidensemble,
   title={Liquid Ensemble Learning},
-  author={Viktor Vesel\'y},
+  author={Viktor Vesel\\'y},
   year={2025},
-  note={arXiv:xxxx.xxxxx}
+  howpublished={\\url{https://github.com/viktorvesely/liquid}}
 }
 ```
 ---
