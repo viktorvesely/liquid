@@ -131,9 +131,6 @@ def train(
     elif task == "cifar10":
         algos = [init_long_le, init_block_le, init_long_moe, init_block_moe, init_simple]
 
-
-    algos = [init_moe]
-
     for init_func in algos:
 
         instance, train_kwargs = init_func(params, experiment_folder)
@@ -290,13 +287,27 @@ if __name__ == "__main__":
     default_task = "cifar10"
     parser.add_argument("--task", type=str, default=default_task)
     parser.add_argument("--name", type=str, default=default_task)
+    parser.add_argument("--algos", type=str, default="")
     args = parser.parse_args()
 
     task = args.task
     assert task in set(task_to_data.keys())
     params = load_params(task)
 
+
+    algos_spec = {
+        "le": init_long_le, "moe": init_moe, "rf": init_rf, "lgbm": init_lgbm
+    }
+
+    if args.algos == "":
+        algos = None
+    else:
+        algos = []
+        for alg in args.algos.split(","):
+            algos.append(algos_spec[alg])
+     
     train(
         experiment_name=args.name,
-        params=params
+        params=params,
+        algos=algos
     )

@@ -13,7 +13,7 @@ from .hyper_protein import h_le, h_lgbm, h_rf, h_moe
 from .adapter import Adapter
 from .utils import create_experiment_folder
 
-MAX_TRIALS = 100_000
+MAX_TRIALS = 750
 DEBUG = False
 
 def get_init(algorithm: str) -> Callable[[dict, Path], tuple[Adapter, dict]]:

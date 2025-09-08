@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mem=18GB
-#SBATCH --time=16:00:00
+#SBATCH --time=42:00:00
 #SBATCH --job-name=rfhyper
 #SBATCH --partition=regular
 #SBATCH --nodes=1
