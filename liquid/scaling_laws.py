@@ -290,16 +290,16 @@ def train(
         train_arch_variations(f"{exp_base}_{10}", (20, 47), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
         train_arch_variations(f"{exp_base}_{15}", (16, 37), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "BlockLiquid":
-        train_arch_variations(f"{exp_base}_{5}", (25, 62), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{10}", (18, 42), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        # train_arch_variations(f"{exp_base}_{5}", (25, 62), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        # train_arch_variations(f"{exp_base}_{10}", (18, 42), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
         train_arch_variations(f"{exp_base}_{15}", (13, 33), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "LongMoe":
         train_arch_variations(f"{exp_base}_{5}", (38, 86), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
         train_arch_variations(f"{exp_base}_{10}", (25, 62), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
         train_arch_variations(f"{exp_base}_{15}", (22, 50), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "BlockMoe":
-        train_arch_variations(f"{exp_base}_{5}", (30, 70), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
-        train_arch_variations(f"{exp_base}_{10}", (22, 52), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        # train_arch_variations(f"{exp_base}_{5}", (30, 70), n_citizens=5,  N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
+        # train_arch_variations(f"{exp_base}_{10}", (22, 52), n_citizens=10, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
         train_arch_variations(f"{exp_base}_{15}", (17, 42), n_citizens=15, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)
     elif arch_name == "SimpleNN":
         train_arch_variations(exp_base, (75, 180), n_citizens=None, N=N, variations=variations, x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, arch_name=arch_name)

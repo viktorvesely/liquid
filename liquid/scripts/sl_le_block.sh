@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mem=32GB
-#SBATCH --time=40:00:00
+#SBATCH --time=20:00:00
 #SBATCH --job-name=BlockLiquid
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=v100:1
