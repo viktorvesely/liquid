@@ -108,12 +108,12 @@ $y(x) = \frac{1}{N}\sum_j p_j(x)\, y_j(x).$
 ### Protein Tertiary Structure (regression)
 
 * Evaluate RMSE and the quality of confidence $c$ by Kendall’s $\tau$ between $c$ and error.
-* Study hyperparameters: solver choice, $\lambda_{\text{load}}$, $\lambda_{\text{spec}}$, diffusion penalty.
+* Study hyperparameters' impact on the RMSE ant $\tau$ using shapley-iq analysis
 
 ### CIFAR‑10 (classification)
 
 * Compare **block** vs **long** designs for LE and MoE under fixed compute.
-* Report AUVC (area under validation accuracy) to capture convergence speed and overfitting.
+* Report scaling laws for each
 
 > The repo includes CSVs/figures for reproducibility and example experiment scripts.
 
