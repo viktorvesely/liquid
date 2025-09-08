@@ -114,9 +114,6 @@ $y(x) = \frac{1}{N}\sum_j p_j(x)\, y_j(x).$
 
 * Compare **block** vs **long** designs for LE and MoE under fixed compute.
 * Report scaling laws for each
-
-> The repo includes CSVs/figures for reproducibility and example experiment scripts.
-
 ---
 
 ## Citation
