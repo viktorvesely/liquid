@@ -1,8 +1,8 @@
 {
     "name": "cifar10",
     "verbose": 1,
-    "epoch": 50,
-    "batch_size": 720,
+    "epoch": 150,
+    "batch_size": 350,
     "n_input": 3,
     "n_output": 10,
     "LongLiquid": {
@@ -81,7 +81,7 @@
                 "width": 50
             },
             "moe_kwargs": {
-                "load_distribution_lambda": 0.0,
+                "load_distribution_lambda": 0.1,
                 "specialization_lambda": 0.0
             }
         }

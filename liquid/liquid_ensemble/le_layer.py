@@ -178,10 +178,10 @@ class LiquidEnsembleLayer(nn.Module):
 
         bs, n = power.shape
 
-        # (n_batch, n) differentiable argmax, weighted towards highest power citizen
+        # (n_batch, n) differentiable argmax, weighted towards highest power expert
         soft_assign = torch.softmax(power / temperature, dim=1)
 
-        # (n), how much was each citizen active
+        # (n), how much was each expert active
         histogram = soft_assign.sum(dim=0)
         dist = Categorical(probs=histogram / histogram.sum())
 

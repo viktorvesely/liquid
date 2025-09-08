@@ -48,7 +48,7 @@ def load_protein():
 
     return train_dataset, val_dataset
 
-def load_data_cifar10(reduction: float = 0.05):
+def load_data_cifar10(reduction: float = 1.0):
     data_dir = Path(__file__).parent.parent / 'cifar10_data'
     transform = transforms.Compose([transforms.ToTensor()])
 
@@ -296,7 +296,8 @@ if __name__ == "__main__":
 
 
     algos_spec = {
-        "le": init_long_le, "moe": init_moe, "rf": init_rf, "lgbm": init_lgbm
+        "le": init_long_le, "moe": init_moe, "rf": init_rf, "lgbm": init_lgbm,
+        "ble": init_block_le, "lle": init_long_le, "bmoe": init_block_moe, "lmoe": init_long_moe, "s": init_simple
     }
 
     if args.algos == "":
