@@ -1,6 +1,109 @@
 {
-  "todo": [],
-  "in-progress": [],
+  "todo": [
+    {
+      "creation_time": "2026-02-26T21:09:32.169Z",
+      "description": {
+        "content": "There are multiple notions of entropy in the LE (mean entropy of the individual delegation vectors, entropy of the classifications etc., measure multiple of them)\n\nAlso there are multiple notions of what it means to be a \"difficult sample\" I would train MLP with N different seeds and see which one it gets consistently wrong.",
+        "mime": "text/markdown"
+      },
+      "id": "9",
+      "references": [],
+      "title": "[Analysis] Correlation (Kendal tau metric must have) between entropy of the LE and the difficult samples"
+    },
+    {
+      "assignedTo": {
+        "name": "Sebak"
+      },
+      "creation_time": "2026-02-26T20:59:28.044Z",
+      "id": "5",
+      "references": [],
+      "title": "[JAX] Deep ensembles"
+    },
+    {
+      "assignedTo": {
+        "name": "Sebak"
+      },
+      "creation_time": "2026-02-26T20:57:26.434Z",
+      "id": "4",
+      "references": [],
+      "title": "[JAX] MLP"
+    },
+    {
+      "creation_time": "2026-02-26T21:11:40.245Z",
+      "description": {
+        "content": "For the number of experts on the x axis and the final performance (until convergence) on the y-axis between multiple methods (LE, MoE, Deep ensembles, simple MLP), ensuring that they have the same number of parmeters ",
+        "mime": "text/markdown"
+      },
+      "id": "10",
+      "references": [],
+      "title": "[JAX] setup the experiment code"
+    },
+    {
+      "assignedTo": {
+        "name": "Sebak"
+      },
+      "creation_time": "2026-02-26T20:59:52.658Z",
+      "id": "6",
+      "references": [],
+      "title": "Decide on what MoE implementation we want"
+    },
+    {
+      "creation_time": "2026-02-26T20:51:20.197Z",
+      "description": {
+        "content": "As you increase the number of experts who can delegate what happens with the performance. Keep in mind that the number of parameters need to be stable as you keep adding delegation heads.",
+        "mime": "text/markdown"
+      },
+      "id": "2",
+      "references": [],
+      "title": "Does ensemble on the delegation problem provide any advantage [MNIST]"
+    }
+  ],
+  "in-progress": [
+    {
+      "assignedTo": {
+        "name": "Viktor"
+      },
+      "creation_time": "2026-02-26T20:54:49.136Z",
+      "id": "3",
+      "references": [],
+      "title": "[JAX] Liquid ensemble. Friday 6th"
+    },
+    {
+      "assignedTo": {
+        "name": "Viktor"
+      },
+      "creation_time": "2026-02-26T21:02:26.049Z",
+      "id": "8",
+      "references": [],
+      "title": "[JAX] training loop + dataset loading. Friday 6th"
+    },
+    {
+      "assignedTo": {
+        "name": "Viktor"
+      },
+      "creation_time": "2026-02-26T21:01:54.534Z",
+      "description": {
+        "content": "Given the composite function and the LE without the expert loss how will the LE dedicate the number of experts across the function.",
+        "mime": "text/markdown"
+      },
+      "id": "7",
+      "references": [],
+      "title": "Decision boundary experiment. Composition of three funcitons. 14th of Saturday"
+    },
+    {
+      "assignedTo": {
+        "name": "Sebak"
+      },
+      "creation_time": "2026-02-26T20:49:50.556Z",
+      "description": {
+        "content": "LE is parametrized as shared body MLP and then Classification MLP head and Delegation MLP head. Does decreasing the size (I guess depth but think about it more) decrease the performance, what is hapenning to the network. ",
+        "mime": "text/markdown"
+      },
+      "id": "1",
+      "references": [],
+      "title": "Does shared body provide any advantage on the performance [MNIST]. 14th Saturday"
+    }
+  ],
   "testing": [],
   "done": []
 }
