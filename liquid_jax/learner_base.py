@@ -26,7 +26,6 @@ class Learner[
     @abstractmethod
     def auxillary_losses(
         key: jax.Array,
-        train_return: TrainReturn,
-        where: jax.Array,
+        train_return: TrainReturn
     ) -> dict[str, jax.Array]:
         ...

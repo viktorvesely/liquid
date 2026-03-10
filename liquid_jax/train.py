@@ -35,7 +35,6 @@ class InOutData:
     
     x: jax.Array
     y: jax.Array
-    where: jax.Array
 
 @partial(jax.jit, static_argnames=("optimizer", "net", "train_params"))
 def loss_fn(
@@ -57,14 +56,14 @@ def loss_fn(
 
     if train_params.performance_loss == "ce":
         loss_batch = optax.softmax_cross_entropy_with_integer_labels(
-            yhat, inout.y, where=inout.where
+            yhat, inout.y
         )
     else:
         raise ValueError(f"loss={train_params.performance_loss} is not implemented")
     
     
-    performance_loss = jnp.sum(loss_batch) / jnp.sum(inout.where)
-    auxillary_losses = train_params.learner.auxillary_losses(k_loss, train_return, inout.where)
+    performance_loss = jnp.mean(loss_batch)
+    auxillary_losses = train_params.learner.auxillary_losses(k_loss, train_return)
     losses = {train_params.performance_loss: performance_loss} | auxillary_losses
 
     aux_values = jax.tree.reduce(lambda accum, aux_loss: accum + aux_loss, auxillary_losses)
@@ -77,7 +76,7 @@ def loss_fn(
 def train_batch(
     key: jax.Array,
     inout_data: InOutData,
-    network_params: dict,
+    model_params: dict,
     opt_state: dict,
     optimizer: optax.GradientTransformationExtraArgs,
     model: nn.Module,
@@ -111,11 +110,39 @@ def train_batch(
         return (key, network_params, opt_state), (loss, losses)
     
 
-    (key, network_params, opt_state), (loss, losses) =jax.lax.scan(train_step, (key, network_params, opt_state), inout_data)
+    (key, model_params, opt_state), (loss, losses) =jax.lax.scan(train_step, (key, model_params, opt_state), inout_data)
     
-    return (network_params, opt_state), (loss, losses)
+    return (model_params, opt_state), (loss, losses)
 
 
+def train_loader(
+    key: jax.Array,
+    inout: InOutData,
+    batch_size: int,
+    desired_batches: int
+):
+    
+    desired_size = batch_size * desired_batches
+    actual_size = inout.x.shape[0]
+    difference = desired_size - actual_size
+    assert difference < actual_size
+
+    k1, k2, k_next = jax.random.split(key, 3)
+
+    proper_inds = jax.random.permutation(k1, actual_size)
+    added_inds = jax.random.permutation(k2, difference) 
+    
+    all_inds = jnp.concatenate((proper_inds, added_inds))
+    
+    for i_batch in range(desired_batches):
+        start = i_batch * batch_size
+        end = start + batch_size
+
+        batch_inds = all_inds[start:end]
+        batch = jax.tree.map(lambda x: x[batch_inds, ...], inout)
+
+        yield batch, k_next
+    
 
 def train(key: jax.Array, train_params: TrainParams):
 
@@ -124,30 +151,17 @@ def train(key: jax.Array, train_params: TrainParams):
     gpu = jax.devices("gpu")[0]
     
 
-    key, k_init, k_loop = jax.random.split(key, 3) 
+    key, k_init, k_loop, k_loader = jax.random.split(key, 3) 
 
     # Data
     fullData = train_params.task.load_cpu(split="train")
     x, y = train_params.task.get_xy(fullData)
     inout_data = InOutData(
-        x=x, y=y, where=jnp.ones((x.shape[0],), dtype=jnp.bool, device=cpu)
+        x=x, y=y
     )
-
-    # Padd data to align wit gpu batch size
     gpu_batch = train_params.batch_size * train_params.preload_batches_to_gpu
     n_data = x.shape[0]
     n_batches = math.ceil(n_data / gpu_batch)
-    n_pad = (gpu_batch - (n_data % gpu_batch)) % gpu_batch
-    if n_pad > 0:
-        inout_data =  jax.tree.map(lambda x: jnp.concatenate((
-            x,
-            jnp.zeros((n_pad,) + x.shape[1:], dtype=x.dtype, device=x.device)
-        ), axis=0), inout_data)
-
-    p_fake = n_pad / gpu_batch
-    T_fake = 0.4
-    if p_fake > T_fake:
-        warnings.warn(f"{int(p_fake * 100)}% ({n_pad} samples) of the last batch are padded samples, consider cutting of the data")
 
     # Train, Valid split
     n_valid = train_params.batch_size * train_params.valid_batches
@@ -166,13 +180,27 @@ def train(key: jax.Array, train_params: TrainParams):
     opt_state = optimizer.init(model_params)
     
     for i_epoch in tqdm.tqdm(range(train_params.epochs)):
-        for i_batch in range(n_batches):
+        for inout_batch, k_loader in train_loader(
+                k_loader,
+                inout_train,
+                batch_size=gpu_batch,
+                desired_batches=n_batches
+            ):
 
-            start = i_batch * gpu_batch
-            end = start + gpu_batch
-            inout_batch = jax.tree.map(lambda x: jax.device_put(x[start, end, ...], device=gpu), inout_train)
-        
-        
+
+            k_loop, k_use = jax.random.split(k_loop)
+            inout_batch = jax.tree.map(lambda x: jax.device_put(x, device=gpu), inout_batch)
+            
+            train_batch(
+                key=k_use,
+                inout_data=inout_batch,
+                model_params=model_params,
+                opt_state=opt_state,
+                optimizer=optimizer,
+                model=model,
+                train_params=train_params,
+            )
+
 
             
 

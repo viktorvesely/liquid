@@ -15,7 +15,7 @@ class LEInfo:
 @dataclass(frozen=True)
 class LEsolver:
 
-    solver: Literal["sink_one", "sink_many"] = "sink_one"
+    solver: Literal["sink_one", "sink_many"] = "sink_many"
     load_distribution_lambda: float = 0.0
     load_distribution_temperature: float = 0.5
     specialization_lambda: float = 0.0
