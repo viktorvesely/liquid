@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Literal
 
-from flax import linen as nn
 from flax import struct
 import jax
 import jax.numpy as jnp
@@ -18,9 +17,48 @@ class LEsolver:
 
     solver: Literal["sink_one", "sink_many"] = "sink_one"
     load_distribution_lambda: float = 0.0
+    load_distribution_temperature: float = 0.5
     specialization_lambda: float = 0.0
     epsilon: float = 1e-3
     long_delegations_penalty: float = 0.95
+
+    def loss(
+        self,
+        le_info: LEInfo
+    ):
+        return self._load_distribution_loss(le_info) + self._specialization_loss(le_info)
+
+    def _load_distribution_loss(
+        self,
+        le_info: LEInfo        
+    ):
+        n_models = le_info.power.shape[0]
+
+        # Chair is the model how has the most power for a given region
+        # Calculated as power.argmax(dim=1) 
+        soft_chair = jax.nn.softmax(le_info.power / self.load_distribution_temperature, axis=1)
+        
+        # How much were they active across batch
+        soft_chair_dist = soft_chair.sum(axis=0)
+        
+        # Make it a valid distribution
+        soft_chair_dist = soft_chair_dist / soft_chair_dist.sum()
+
+        # Make it like uniform (more stable entropy)
+        loss = n_models * jnp.sum(soft_chair_dist ** 2) - 1
+
+        return self.load_distribution_lambda * loss 
+
+
+    def _specialization_loss(
+        self,
+        le_info: LEInfo
+    ):
+        
+        n_models = le_info.power.shape[0]
+        jax.scipy.special.entr() # TODO
+
+
 
     def solve_power(
         self,
