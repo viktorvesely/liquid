@@ -14,7 +14,7 @@ class MnistData:
     img: jax.Array
     label: jax.Array
 
-class Mnist(Task[MnistData, MnistData]):
+class Mnist(Task[MnistData]):
 
     
     folder = Path(__file__).parent.parent / "data" / "mnist"
@@ -60,7 +60,12 @@ class Mnist(Task[MnistData, MnistData]):
             return data.replace(
                 img=data.img / 255.0
             )
-    
+        
+    @staticmethod
+    def get_xy(
+        data: MnistData
+    ) -> tuple[jax.Array, jax.Array]:
+        return data.img, data.label
 
 if __name__ == "__main__":
 

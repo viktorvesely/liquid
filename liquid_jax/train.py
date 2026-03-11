@@ -1,11 +1,13 @@
 
 
+from collections import defaultdict
 from functools import partial
 import math
 from typing import Callable
 import warnings
 
 import jax
+import numpy as np
 import optax
 import tqdm
 from flax import linen as nn
@@ -13,20 +15,20 @@ from flax import struct
 import jax.numpy as jnp
 
 from mnist import Mnist
-from learner_base import Learner
+from learner_mnist_le import LeMnistLearner
 
 from structs import TrainParams
 
-params = TrainParams(
+g_params = TrainParams(
     batch_size=512,
     preload_batches_to_gpu=5,
     valid_batches=2,
-    epochs=2,
+    epochs=20,
     lr=1e-3,
     optimizer="adam",
     performance_loss="ce",
     task=Mnist,
-    learner=None
+    learner=LeMnistLearner
 )
 
 
@@ -36,7 +38,7 @@ class InOutData:
     x: jax.Array
     y: jax.Array
 
-@partial(jax.jit, static_argnames=("optimizer", "net", "train_params"))
+@partial(jax.jit, static_argnames=("model", "train_params"))
 def loss_fn(
     network_params: dict,
     key: jax.Array,
@@ -64,7 +66,7 @@ def loss_fn(
     
     performance_loss = jnp.mean(loss_batch)
     auxillary_losses = train_params.learner.auxillary_losses(k_loss, train_return)
-    losses = {train_params.performance_loss: performance_loss} | auxillary_losses
+    losses = {f"{train_params.performance_loss}_loss": performance_loss} | auxillary_losses
 
     aux_values = jax.tree.reduce(lambda accum, aux_loss: accum + aux_loss, auxillary_losses)
     loss = aux_values + performance_loss
@@ -72,7 +74,7 @@ def loss_fn(
     return loss, losses
 
 
-@partial(jax.jit, static_argnames=("optimizer", "net", "train_params"))
+@partial(jax.jit, static_argnames=("optimizer", "model", "train_params"))
 def train_batch(
     key: jax.Array,
     inout_data: InOutData,
@@ -97,7 +99,7 @@ def train_batch(
 
 
         (loss, losses), grad = jax.value_and_grad(loss_fn, has_aux=True)(
-            network_params=network_params,
+            network_params,
             key=k_use,
             inout=inout_batch,
             model=model,
@@ -110,8 +112,11 @@ def train_batch(
         return (key, network_params, opt_state), (loss, losses)
     
 
-    (key, model_params, opt_state), (loss, losses) =jax.lax.scan(train_step, (key, model_params, opt_state), inout_data)
-    
+    (key, model_params, opt_state), (loss, losses) = jax.lax.scan(train_step, (key, model_params, opt_state), inout_data)
+
+    loss = jnp.mean(loss)
+    losses = jax.tree.map(jnp.mean, losses)
+
     return (model_params, opt_state), (loss, losses)
 
 
@@ -151,7 +156,7 @@ def train(key: jax.Array, train_params: TrainParams):
     gpu = jax.devices("gpu")[0]
     
 
-    key, k_init, k_loop, k_loader = jax.random.split(key, 3) 
+    key, k_init, k_loop, k_loader = jax.random.split(key, 4) 
 
     # Data
     fullData = train_params.task.load_cpu(split="train")
@@ -179,7 +184,12 @@ def train(key: jax.Array, train_params: TrainParams):
     }[train_params.optimizer]
     opt_state = optimizer.init(model_params)
     
+    metrics = defaultdict(list)
+
     for i_epoch in tqdm.tqdm(range(train_params.epochs)):
+
+        epoch_metrics = defaultdict(list) 
+
         for inout_batch, k_loader in train_loader(
                 k_loader,
                 inout_train,
@@ -191,7 +201,7 @@ def train(key: jax.Array, train_params: TrainParams):
             k_loop, k_use = jax.random.split(k_loop)
             inout_batch = jax.tree.map(lambda x: jax.device_put(x, device=gpu), inout_batch)
             
-            train_batch(
+            (model_params, opt_state), (loss, losses) = train_batch(
                 key=k_use,
                 inout_data=inout_batch,
                 model_params=model_params,
@@ -201,9 +211,75 @@ def train(key: jax.Array, train_params: TrainParams):
                 train_params=train_params,
             )
 
+            epoch_metrics["loss"].append(loss)
+            for k, v in losses.items():
+                epoch_metrics[k].append(v.item())
 
-            
+        k_loop, k_use = jax.random.split(k_loop)
 
+        va_loss, va_losses = loss_fn(
+            model_params,
+            k_use,
+            inout_valid,
+            model,
+            train_params
+        )
+        metrics["validation_loss"].append(va_loss.item())
+        for k, v in va_losses.items():
+            metrics[f"validation_{k}"].append(v.item())
+
+        for k, v in epoch_metrics.items():
+            metrics[k].append(np.mean(v))
 
     
+    return metrics
 
+def plot_losses(metrics: dict[str, list[float]]):
+
+    from matplotlib import pyplot as plt
+    from copy import deepcopy
+
+    print(list(metrics.keys()))
+
+    colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple", "tab:brown"]
+
+    metrics = deepcopy(metrics)
+    v_loss = metrics.pop("validation_loss")
+    t_loss = metrics.pop("loss")
+    
+    fig, (ax_main, ax_aux) = plt.subplots(1, 2, figsize=(14, 5))
+
+    ax_main.plot(v_loss, color="black", label="validation")
+    ax_main.plot(t_loss, color="black", linestyle="dashed", label="train")
+    ax_main.legend()
+
+    used = 0
+    for name in metrics.keys():
+        
+        if name.startswith("validation"):
+            tname = name.removeprefix("validation_")
+        else:
+            continue
+
+        ax_aux.plot(metrics[name], color=colors[used], label=tname)
+        ax_aux.plot(metrics[tname], color=colors[used], linestyle="dashed")
+
+        used += 1
+    
+    ax_aux.legend()
+    fig.tight_layout()
+    fig.savefig("./test_loss.png")
+    plt.show()
+
+
+
+if __name__ == "__main__":
+
+    key = jax.random.key(123)
+
+    metrics = train(
+        key=key,
+        train_params=g_params
+    )
+
+    plot_losses(metrics)

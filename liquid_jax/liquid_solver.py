@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import partial
+import math
 from typing import Literal
 
 from flax import struct
@@ -22,13 +23,7 @@ class LEsolver:
     epsilon: float = 1e-3
     long_delegations_penalty: float = 0.95
 
-    def loss(
-        self,
-        le_info: LEInfo
-    ):
-        return self._load_distribution_loss(le_info) + self._specialization_loss(le_info)
-
-    def _load_distribution_loss(
+    def load_distribution_loss(
         self,
         le_info: LEInfo        
     ):
@@ -44,21 +39,27 @@ class LEsolver:
         # Make it a valid distribution
         soft_chair_dist = soft_chair_dist / soft_chair_dist.sum()
 
-        # Make it like uniform (more stable entropy)
-        loss = n_models * jnp.sum(soft_chair_dist ** 2) - 1
+        # Make it like uniform (more stable than maximizing entropy)
+        non_uniformity = n_models * jnp.sum(soft_chair_dist ** 2) - 1
 
-        return self.load_distribution_lambda * loss 
+        return self.load_distribution_lambda * jnp.mean(non_uniformity) 
+    
 
-
-    def _specialization_loss(
+    def specialization_loss(
         self,
         le_info: LEInfo
     ):
         
         n_models = le_info.power.shape[0]
-        jax.scipy.special.entr() # TODO
 
+        # Make the power into a distribution
+        power_dist = le_info.power / le_info.power.sum(axis=-1, keepdims=True)
 
+        # Calculate non-uniformity for each batch element
+        non_uniformities = n_models * jnp.sum(power_dist ** 2, axis=-1) - 1
+
+        # Minimize the negative non-uniformity to push for specialization
+        return self.specialization_lambda * jnp.mean(-non_uniformities)
 
     def solve_power(
         self,
@@ -77,6 +78,36 @@ class LEsolver:
             power=power
         )
 
+    def mix_power_mean(
+        self,
+        y: jax.Array,
+        power: jax.Array
+    ) -> jax.Array:
+        
+        # y (batch, n_models, n_out)
+        # power (batch, n_models)
+        assert y.ndim == (power.ndim + 1)
+        return jnp.sum(y * jnp.expand_dims(power, axis=-1))
+    
+    def mix_power_logits(
+        self,
+        logits: jax.Array,
+        power: jax.Array
+    ) -> jax.Array:
+    
+        # logits (batch, n_models, n_out)
+        # power (batch, n_models)
+        assert logits.ndim == (power.ndim + 1)
+        log_probs = jax.nn.log_softmax(logits, axis=-1)
+        
+        # Expand power to (batch, n_models, 1) for broadcasting over n_out
+        weights = jnp.expand_dims(power, axis=-1)
+        
+        # Compute the weighted sum (Weighted Geometric Mean in probability space)
+        mixed_logits = jnp.sum(log_probs * weights, axis=1)
+        
+        return mixed_logits
+        
    
     @staticmethod
     @partial(jax.vmap, in_axes=(0, None, None))
