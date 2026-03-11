@@ -1,0 +1,7 @@
+Category,Method,Accuracy_MATH500,Accuracy_GSM8K,Accuracy_OLYMPIAD,Accuracy_AMC,Accuracy_AIME-250,AvgTokens_MATH500,AvgTokens_GSM8K,AvgTokens_OLYMPIAD,AvgTokens_AMC,AvgTokens_AIME-250
+Our Methods,L1 Regressor Qwen3-8B-Max,74.8,82.6,39.0,62.5,54.0,690.0,84.0,1794.0,1169.0,2469.0
+Our Methods,BERT Regressor Qwen3-8B,74.6,82.6,39.6,60.0,47.6,681.0,110.0,2054.0,764.0,2304.0
+Other Token Reduction Methods,LCR1,83.2,80.1,38.6,80.0,55.6,1137.0,374.0,2737.0,980.0,3609.7
+Other Token Reduction Methods,TokenSkip Qwen2.5-7B,74.3,89.6,27.6,52.5,21.2,874.0,464.0,1320.0,1198.0,1518.8
+Base Models,L1 Qwen3-8B-Max,73.15,80.59,34.42,72.5,38.0,2429.0,2137.0,3119.0,2749.0,3406.5
+Base Models,Qwen3-8B,75.75,90.07,29.23,62.5,22.8,5895.4,5379.2,5954.0,5920.7,6000.8

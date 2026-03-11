@@ -63,24 +63,6 @@
       "assignedTo": {
         "name": "Viktor"
       },
-      "creation_time": "2026-02-26T20:54:49.136Z",
-      "id": "3",
-      "references": [],
-      "title": "[JAX] Liquid ensemble. Friday 6th"
-    },
-    {
-      "assignedTo": {
-        "name": "Viktor"
-      },
-      "creation_time": "2026-02-26T21:02:26.049Z",
-      "id": "8",
-      "references": [],
-      "title": "[JAX] training loop + dataset loading. Friday 6th"
-    },
-    {
-      "assignedTo": {
-        "name": "Viktor"
-      },
       "creation_time": "2026-02-26T21:01:54.534Z",
       "description": {
         "content": "Given the composite function and the LE without the expert loss how will the LE dedicate the number of experts across the function.",
@@ -105,5 +87,24 @@
     }
   ],
   "testing": [],
-  "done": []
+  "done": [
+    {
+      "assignedTo": {
+        "name": "Viktor"
+      },
+      "creation_time": "2026-02-26T21:02:26.049Z",
+      "id": "8",
+      "references": [],
+      "title": "[JAX] training loop + dataset loading. Friday 6th"
+    },
+    {
+      "assignedTo": {
+        "name": "Viktor"
+      },
+      "creation_time": "2026-02-26T20:54:49.136Z",
+      "id": "3",
+      "references": [],
+      "title": "[JAX] Liquid ensemble. Friday 6th"
+    }
+  ]
 }

@@ -3,8 +3,6 @@
 from collections import defaultdict
 from functools import partial
 import math
-from typing import Callable
-import warnings
 
 import jax
 import numpy as np
