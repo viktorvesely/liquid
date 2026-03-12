@@ -1,4 +1,25 @@
 """
+To be tested:
+    - Comparison between with and without body
+    - Then skip connection between input to embedding and input to heads 
+        - basically concatenate flattened mnist image to the embeddings outpted by the body
+        - (should the values be normalized?)
+    - Retrain with on every trial
+    - Each component of an export (body, classification head, delegation head) will have 1 input, 1 hidden, 1 output layer
+    - After the with and without, final goal is to have a plot, of number of parameters (width wise) the hidden layer of body has and y axis perfomance. 
+    - Fixed parameter budget for the expert, so if I remove widht from body, I add it to the classification head, and delegation head.
+    - Fixed depth for all components of expert
+    - Budget of for expert is ? 
+    - Final goal is to have a plot of number of parameters (width wise) the hidden layer of body has and y axis perfomance. (Parameter budget is fixed and is distributed among the heads uniformly)
+
+So code needs to allow for:
+    - Train system on mnist
+    - Allow for training mnist directly into heads
+    - Concatenation of input and embedding outputed by body
+    - Every test should be a full training of the system
+"""
+
+"""
 Ablation experiment: fixed parameter budget per expert, sweep body hidden width.
 
 Tests:
@@ -31,11 +52,6 @@ from learner_base import Learner
 from learner_mnist_le import get_layers, forward as fwd_layers
 from structs import TrainParams
 from train import train, plot_losses
-
-
-# ---------------------------------------------------------------------------
-# Model with optional skip connection
-# ---------------------------------------------------------------------------
 
 class DeModelMlpSkip(nn.Module):
     out: tuple[int, ...]
@@ -87,10 +103,6 @@ class LeMlpSkip(nn.Module):
         d = nn.softmax(d, axis=-1)
         return y, d
 
-
-# ---------------------------------------------------------------------------
-# Parameter budget helpers
-# ---------------------------------------------------------------------------
 
 def count_component_params(in_dim: int, hidden: int, out_dim: int) -> int:
     """Params for: in_dim → Dense(hidden) → ReLU → Dense(out_dim)"""
@@ -166,10 +178,6 @@ def solve_config(
     }
 
 
-# ---------------------------------------------------------------------------
-# Learner factory
-# ---------------------------------------------------------------------------
-
 solver = LEsolver()
 
 
@@ -200,10 +208,6 @@ def make_learner(n_models, body, out, delegation, skip=False):
 
     return _Learner
 
-
-# ---------------------------------------------------------------------------
-# Experiment runner
-# ---------------------------------------------------------------------------
 
 def run_ablation(
     total_budget: int = 50_000,
@@ -308,11 +312,6 @@ def run_ablation(
 
     plot_ablation(results, exp_dir)
     return results
-
-
-# ---------------------------------------------------------------------------
-# Saving & plotting
-# ---------------------------------------------------------------------------
 
 def _save_results(results, exp_dir):
     summary = [{k: v for k, v in r.items() if k != "metrics"} for r in results]
