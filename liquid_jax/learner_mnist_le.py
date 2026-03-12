@@ -85,6 +85,7 @@ class LeMlp(nn.Module):
         y, d = self.ensemble(x)
         d = nn.softmax(d, axis=-1)
         return y, d
+    
             
 
 class LeMnistLearner(Learner[LEInfo]):
