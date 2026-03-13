@@ -5,13 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "flax>=0.12.5",
-    "importlib-resources>=6.5.2",
-    "jax[cuda13]>=0.9.1",
+    "flax>=0.12.3",
+    "jax[cuda12]>=0.9.1",
     "matplotlib>=3.10.8",
-    "numpy>=2.4.2",
-    "optax>=0.2.6",
+    "optax>=0.2.7",
     "pandas>=3.0.1",
-    "tensorflow-cpu>=2.21.0",
     "tensorflow-datasets>=4.9.9",
+    "tqdm>=4.67.3",
 ]

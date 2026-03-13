@@ -32,17 +32,12 @@ Tests:
 Final plot: x=body hidden width, y=performance (validation loss)
 """
 
-from collections import defaultdict
-from dataclasses import dataclass
+
 from datetime import datetime
-import json
-import math
 import os
 
 import jax
 import jax.numpy as jnp
-import numpy as np
-import optax
 import tqdm
 from flax import linen as nn
 
@@ -51,7 +46,11 @@ from liquid_solver import LEsolver, LEInfo
 from learner_base import Learner
 from learner_mnist_le import get_layers, forward as fwd_layers
 from structs import TrainParams
-from train import train, plot_losses
+from train import train
+
+import yaml
+import pandas as pd
+from plotting import plot_ablation
 
 class DeModelMlpSkip(nn.Module):
     out: tuple[int, ...]
@@ -111,7 +110,7 @@ def count_component_params(in_dim: int, hidden: int, out_dim: int) -> int:
 
 def solve_head_hidden(budget: float, in_dim: int, out_dim: int) -> int:
     """Solve for hidden dim: h = (budget - out_dim) / (in_dim + 1 + out_dim)"""
-    h = (budget - out_dim) / (in_dim + 1 + out_dim)
+    h = round((budget - out_dim) / (in_dim + 1 + out_dim))
     return max(1, int(h))
 
 
@@ -221,21 +220,6 @@ def run_ablation(
     batch_size: int = 512,
     seed: int = 42,
 ):
-    """Sweep body hidden width, train each config, return results.
-
-    Args:
-        total_budget: total parameter budget per expert
-        body_out_dim: fixed output dim of body (interface to heads)
-        n_models: number of experts in the ensemble
-        skip: whether to use skip connections (concat input to body output)
-        h_body_values: explicit list of body hidden widths to test.
-            If None, generates n_points values from 0 to max.
-        n_points: number of sweep points (used when h_body_values is None)
-        epochs: training epochs per configuration
-        lr: learning rate
-        batch_size: batch size
-        seed: random seed
-    """
     input_dim = 784
     n_classes = 10
 
@@ -266,8 +250,24 @@ def run_ablation(
 
     # Experiment directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    exp_dir = f"experiments/{timestamp}"
+    exp_dir = f"experiments/ablation/{timestamp}"
     os.makedirs(f"{exp_dir}/plots", exist_ok=True)
+
+    # Save experiment config
+    exp_config = {
+        "total_budget": total_budget,
+        "body_out_dim": body_out_dim,
+        "n_models": n_models,
+        "skip": skip,
+        "h_body_values": [c["h_body"] for c in configs],
+        "epochs": epochs,
+        "lr": lr,
+        "batch_size": batch_size,
+        "seed": seed,
+        "n_configs": len(configs),
+    }
+    with open(f"{exp_dir}/config.yaml", "w") as f:
+        yaml.dump(exp_config, f, default_flow_style=False)
 
     # Run each config
     results = []
@@ -303,6 +303,8 @@ def run_ablation(
             "final_val_loss": metrics["validation_loss"][-1],
             "final_train_loss": float(metrics["loss"][-1]),
             "best_val_loss": min(metrics["validation_loss"]),
+            "best_val_ce_loss": min(metrics["validation_ce_loss"]),
+            "final_val_ce_loss": metrics["validation_ce_loss"][-1],
             "metrics": metrics,
         }
         results.append(result)
@@ -314,44 +316,8 @@ def run_ablation(
     return results
 
 def _save_results(results, exp_dir):
-    summary = [{k: v for k, v in r.items() if k != "metrics"} for r in results]
-    with open(f"{exp_dir}/results.json", "w") as f:
-        json.dump(summary, f, indent=2, default=str)
-
-
-def plot_ablation(results, exp_dir):
-    from matplotlib import pyplot as plt
-
-    h_body = [r["h_body"] for r in results]
-    val_loss = [r["best_val_loss"] for r in results]
-    train_loss = [r["final_train_loss"] for r in results]
-
-    # Main plot: body width vs performance
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(h_body, val_loss, "o-", label="Best validation loss", color="black")
-    ax.plot(h_body, train_loss, "s--", label="Final train loss", color="gray")
-    ax.set_xlabel("Body hidden width")
-    ax.set_ylabel("Loss")
-    ax.set_title("Ablation: body width vs performance (fixed param budget)")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(f"{exp_dir}/plots/ablation.png", dpi=150)
-    plt.show()
-
-    # Training curves per config
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for r in results:
-        ax.plot(r["metrics"]["validation_loss"], label=f"h_body={r['h_body']}")
-    ax.set_xlabel("Epoch")
-    ax.set_ylabel("Validation loss")
-    ax.set_title("Training curves per configuration")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(f"{exp_dir}/plots/training_curves.png", dpi=150)
-    plt.show()
-
+    df = pd.DataFrame([{k: v for k, v in r.items() if k != "metrics"} for r in results])
+    df.to_parquet(f"{exp_dir}/results.parquet")
 
 if __name__ == "__main__":
     results = run_ablation(
