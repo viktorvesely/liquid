@@ -19,19 +19,6 @@ So code needs to allow for:
     - Every test should be a full training of the system
 """
 
-"""
-Ablation experiment: fixed parameter budget per expert, sweep body hidden width.
-
-Tests:
-    1. With vs without body (h_body=0 means no body, heads take raw input)
-    2. With vs without skip connection (concatenate raw input to body output before heads)
-    3. Full retraining for each configuration
-    4. Each component has: input → Dense(hidden) → ReLU → Dense(output)
-    5. Fixed total param budget: shrinking body redistributes params to heads uniformly
-
-Final plot: x=body hidden width, y=performance (validation loss)
-"""
-
 
 from datetime import datetime
 import os
