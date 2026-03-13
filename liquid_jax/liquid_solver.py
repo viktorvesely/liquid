@@ -6,6 +6,8 @@ from typing import Literal
 from flax import struct
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
+from pathlib import Path
 
 
 @struct.dataclass
