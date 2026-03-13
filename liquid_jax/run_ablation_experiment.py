@@ -205,7 +205,7 @@ def run_ablation(
         c = solve_config(
             h, total_budget, input_dim, body_out_dim,
             n_classes, n_models, skip,
-        )
+        ) 
         if c is not None:
             configs.append(c)
 
