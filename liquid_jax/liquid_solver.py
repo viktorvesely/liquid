@@ -87,7 +87,8 @@ class LEsolver:
         # y (batch, n_models, n_out)
         # power (batch, n_models)
         assert y.ndim == (power.ndim + 1)
-        return jnp.sum(y * jnp.expand_dims(power, axis=-1))
+        assert y.ndim == 3
+        return jnp.sum(y * jnp.expand_dims(power, axis=-1), axis=1)
     
     def mix_power_logits(
         self,
