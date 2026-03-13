@@ -1,25 +1,3 @@
-"""
-To be tested:
-    - Comparison between with and without body
-    - Then skip connection between input to embedding and input to heads 
-        - basically concatenate flattened mnist image to the embeddings outpted by the body
-        - (should the values be normalized?)
-    - Retrain with on every trial
-    - Each component of an export (body, classification head, delegation head) will have 1 input, 1 hidden, 1 output layer
-    - After the with and without, final goal is to have a plot, of number of parameters (width wise) the hidden layer of body has and y axis perfomance. 
-    - Fixed parameter budget for the expert, so if I remove widht from body, I add it to the classification head, and delegation head.
-    - Fixed depth for all components of expert
-    - Budget of for expert is ? 
-    - Final goal is to have a plot of number of parameters (width wise) the hidden layer of body has and y axis perfomance. (Parameter budget is fixed and is distributed among the heads uniformly)
-
-So code needs to allow for:
-    - Train system on mnist
-    - Allow for training mnist directly into heads
-    - Concatenation of input and embedding outputed by body
-    - Every test should be a full training of the system
-"""
-
-
 from datetime import datetime
 import os
 
@@ -164,7 +142,10 @@ def solve_config(
     }
 
 
-solver = LEsolver()
+solver = LEsolver(
+    load_distribution_lambda=0.1,
+    specialization_lambda=0.1
+)
 
 
 def make_learner(n_models, body, out, delegation, skip=False):
