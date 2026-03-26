@@ -144,7 +144,7 @@ def solve_config(
 
 solver = LEsolver(
     load_distribution_lambda=0.1,
-    specialization_lambda=0.1
+    specialization_lambda=0,
 )
 
 
@@ -289,10 +289,10 @@ def _save_results(results, exp_dir):
 
 if __name__ == "__main__":
     results = run_ablation(
-        total_budget=50_000,
+        total_budget=1_000,
         body_out_dim=64,
-        n_models=10,
-        skip=False,
+        n_models=5,
+        skip=True,
         epochs=20,
         lr=1e-3,
     )
