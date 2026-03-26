@@ -83,7 +83,7 @@
       },
       "id": "1",
       "references": [],
-      "title": "Does shared body provide any advantage on the performance [MNIST]. 14th Saturday"
+      "title": "Seb - Does shared body provide any advantage on the performance [MNIST]. 14th Saturday"
     }
   ],
   "testing": [],
@@ -92,19 +92,19 @@
       "assignedTo": {
         "name": "Viktor"
       },
-      "creation_time": "2026-02-26T21:02:26.049Z",
-      "id": "8",
+      "creation_time": "2026-02-26T20:54:49.136Z",
+      "id": "3",
       "references": [],
-      "title": "[JAX] training loop + dataset loading. Friday 6th"
+      "title": "[JAX] Liquid ensemble. Friday 6th"
     },
     {
       "assignedTo": {
         "name": "Viktor"
       },
-      "creation_time": "2026-02-26T20:54:49.136Z",
-      "id": "3",
+      "creation_time": "2026-02-26T21:02:26.049Z",
+      "id": "8",
       "references": [],
-      "title": "[JAX] Liquid ensemble. Friday 6th"
+      "title": "[JAX] training loop + dataset loading. Friday 6th"
     }
   ]
 }
