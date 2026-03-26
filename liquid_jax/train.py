@@ -226,6 +226,14 @@ def train(key: jax.Array, train_params: TrainParams):
         for k, v in va_losses.items():
             metrics[f"validation_{k}"].append(v.item())
 
+        # Accuracy
+        k_loop, k_use = jax.random.split(k_loop)
+        yhat, _ = train_params.learner.forward(
+            key=k_use, x=inout_valid.x, model=model, params=model_params
+        )
+        acc = jnp.mean(jnp.argmax(yhat, axis=-1) == inout_valid.y).item()
+        metrics["validation_accuracy"].append(acc)
+
         for k, v in epoch_metrics.items():
             metrics[k].append(np.mean(v))
 

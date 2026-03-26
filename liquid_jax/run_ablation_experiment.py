@@ -286,6 +286,8 @@ def run_ablation(
             "best_val_loss": min(metrics["validation_loss"]),
             "best_val_ce_loss": min(metrics["validation_ce_loss"]),
             "final_val_ce_loss": metrics["validation_ce_loss"][-1],
+            "best_val_accuracy": max(metrics.get("validation_accuracy", [0])),
+            "final_val_accuracy": metrics.get("validation_accuracy", [0])[-1],
             "metrics": metrics,
         }
         results.append(result)

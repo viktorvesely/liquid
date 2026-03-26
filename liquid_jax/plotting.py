@@ -61,9 +61,44 @@ def plot_load_distribution_loss(results, exp_dir):
     plt.close()
 
 
+def plot_accuracy_curves(results, exp_dir):
+    fig, ax = plt.subplots(figsize=(10, 6))
+    for r in results:
+        key = "validation_accuracy"
+        if key in r["metrics"]:
+            ax.plot(r["metrics"][key], label=f"h_body={r['h_body']}")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Accuracy")
+    ax.set_title("Validation accuracy")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(f"{exp_dir}/plots/accuracy_curves.png", dpi=150)
+    plt.close()
+
+
+def plot_accuracy_summary(results, exp_dir):
+    h_body = [r["h_body"] for r in results]
+    best_acc = [max(r["metrics"].get("validation_accuracy", [0])) for r in results]
+    final_acc = [r["metrics"].get("validation_accuracy", [0])[-1] for r in results]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(h_body, best_acc, "o-", label="Best val accuracy", color="black")
+    ax.plot(h_body, final_acc, "s--", label="Final val accuracy", color="gray")
+    ax.set_xlabel("Body hidden width")
+    ax.set_ylabel("Accuracy")
+    ax.set_title("Validation accuracy vs body size")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(f"{exp_dir}/plots/accuracy_summary.png", dpi=150)
+    plt.close()
+
+
 def plot_ablation(results, exp_dir):
     """Generate all ablation plots."""
     plot_total_loss(results, exp_dir)
     plot_ce_loss(results, exp_dir)
     plot_specialization_loss(results, exp_dir)
     plot_load_distribution_loss(results, exp_dir)
+    plot_accuracy_curves(results, exp_dir)
+    plot_accuracy_summary(results, exp_dir)
