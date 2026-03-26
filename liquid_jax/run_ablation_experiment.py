@@ -256,12 +256,13 @@ def run_ablation(
         model = learner_cls.get_model()
         dummy = jnp.zeros((1, input_dim))
         init_params = model.init(jax.random.key(0), dummy)["params"]
-        actual_params = sum(p.size for p in jax.tree.leaves(init_params))
-        expected_params = c["actual_params"] * n_models
+        # Each leaf has shape (n_models, ...) from vmap — first dim is the expert axis
+        per_expert = sum(p[0].size for p in jax.tree.leaves(init_params))
+        expected = c["actual_params"]
         print(
             f"  h_body={c['h_body']:4d} | "
-            f"expected={expected_params:7d} | actual={actual_params:7d} | "
-            f"match={'OK' if actual_params == expected_params else 'MISMATCH'}"
+            f"expected={expected:6d} | actual={per_expert:6d} | "
+            f"match={'OK' if per_expert == expected else 'MISMATCH'}"
         )
 
         params = TrainParams(
