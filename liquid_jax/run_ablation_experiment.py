@@ -252,6 +252,18 @@ def run_ablation(
             skip=c["skip"],
         )
 
+        # Verify param count: expected (from solve_config) vs actual (from model init)
+        model = learner_cls.get_model()
+        dummy = jnp.zeros((1, input_dim))
+        init_params = model.init(jax.random.key(0), dummy)["params"]
+        actual_params = sum(p.size for p in jax.tree.leaves(init_params))
+        expected_params = c["actual_params"] * n_models
+        print(
+            f"  h_body={c['h_body']:4d} | "
+            f"expected={expected_params:7d} | actual={actual_params:7d} | "
+            f"match={'OK' if actual_params == expected_params else 'MISMATCH'}"
+        )
+
         params = TrainParams(
             batch_size=batch_size,
             preload_batches_to_gpu=5,
