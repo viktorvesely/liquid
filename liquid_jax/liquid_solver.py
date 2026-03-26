@@ -6,22 +6,23 @@ from typing import Literal
 from flax import struct
 import jax
 import jax.numpy as jnp
-
+import matplotlib.pyplot as plt
+from pathlib import Path
 
 @struct.dataclass
 class LEInfo:
     delegation: jax.Array 
     power: jax.Array
 
-@dataclass(frozen=True)
+@struct.dataclass
 class LEsolver:
 
-    solver: Literal["sink_one", "sink_many"] = "sink_many"
-    load_distribution_lambda: float = 0.0
-    load_distribution_temperature: float = 0.5
-    specialization_lambda: float = 0.0
-    epsilon: float = 1e-3
-    long_delegations_penalty: float = 0.95
+    load_distribution_lambda: jax.Array = struct.field(default_factory=lambda: jnp.float32(0.0))
+    load_distribution_temperature: jax.Array = struct.field(default_factory=lambda: jnp.float32(0.5))
+    specialization_lambda: jax.Array = struct.field(default_factory=lambda: jnp.float32(0.0))
+    epsilon: jax.Array = struct.field(default_factory=lambda: jnp.float32(1e-3))
+    long_delegations_penalty: jax.Array = struct.field(default_factory=lambda: jnp.float32(0.95))
+    solver: Literal["sink_one", "sink_many"] = struct.field(pytree_node=False, default = "sink_many")
 
     def load_distribution_loss(
         self,
@@ -87,7 +88,8 @@ class LEsolver:
         # y (batch, n_models, n_out)
         # power (batch, n_models)
         assert y.ndim == (power.ndim + 1)
-        return jnp.sum(y * jnp.expand_dims(power, axis=-1))
+        assert y.ndim == 3
+        return jnp.sum(y * jnp.expand_dims(power, axis=-1), axis=1)
     
     def mix_power_logits(
         self,

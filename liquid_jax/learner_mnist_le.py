@@ -36,7 +36,7 @@ def forward(h, last_linear, layers):
     
     return h if last_linear else nn.relu(h)   
 
-class DeModelMlp(nn.Module):
+class LeModelMlp(nn.Module):
     
     out: tuple[int, ...]
     delegation: tuple[int, ...]
@@ -65,8 +65,8 @@ class LeMlp(nn.Module):
         
         assert self.delegation[-1] == self.n_models, "Last dim of delegation needs to equal to n_models"
 
-        VmappedDeModelMlp = nn.vmap(
-            DeModelMlp,
+        VmappedLeModelMlp = nn.vmap(
+            LeModelMlp,
             variable_axes={'params': 0},
             split_rngs={'params': True}, # Vmap over different models
             in_axes=None, # Do not vmap over batch elements
@@ -74,7 +74,7 @@ class LeMlp(nn.Module):
             out_axes=1 # Stack the model outputs to axis=1
         )
         
-        self.ensemble = VmappedDeModelMlp(
+        self.ensemble = VmappedLeModelMlp(
             out=self.out, 
             delegation=self.delegation, 
             body=self.body
@@ -85,6 +85,7 @@ class LeMlp(nn.Module):
         y, d = self.ensemble(x)
         d = nn.softmax(d, axis=-1)
         return y, d
+    
             
 
 class LeMnistLearner(Learner[LEInfo]):

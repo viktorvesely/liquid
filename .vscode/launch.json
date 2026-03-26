@@ -11,6 +11,14 @@
             "program": "train.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/liquid_jax"
+        },
+        {
+            "name": "[EXP] composition",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "exp_composition.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/liquid_jax"
         }
     ]
 }

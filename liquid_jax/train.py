@@ -66,7 +66,7 @@ def loss_fn(
     auxillary_losses = train_params.learner.auxillary_losses(k_loss, train_return)
     losses = {f"{train_params.performance_loss}_loss": performance_loss} | auxillary_losses
 
-    aux_values = jax.tree.reduce(lambda accum, aux_loss: accum + aux_loss, auxillary_losses)
+    aux_values = jax.tree.reduce(lambda accum, aux_loss: accum + aux_loss, auxillary_losses, initializer=0.0)
     loss = aux_values + performance_loss
     
     return loss, losses

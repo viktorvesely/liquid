@@ -12,21 +12,64 @@
     },
     {
       "assignedTo": {
-        "name": "Sebak"
+        "name": "viktorvesely"
       },
-      "creation_time": "2026-02-26T20:59:28.044Z",
-      "id": "5",
+      "creation_time": "2026-03-16T20:00:10.029Z",
+      "id": "14",
       "references": [],
-      "title": "[JAX] Deep ensembles"
+      "title": "[Seb] Introduction + Literature search [6th april]"
     },
     {
       "assignedTo": {
-        "name": "Sebak"
+        "name": "viktorvesely"
       },
-      "creation_time": "2026-02-26T20:57:26.434Z",
-      "id": "4",
+      "creation_time": "2026-03-16T19:59:45.467Z",
+      "id": "13",
       "references": [],
-      "title": "[JAX] MLP"
+      "title": "[Viktor] Background + first math methodology"
+    },
+    {
+      "assignedTo": {
+        "name": "viktorvesely"
+      },
+      "creation_time": "2026-03-16T20:02:37.134Z",
+      "id": "15",
+      "references": [],
+      "title": "Decide on what tasks in the big result experiment"
+    },
+    {
+      "creation_time": "2026-02-26T20:51:20.197Z",
+      "description": {
+        "content": "As you increase the number of experts who can delegate what happens with the performance. Keep in mind that the number of parameters need to be stable as you keep adding delegation heads.",
+        "mime": "text/markdown"
+      },
+      "id": "2",
+      "references": [],
+      "title": "Does ensemble on the delegation problem provide any advantage [MNIST]"
+    },
+    {
+      "assignedTo": {
+        "name": "viktorvesely"
+      },
+      "creation_time": "2026-03-16T20:05:44.142Z",
+      "description": {
+        "content": "1) Hyper-parameter optimization\n2) Graphs for accuracy over the experts and over different budgets",
+        "mime": "text/markdown"
+      },
+      "id": "16",
+      "references": [],
+      "title": "Semi big run for LE for MNIST + grid search over the lambdas"
+    }
+  ],
+  "in-progress": [
+    {
+      "assignedTo": {
+        "name": "viktorvesely"
+      },
+      "creation_time": "2026-03-16T20:19:44.119Z",
+      "id": "17",
+      "references": [],
+      "title": "[Composition experiment] [Viktor] more validation, more functions, justify specializaiton loss or throw it away [Sunday 29th]"
     },
     {
       "creation_time": "2026-02-26T21:11:40.245Z",
@@ -40,25 +83,74 @@
     },
     {
       "assignedTo": {
+        "name": "seb"
+      },
+      "creation_time": "2026-03-16T19:20:53.859Z",
+      "details": {
+        "content": "1) Check the number of actual parameters\n2) Remove the 2nd hidden body layer\n3) PCA the input (plot components vs explained variance)\n4) Find param budget where interesting stuff with the Validation loss happens (where the high loss variance across body sizes)",
+        "mime": "text/markdown"
+      },
+      "id": "11",
+      "references": [],
+      "title": "[SEB] Body experiment extended [Monday 23rd]"
+    },
+    {
+      "assignedTo": {
+        "name": "Sebak"
+      },
+      "creation_time": "2026-02-26T20:59:28.044Z",
+      "id": "5",
+      "references": [],
+      "title": "[Viktor] [JAX] [Friday 27] Deep ensembles  and MLP architectures"
+    },
+    {
+      "assignedTo": {
+        "name": "viktorvesely"
+      },
+      "creation_time": "2026-03-16T19:58:25.596Z",
+      "id": "12",
+      "references": [],
+      "title": "[Viktor] Writing structure of the paper [Sunday 29th]"
+    },
+    {
+      "assignedTo": {
         "name": "Sebak"
       },
       "creation_time": "2026-02-26T20:59:52.658Z",
       "id": "6",
       "references": [],
       "title": "Decide on what MoE implementation we want"
-    },
-    {
-      "creation_time": "2026-02-26T20:51:20.197Z",
-      "description": {
-        "content": "As you increase the number of experts who can delegate what happens with the performance. Keep in mind that the number of parameters need to be stable as you keep adding delegation heads.",
-        "mime": "text/markdown"
-      },
-      "id": "2",
-      "references": [],
-      "title": "Does ensemble on the delegation problem provide any advantage [MNIST]"
     }
   ],
-  "in-progress": [
+  "testing": [],
+  "done": [
+    {
+      "assignedTo": {
+        "name": "Viktor"
+      },
+      "creation_time": "2026-02-26T20:54:49.136Z",
+      "id": "3",
+      "references": [],
+      "title": "[JAX] Liquid ensemble. Friday 6th"
+    },
+    {
+      "assignedTo": {
+        "name": "Viktor"
+      },
+      "creation_time": "2026-02-26T21:02:26.049Z",
+      "id": "8",
+      "references": [],
+      "title": "[JAX] training loop + dataset loading. Friday 6th"
+    },
+    {
+      "assignedTo": {
+        "name": "Sebak"
+      },
+      "creation_time": "2026-02-26T20:57:26.434Z",
+      "id": "4",
+      "references": [],
+      "title": "[Viktor] [JAX] MLP"
+    },
     {
       "assignedTo": {
         "name": "Viktor"
@@ -84,27 +176,6 @@
       "id": "1",
       "references": [],
       "title": "Seb - Does shared body provide any advantage on the performance [MNIST]. 14th Saturday"
-    }
-  ],
-  "testing": [],
-  "done": [
-    {
-      "assignedTo": {
-        "name": "Viktor"
-      },
-      "creation_time": "2026-02-26T20:54:49.136Z",
-      "id": "3",
-      "references": [],
-      "title": "[JAX] Liquid ensemble. Friday 6th"
-    },
-    {
-      "assignedTo": {
-        "name": "Viktor"
-      },
-      "creation_time": "2026-02-26T21:02:26.049Z",
-      "id": "8",
-      "references": [],
-      "title": "[JAX] training loop + dataset loading. Friday 6th"
     }
   ]
 }
