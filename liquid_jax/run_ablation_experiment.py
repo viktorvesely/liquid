@@ -289,9 +289,9 @@ def _save_results(results, exp_dir):
 
 if __name__ == "__main__":
     results = run_ablation(
-        total_budget=1_000,
+        total_budget=50_000,
         body_out_dim=64,
-        n_models=5,
+        n_models=10,
         skip=True,
         epochs=20,
         lr=1e-3,
