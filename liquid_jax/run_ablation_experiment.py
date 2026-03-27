@@ -7,6 +7,7 @@ import tqdm
 from flax import linen as nn
 
 from mnist import Mnist
+from mnist_pca import make_pca_task
 from liquid_solver import LEsolver, LEInfo
 from learner_base import Learner
 from learner_mnist_le import get_layers, forward as fwd_layers
@@ -187,9 +188,19 @@ def run_ablation(
     lr: float = 1e-3,
     batch_size: int = 512,
     seed: int = 42,
+    pca_components: int | None = None,
 ):
     input_dim = 784
     n_classes = 10
+
+    # Task setup
+    if pca_components is not None:
+        task, pca = make_pca_task(pca_components, pad_to=input_dim)
+        print(f"Using PCA with {pca_components} components "
+              f"(explained variance: {pca.explained_variance_ratio_.sum():.4f}), "
+              f"padded to {input_dim}")
+    else:
+        task = Mnist
 
     # Build sweep values
     if h_body_values is None:
@@ -233,6 +244,7 @@ def run_ablation(
         "batch_size": batch_size,
         "seed": seed,
         "n_configs": len(configs),
+        "pca_components": pca_components,
     }
     with open(f"{exp_dir}/config.yaml", "w") as f:
         yaml.dump(exp_config, f, default_flow_style=False)
@@ -273,7 +285,7 @@ def run_ablation(
             lr=lr,
             optimizer="adam",
             performance_loss="ce",
-            task=Mnist,
+            task=task,
             learner=learner_cls,
         )
 
