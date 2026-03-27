@@ -11,6 +11,7 @@ dependencies = [
     "matplotlib>=3.10.8",
     "optax>=0.2.7",
     "pandas>=3.0.1",
+    "scikit-learn>=1.8.0",
     "tensorflow-datasets>=4.9.9",
     "tqdm>=4.67.3",
 ]
