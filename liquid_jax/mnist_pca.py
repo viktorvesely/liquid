@@ -16,10 +16,11 @@ class MnistPcaData:
     label: jax.Array
 
 
-def make_pca_task(n_components: int) -> type[Task]:
+def make_pca_task(n_components: int, pad_to: int = 0) -> type[Task]:
     """Create a Task class for MNIST reduced to n_components PCA dims.
 
     PCA is fit on the train split only.
+    If pad_to > n_components, zero-pads the output to that width.
     """
     # Fit PCA on train
     train_raw = Mnist.load_cpu(split="train")
@@ -35,6 +36,8 @@ def make_pca_task(n_components: int) -> type[Task]:
         raw = Mnist.load_cpu(split=split) if split == "test" else train_raw
         x = np.asarray(raw.img).reshape((-1, 784))
         x_pca = pca.transform(x).astype(np.float32)
+        if pad_to > n_components:
+            x_pca = np.pad(x_pca, ((0, 0), (0, pad_to - n_components)))
         with jax.default_device(cpu):
             cache[split] = MnistPcaData(
                 img=jnp.array(x_pca),
