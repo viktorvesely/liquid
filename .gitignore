@@ -10,3 +10,4 @@ protein_train.csv
 CASP.csv
 liquid/notebooks/
 obsolete/
+/liquid_jax/runs/

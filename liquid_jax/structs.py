@@ -16,4 +16,6 @@ class TrainParams:
     performance_loss: Literal["ce"]
     task: Type[Task]
     learner: Type[Learner]
+    n_models_in_ensemble: int
+    param_budget: int | None = None
     

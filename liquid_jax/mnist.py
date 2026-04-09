@@ -66,7 +66,15 @@ class Mnist(Task[MnistData]):
         data: MnistData
     ) -> tuple[jax.Array, jax.Array]:
         return data.img, data.label
-
+    
+    @staticmethod
+    def task_type() -> Literal["classification", "regression"]:
+        return "classification"
+    
+    @staticmethod
+    def out_dim() -> int:
+        return 10
+    
 if __name__ == "__main__":
 
     # Mnist.load_from_tf()

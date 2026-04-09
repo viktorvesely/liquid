@@ -19,3 +19,13 @@ class Task[TrainData](ABC):
         data: TrainData
     ) -> tuple[jax.Array, jax.Array]:
         ...
+
+    @staticmethod
+    @abstractmethod
+    def task_type() -> Literal["classification", "regression"]:
+        ...
+
+    @staticmethod
+    @abstractmethod
+    def out_dim() -> int:
+        ...

@@ -28,30 +28,33 @@ class LEsolver:
         self,
         le_info: LEInfo        
     ):
-        n_models = le_info.power.shape[0]
+        n_models = le_info.power.shape[-1]
 
         # Chair is the model how has the most power for a given region
         # Calculated as power.argmax(dim=1) 
         soft_chair = jax.nn.softmax(le_info.power / self.load_distribution_temperature, axis=1)
         
         # How much were they active across batch
-        soft_chair_dist = soft_chair.sum(axis=0)
+        soft_chair_dist = soft_chair.mean(axis=0)
         
         # Make it a valid distribution
         soft_chair_dist = soft_chair_dist / soft_chair_dist.sum()
 
         # Make it like uniform (more stable than maximizing entropy)
         non_uniformity = n_models * jnp.sum(soft_chair_dist ** 2) - 1
+        
+        # Range before: [0, n_models - 1], now [0, 1]
+        non_uniformity = non_uniformity / (n_models - 1)
 
-        return self.load_distribution_lambda * jnp.mean(non_uniformity) 
+        # Maximimize the uniformity to use all the modes across the batch
+        return self.load_distribution_lambda * non_uniformity 
     
 
     def specialization_loss(
         self,
         le_info: LEInfo
     ):
-        
-        n_models = le_info.power.shape[0]
+        n_models = le_info.power.shape[-1]
 
         # Make the power into a distribution
         power_dist = le_info.power / le_info.power.sum(axis=-1, keepdims=True)
@@ -59,8 +62,14 @@ class LEsolver:
         # Calculate non-uniformity for each batch element
         non_uniformities = n_models * jnp.sum(power_dist ** 2, axis=-1) - 1
 
-        # Minimize the negative non-uniformity to push for specialization
-        return self.specialization_lambda * jnp.mean(-non_uniformities)
+        # Range before: [0, n_models - 1], now [0, 1]
+        non_uniformities = non_uniformities / (n_models - 1)
+
+        # Also known as gini impurity
+        uniformities = 1 - non_uniformities
+
+        # Minimize the uniformity to push for specialization
+        return self.specialization_lambda * jnp.mean(uniformities)
 
     def solve_power(
         self,

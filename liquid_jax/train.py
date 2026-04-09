@@ -1,8 +1,13 @@
 
 
 from collections import defaultdict
+import datetime
 from functools import partial
+import json
 import math
+from pathlib import Path
+from dataclasses import replace
+import traceback
 
 import jax
 import numpy as np
@@ -12,23 +17,26 @@ from flax import linen as nn
 from flax import struct
 import jax.numpy as jnp
 
+from task_base import Task
 from mnist import Mnist
 from learner_mnist_le import LeMnistLearner
+from learner_de import DeLearner
 
 from structs import TrainParams
+
 
 g_params = TrainParams(
     batch_size=512,
     preload_batches_to_gpu=5,
-    valid_batches=2,
-    epochs=20,
+    valid_batches=3,
+    epochs=50,
     lr=1e-3,
     optimizer="adam",
     performance_loss="ce",
     task=Mnist,
+    n_models_in_ensemble=5,
     learner=LeMnistLearner
 )
-
 
 @struct.dataclass
 class InOutData:
@@ -51,7 +59,8 @@ def loss_fn(
         key=k_forward,
         x=inout.x,
         model=model,
-        params=network_params
+        params=network_params,
+        task=train_params.task
     )
 
     if train_params.performance_loss == "ce":
@@ -85,10 +94,9 @@ def train_batch(
     
     # To batches
     bs = train_params.batch_size
-    assert (inout_data.x.shape[0] % bs) == 0, "Gpu batch needs to be devisible by the batch_size"
+    assert (inout_data.x.shape[0] % bs) == 0, "Gpu batch needs to be divisible by the batch_size"
     n_batches = inout_data.x.shape[0] // bs
     inout_data = jax.tree.map(lambda x: x.reshape((n_batches, bs) + x.shape[1:]), inout_data)
-
     
     def train_step(carry, inout_batch: InOutData):
         
@@ -172,8 +180,14 @@ def train(key: jax.Array, train_params: TrainParams):
     inout_train = jax.tree.map(lambda x: x[n_valid:, ...], inout_data)
 
     # Model
-    model = train_params.learner.get_model()
-    model_params = model.init(k_init, x[[0], ...])["params"]
+    dummy_input = x[[0], ...]
+    model = train_params.learner.get_model(
+        out_dim=train_params.task.out_dim(),
+        n_models=train_params.n_models_in_ensemble,
+        param_budget=train_params.param_budget,
+        dummy_input=dummy_input
+    )
+    model_params = model.init(k_init, dummy_input)["params"]
 
     # Optimizer
     optimizer = {
@@ -227,12 +241,38 @@ def train(key: jax.Array, train_params: TrainParams):
             metrics[f"validation_{k}"].append(v.item())
 
         for k, v in epoch_metrics.items():
-            metrics[k].append(np.mean(v))
+            metrics[k].append(np.mean(v).item())
 
     
     return metrics
 
-def plot_losses(metrics: dict[str, list[float]]):
+def make_train_folder(experiment_name: str) -> Path:
+    exp_folder = Path(__file__).parent / "runs"
+    exp_folder.mkdir(exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    folder = exp_folder / f"{experiment_name}_{timestamp}"
+    folder.mkdir()
+    return folder
+
+def finish_run(metrics: dict[str, list[float]], folder: Path, prefix: str = ""):
+    try:
+        save_metrics(metrics, folder, prefix)
+    except Exception:
+        print("Error during metric saving")
+        traceback.print_exc()
+
+    try:
+        plot_losses(metrics, folder, prefix)
+    except Exception:
+        print("Error during plotting losses")
+        traceback.print_exc()
+
+def save_metrics(metrics: dict[str, list[float]], folder: Path, prefix: str = ""):
+    with open(folder / f"{prefix}_metrics.json", mode="w") as f:
+        json.dump(metrics, f)
+    
+
+def plot_losses(metrics: dict[str, list[float]], folder: Path, prefix: str = ""):
 
     from matplotlib import pyplot as plt
     from copy import deepcopy
@@ -266,18 +306,23 @@ def plot_losses(metrics: dict[str, list[float]]):
     
     ax_aux.legend()
     fig.tight_layout()
-    fig.savefig("./test_loss.png")
-    plt.show()
-
-
+    fig.savefig(folder / f"{prefix}_losses.png")
+    
 
 if __name__ == "__main__":
 
+
+    folder = make_train_folder("test_multiple")
+    learners = [LeMnistLearner, DeLearner]
     key = jax.random.key(123)
-
-    metrics = train(
-        key=key,
-        train_params=g_params
-    )
-
-    plot_losses(metrics)
+    param_budget = 5_000
+    for learner in learners:
+        metrics = train(
+            key=key,
+            train_params=replace(
+                g_params,
+                learner=learner,
+                param_budget=param_budget
+            )
+        )
+        finish_run(metrics, folder, prefix=learner.__name__)

@@ -227,7 +227,7 @@ def train_le(
     (params, opt_state), (perf_metric, perf_loss) = jax.lax.scan(train_step, (params, opt_state), length=n_train_steps)
     return perf_metric, params, perf_loss
 
-
+@partial(jax.jit, static_argnames=("model"))
 @partial(jax.vmap, in_axes=(None, None, 0, None))
 def eval_le(
     x: jax.Array,
@@ -245,7 +245,7 @@ def eval_le(
 
     return yhat, power_perplexity
     
-def run_gridsearch(key: jax.Array, n_models: int = 10, steps: int = 15_000):
+def run_gridsearch(key: jax.Array, n_models: int = 10, steps: int = 15_000, val_split: float = 0.35):
     import numpy as np
 
     save_dir = Path(__file__).parent / "exp_composition"
@@ -258,7 +258,16 @@ def run_gridsearch(key: jax.Array, n_models: int = 10, steps: int = 15_000):
     x_s, y_s, sigmas = composite_function()
     x, y = jnp.expand_dims(x_s, -1), jnp.expand_dims(y_s, -1)
 
-    loss_grid = np.zeros((n_lambdas, n_lambdas))
+    key, split_key = jax.random.split(key)
+    indices = jax.random.permutation(split_key, len(x))
+    split_idx = int(len(x) * (1 - val_split))
+    
+    train_idx, val_idx = indices[:split_idx], indices[split_idx:]
+    
+    x_train, y_train = x[train_idx], y[train_idx]
+    x_val, y_val = x[val_idx], y[val_idx]
+
+    val_loss_grid = np.zeros((n_lambdas, n_lambdas))
     perf_grid = np.zeros((n_lambdas, n_lambdas))
     corr_grid = np.zeros((n_lambdas, n_lambdas))
 
@@ -271,10 +280,11 @@ def run_gridsearch(key: jax.Array, n_models: int = 10, steps: int = 15_000):
         
                 k_train = jax.random.split(key, 5) 
                 solver = LEsolver(load_distribution_lambda=load_l, specialization_lambda=spec_l)
-                perf_metric, params, perf_loss = train_le(k_train, x, y, solver, n_models, steps)
-                
-                loss_grid[i, j] = jnp.mean(perf_loss[:, -1])
+                perf_metric, params, perf_loss = train_le(k_train, x_train, y_train, solver, n_models, steps)
                 perf_grid[i, j] = jnp.mean(perf_metric[:, -1])
+                
+                yhat_val, perplexity = eval_le(x_val, model, params, solver)
+                val_loss_grid[i, j] = jnp.mean((yhat_val - y_val) ** 2)
                 
                 _, perplexity = eval_le(x, model, params, solver)
                 mean_perp = jnp.mean(perplexity, axis=0)
@@ -282,7 +292,7 @@ def run_gridsearch(key: jax.Array, n_models: int = 10, steps: int = 15_000):
                 
                 pbar.update(1)
 
-    np.savez(save_dir / "gridsearch.npz", loss_grid=loss_grid, corr_grid=corr_grid, perf_grid=perf_grid, lambdas=lambdas)
+    np.savez(save_dir / "gridsearch.npz", val_loss_grid=val_loss_grid, corr_grid=corr_grid, perf_grid=perf_grid, lambdas=lambdas)
 
 
 def powspace(start, stop, num, power=2):
@@ -426,10 +436,10 @@ def plot_gridsearch():
 
     save_dir = Path(__file__).parent / "exp_composition"
     data = np.load(save_dir / "gridsearch.npz")
-    loss_grid, corr_grid, perf_grid, lambdas = data["loss_grid"], data["corr_grid"], data["perf_grid"], data["lambdas"]
+    val_loss_grid, corr_grid, perf_grid, lambdas = data["val_loss_grid"], data["corr_grid"], data["perf_grid"], data["lambdas"]
     
-    fig, axes = plt.subplots(1, 3, figsize=(24, 7))
-    grids = [(loss_grid, "Final Performance Loss"), (corr_grid, "Perplexity-Sigma Correlation"), (perf_grid, "Final 0.95 quantile MAE")]
+    fig, axes = plt.subplots(1, 3, figsize=(24, 8))
+    grids = [(val_loss_grid, "Final Val Loss"), (corr_grid, "Perplexity-Sigma Correlation"), (perf_grid, "Final 0.95 quantile MAE")]
     labels = [f"{l:.1e}" for l in lambdas]
 
     for ax, (grid, title) in zip(axes, grids):
@@ -463,5 +473,5 @@ if __name__ == "__main__":
     #     jax.random.key(123),
     #     n_models=10,
     # )
-    # run_gridsearch(jax.random.key(123))
+    run_gridsearch(jax.random.key(123))
     plot_gridsearch()
