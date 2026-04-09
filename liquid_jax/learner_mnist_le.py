@@ -7,7 +7,7 @@ from task_base import Task
 from liquid_solver import LEsolver, LEInfo
 
 solver = LEsolver(
-    load_distribution_lambda=2e-1,
+    load_distribution_lambda=0,
     specialization_lambda=0,
 )
 
@@ -76,9 +76,9 @@ class LeMnistLearner(Learner[LEInfo]):
 
         builder = lambda alpha: LeMlp(
             n_models=n_models,
-            body=(to_param(32 * alpha),),
-            out=(to_param(16 * alpha), out_dim),
-            delegation=(to_param(8 * alpha), n_models)
+            body=(),
+            out=(to_param(32 * alpha), to_param(16 * alpha), out_dim),
+            delegation=(to_param(32 * alpha), to_param(8 * alpha), n_models)
         )
 
         if param_budget is None:
@@ -116,5 +116,5 @@ class LeMnistLearner(Learner[LEInfo]):
         
         return {
             "load_distribution_loss": solver.load_distribution_loss(train_return),
-            "specialization_losss": solver.specialization_loss(train_return)
+            "specialization_loss": solver.specialization_loss(train_return)
         }
