@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from task_base import Task
 from mnist import Mnist
 from cifar10 import Cifar10
-from learner_mnist_le import LeMnistLearner
+from learner_le import LeMnistLearner
 from learner_de import DeLearner
 
 from structs import TrainParams
@@ -30,12 +30,12 @@ g_params = TrainParams(
     batch_size=512,
     preload_batches_to_gpu=5,
     valid_batches=3,
-    epochs=100,
-    lr=5e-4,
+    epochs=30,
+    lr=1e-3,
     optimizer="adam",
     performance_loss="ce",
     task=Cifar10,
-    n_models_in_ensemble=50,
+    n_models_in_ensemble=25,
     learner=LeMnistLearner
 )
 
@@ -57,12 +57,11 @@ def loss_fn(
     
     k_forward, k_loss = jax.random.split(key)
 
-    yhat, train_return = train_params.learner.forward(
+    yhat, train_return, cos_sim = train_params.learner.forward(
         key=k_forward,
         x=inout.x,
         model=model,
-        params=network_params,
-        task=train_params.task
+        params=network_params
     )
 
     if train_params.performance_loss == "ce":
@@ -74,11 +73,18 @@ def loss_fn(
     
     
     performance_loss = jnp.mean(loss_batch)
-    auxillary_losses = train_params.learner.auxillary_losses(k_loss, train_return)
+    auxillary_losses = train_params.learner.auxillary_losses(
+        key=k_loss,
+        model=model,
+        params=network_params,
+        train_return=train_return
+    )
     metrics = {f"{train_params.performance_loss}_loss": performance_loss} | auxillary_losses
 
     aux_values = jax.tree.reduce(lambda accum, aux_loss: accum + aux_loss, auxillary_losses, initializer=0.0)
     loss = aux_values + performance_loss
+
+    metrics["cosine_sim_metric"] = cos_sim
 
     if calc_metric:
         if (tt := train_params.task.task_type()) == "classification":
@@ -89,6 +95,7 @@ def loss_fn(
         elif tt == "regression":
             assert yhat.shape == inout.y.shape
             metrics["mae_metric"] = jnp.mean(jnp.abs(yhat - inout.y))
+        
 
     return loss, metrics
 
@@ -193,8 +200,7 @@ def train(key: jax.Array, train_params: TrainParams):
     # Model
     dummy_input = x[[0], ...]
     model = train_params.learner.get_model(
-        out_dim=train_params.task.out_dim(),
-        n_models=train_params.n_models_in_ensemble,
+        train_params=train_params,
         param_budget=train_params.param_budget,
         dummy_input=dummy_input
     )
@@ -330,10 +336,10 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 if __name__ == "__main__":
 
 
-    folder = make_train_folder("test_multiple")
-    learners = [LeMnistLearner, DeLearner]
+    folder = make_train_folder("check_orthogonality")
+    learners = [LeMnistLearner]
     key = jax.random.key(123)
-    param_budget = 100_000
+    param_budget = 200_000
     for learner in learners:
         metrics = train(
             key=key,

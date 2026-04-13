@@ -1,9 +1,10 @@
+from typing import TYPE_CHECKING, Callable
 from abc import ABC, abstractmethod
 from flax import linen as nn
 import jax
 
-from task_base import Task 
-
+if TYPE_CHECKING:
+    from structs import TrainParams
 
 class Learner[
     TrainReturn
@@ -12,8 +13,7 @@ class Learner[
     @staticmethod
     @abstractmethod
     def get_model(
-        out_dim: int,
-        n_models: int,
+        train_params: "TrainParams",
         param_budget: int | None = None,
         dummy_input: jax.Array | None = None
     ) -> nn.Module:
@@ -25,8 +25,7 @@ class Learner[
         key: jax.Array,
         x: jax.Array,
         model: nn.Module,
-        params: dict,
-        task: Task
+        params: dict
     ) -> tuple[jax.Array, TrainReturn]:
         ...
 
@@ -34,37 +33,12 @@ class Learner[
     @abstractmethod
     def auxillary_losses(
         key: jax.Array,
+        model: nn.Module,
+        params: dict,
         train_return: TrainReturn
     ) -> dict[str, jax.Array]:
         ...
 
-
-def get_layers(neurons: tuple[int, ...]):
-
-    if not neurons:
-        return None
-    
-    layers = []
-    for n in neurons:
-        layers.append(
-            nn.Dense(n)
-        )
-    return tuple(layers)
-
-
-def forward(h, last_linear, layers):
-    if not layers: 
-        return h
-    
-    for layer in layers[:-1]:
-        h = nn.relu(layer(h))
-    
-    final_layer = layers[-1]
-    h = final_layer(h)
-    
-    return h if last_linear else nn.relu(h)   
-
-from typing import Callable
 
 def to_param(scaled_param: float) -> int:
     return max(int(round(scaled_param)), 1)
