@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Callable
 from abc import ABC, abstractmethod
 from flax import linen as nn
 import jax
+import optuna
 
 if TYPE_CHECKING:
     from structs import TrainParams
@@ -39,9 +40,23 @@ class Learner[
     ) -> dict[str, jax.Array]:
         ...
 
+    @staticmethod
+    @abstractmethod
+    def boot_from_trial(
+        train_params: "TrainParams",
+        dummy_input: jax.Array,
+        trial: optuna.Trial
+    ) -> nn.Module:
+        ...
+
 
 def to_param(scaled_param: float) -> int:
     return max(int(round(scaled_param)), 1)
+
+def count_params_without_alloc(model: nn.Module, dummy_input: jax.Array):
+    # eval_shape gets shapes without allocating memory, making this very fast
+    variables = jax.eval_shape(lambda: model.init(jax.random.PRNGKey(0), dummy_input))
+    return sum(x.size for x in jax.tree.leaves(variables.get('params', {})))
 
 def find_best_matching_architecture_scalar(
     param_budget: int, 
@@ -54,9 +69,8 @@ def find_best_matching_architecture_scalar(
     """
     def get_param_count(alpha: float) -> int:
         model = model_builder(alpha)
-        # eval_shape gets shapes without allocating memory, making this very fast
-        variables = jax.eval_shape(lambda: model.init(jax.random.PRNGKey(0), dummy_input))
-        return sum(x.size for x in jax.tree.leaves(variables.get('params', {})))
+        return count_params_without_alloc(model, dummy_input)
+        
 
     # 1. Exponentially search for an upper bound
     low, high = 0.001, 1.0

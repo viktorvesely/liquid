@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from task_base import Task
 from mnist import Mnist
 from cifar10 import Cifar10
-from learner_le import LeMnistLearner
+from learner_le import LeLearner
 from learner_de import DeLearner
 
 from structs import TrainParams
@@ -36,7 +36,7 @@ g_params = TrainParams(
     performance_loss="ce",
     task=Cifar10,
     n_models_in_ensemble=25,
-    learner=LeMnistLearner
+    learner=LeLearner
 )
 
 @struct.dataclass
@@ -174,7 +174,11 @@ def train_loader(
         yield batch, k_next
     
 
-def train(key: jax.Array, train_params: TrainParams):
+def train(
+        key: jax.Array,
+        train_params: TrainParams,
+        trial: object | None = None
+    ):
     
     cpu = jax.devices("cpu")[0]
     gpu = jax.devices("gpu")[0]
@@ -199,11 +203,20 @@ def train(key: jax.Array, train_params: TrainParams):
 
     # Model
     dummy_input = x[[0], ...]
-    model = train_params.learner.get_model(
-        train_params=train_params,
-        param_budget=train_params.param_budget,
-        dummy_input=dummy_input
-    )
+
+    if trial is None:
+        model = train_params.learner.get_model(
+            train_params=train_params,
+            param_budget=train_params.param_budget,
+            dummy_input=dummy_input
+        )
+    else:
+        model = train_params.learner.boot_from_trial(
+            train_params=train_params,
+            dummy_input=dummy_input,
+            trial=trial
+        )
+
     model_params = model.init(k_init, dummy_input)["params"]
 
     # Optimizer
@@ -337,7 +350,7 @@ if __name__ == "__main__":
 
 
     folder = make_train_folder("check_orthogonality")
-    learners = [LeMnistLearner]
+    learners = [LeLearner]
     key = jax.random.key(123)
     param_budget = 200_000
     for learner in learners:
