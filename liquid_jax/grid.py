@@ -35,8 +35,8 @@ if __name__ == "__main__":
 
     spec_predictors = [2, 4, 8, 16, 32, 64]
     spec_delegators = [0, 1, 2, 4, 8, 16, 32, 64]
-    widths_predictors = [8, 32, 64]
-    widths_delegators = [2, 32, 64]
+    widths_predictors = [8, 64]
+    widths_delegators = [4, 32]
 
     specs = list(product(spec_predictors, spec_delegators, widths_predictors, widths_delegators))
 
