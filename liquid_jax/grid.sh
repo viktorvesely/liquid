@@ -5,6 +5,8 @@
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=v100:1
 #SBATCH --nodes=1
+#SBATCH --output=grid.out
+#SBATCH --error=grid.err
 
 module purge
 module load CUDA/13.2.0
