@@ -1,7 +1,7 @@
 import flax.linen as nn
 import jax
 
-def get_layers(neurons: tuple[int, ...]):
+def get_layers(neurons: tuple[int, ...], bias_std: float = 1e-4):
 
     if not neurons:
         return None
@@ -48,12 +48,13 @@ def forward(h, last_linear, layers):
 class Mlp(nn.Module):
     
     body: tuple[int, ...]
+    last_linear: bool = True
     
     def setup(self):
         self.body_layers = get_layers(self.body)
 
     def __call__(self, x: jax.Array):
-        out = forward(x, last_linear=True, layers=self.body_layers)
+        out = forward(x, last_linear=self.last_linear, layers=self.body_layers)
         return out
     
 

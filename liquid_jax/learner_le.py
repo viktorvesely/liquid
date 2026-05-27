@@ -6,110 +6,84 @@ import jax.numpy as jnp
 import optuna
 
 from learner_base import Learner, count_params_without_alloc, find_best_matching_architecture_scalar, to_param
-from atomic_networks import get_cnn_layers, get_layers, forward
-from task_base import Task
-from liquid_solver import LEsolver, LEInfo
-from math_utils import mix_weighted_logits, mix_weighted_mean
-from structs import TrainParams
+from atomic_networks import Mlp, get_cnn_layers, get_layers, forward
+from liquid_solver import LEsolver
+from math_utils import non_uniformity
+from structs import TrainParams, TrainReturn
 
-class LeModelMlp(nn.Module):
-    
-    out: tuple[int, ...]
-    delegation: tuple[int, ...]
-    body: tuple[int, ...]
-    
-    def setup(self):
-        self.body_layers = get_layers(self.body)
-        self.out_layers = get_layers(self.out)
-        self.delegation_layers = get_layers(self.delegation)
-
-    def __call__(self, x: jax.Array):
-        h = x
-        h_body = forward(h, last_linear=False, layers=self.body_layers)
-        y = forward(h_body, last_linear=True, layers=self.out_layers)
-        d = forward(h_body, last_linear=True, layers=self.delegation_layers)
-
-        return y, d
-    
-
-class LeModelCNN(nn.Module):
-    
-    out: tuple[int, ...]
-    delegation: tuple[int, ...]
-    body: tuple[int, ...]
-    
-    def setup(self):
-        self.body_layers = get_cnn_layers(self.body, kernel_size=3, stride=2)
-        self.out_layers = get_layers(self.out)
-        self.delegation_layers = get_layers(self.delegation)
-
-    def __call__(self, x: jax.Array):
-        
-        h_body = forward(x, last_linear=False, layers=self.body_layers)
-        batch_shape = h_body.shape[:-3]
-        h_body = h_body.reshape(batch_shape + (-1,))
-        y = forward(h_body, last_linear=True, layers=self.out_layers)
-        d = forward(h_body, last_linear=True, layers=self.delegation_layers)
-
-        return y, d, h_body
 
 class Le(nn.Module):
-    n_models: int
-    body: tuple[int, ...]
-    out: tuple[int, ...]
-    delegation: tuple[int, ...]
-    solver: LEsolver
+    n_predictors: int
+    n_delegators: int
+    predictor: tuple[int, ...]
+    delegator: tuple[int, ...]
+    solver: LEsolver | None
     output_mixing: Literal["classification", "regression"]
-    cnn_body: bool
+    delegation_mixing: Literal["mean", "liquid"]
+    cnn_body: bool = False
 
     def setup(self):
         
-        assert self.delegation[-1] == self.n_models, "Last dim of delegation needs to equal to n_models"
+        assert self.delegator[-1] == self.n_predictors, "Last dim of delegation needs to equal to n_predictors"
 
-        SingleModel = LeModelCNN if self.cnn_body else LeModelMlp 
-
-        VmappedLeModelMlp = nn.vmap(
-            SingleModel,
+        Predictors = nn.vmap(
+            Mlp,
             variable_axes={'params': 0},
             split_rngs={'params': True}, # Vmap over different models
             in_axes=None, # Do not vmap over batch elements
-            axis_size=self.n_models,
+            axis_size=self.n_predictors,
             out_axes=1 # Stack the model outputs to axis=1
         )
         
-        self.ensemble = VmappedLeModelMlp(
-            out=self.out, 
-            delegation=self.delegation, 
-            body=self.body
+        self.predictors = Predictors(
+            body=self.predictor
         )
+
+
+        if self.n_delegators > 0:
+            Delegators = nn.vmap(
+                Mlp,
+                variable_axes={'params': 0},
+                split_rngs={'params': True}, # Vmap over different models
+                in_axes=None, # Do not vmap over batch elements
+                axis_size=self.n_delegators,
+                out_axes=1 # Stack the model outputs to axis=1
+            )
+
+            self.delegators = Delegators(body=self.delegator)
+        else:
+            self.delegators = lambda x: jnp.ones((x.shape[0], 1, self.n_predictors)) / self.n_predictors 
 
     def __call__(self, x: jax.Array):
 
         if not self.cnn_body:
             x = x if x.ndim == 2 else x.reshape((x.shape[0], -1))
 
-        ys, delegation, h_bodies = self.ensemble(x)
+        ys = self.predictors(x)
+        delegation = self.delegators(x)
         delegation = nn.softmax(delegation, axis=-1)
-        leinfo = self.solver.solve_power(delegation)
+
+
+        if self.delegation_mixing == "liquid":
+            output = self.solver.solve_power(delegation)
+        elif self.delegation_mixing == "mean":
+            unscaled_power = jnp.mean(delegation, axis=-2)
+            power = unscaled_power / (jnp.sum(unscaled_power, axis=-1, keepdims=True) + 1e-8)
+            output = TrainReturn(
+                delegation=delegation,
+                power=power,
+                ys=ys
+            )
+        else:
+            raise ValueError(f"{self.delegation_mixing} unknown delegation mixing")
         
-        # Shape (bs, experts, body_dim)
-        h_bodies = h_bodies / (jnp.linalg.norm(h_bodies, axis=-1, keepdims=True) + 1e-8)
-        cosine_similarity_matrix = jnp.einsum("bxd,byd->bxy", h_bodies, h_bodies)
-        off_diag_mask = 1 - jnp.eye(self.n_models)
-        n = self.n_models
-        num_off_diag = n * (n - 1)
-        cosine_similarity = jnp.sum(cosine_similarity_matrix * off_diag_mask) / (h_bodies.shape[0] * num_off_diag)
-
-        if self.output_mixing == "classification":
-            y = mix_weighted_logits(ys, leinfo.power)
-        elif self .output_mixing == "regression":
-            y = mix_weighted_mean(ys, leinfo.power)
-
-        return y, leinfo, cosine_similarity
+        return output
     
-            
 
-class LeLearner(Learner[LEInfo]):
+DELEGATION_MIXING = "mean"
+LOAD_DISTRIBUTION_LAMBDA = 1
+
+class LeLearner(Learner[TrainReturn]):
 
     @staticmethod
     def get_model(
@@ -119,39 +93,52 @@ class LeLearner(Learner[LEInfo]):
     ) -> nn.Module:
         
 
-        builder = lambda alpha: Le(
-            n_models=train_params.n_models_in_ensemble,
-            body=(to_param(9 * alpha), to_param(18 * alpha), to_param(32 * alpha)),
-            out=(train_params.task.out_dim(),),
-            delegation=(train_params.n_models_in_ensemble,),
-            solver=LEsolver(
-                load_distribution_lambda=0.5,
-                specialization_lambda=0.0,
-            ),
-            output_mixing=train_params.task.task_type(),
-            cnn_body=True
-        )
 
-        if param_budget is None:
-            model = builder(alpha=1.0)
-        else:
-            alpha, actual_params = find_best_matching_architecture_scalar(
-                param_budget=param_budget, 
-                dummy_input=dummy_input, 
-                model_builder=builder
+        if train_params.predictor is not None and train_params.delegator is not None:
+            model = Le(
+                n_predictors=train_params.n_predictors,
+                n_delegators=train_params.n_delegators,
+                predictor=train_params.predictor,
+                delegator=train_params.delegator,
+                solver=None,
+                output_mixing=train_params.task.task_type(),
+                delegation_mixing="mean"
             )
 
-            diff = abs(actual_params - param_budget)
-            print(f"Difference between requested and actual #params = {diff}")
-            relative_diff = diff / param_budget
-            assert relative_diff < 0.2, f"Budget mismatch: {relative_diff:.2%} error"
-            model = builder(alpha=alpha)
+        # builder = lambda alpha: Le(
+        #     n_predictors=train_params.n_predictors,
+        #     n_delegators=train_params.n_delegators,
+        #     predictor=(to_param(16 * alpha), to_param(8 * alpha), train_params.task.out_dim()),
+        #     delegator=(to_param(8 * alpha), train_params.n_predictors),
+        #     solver=None,
+        #     output_mixing=train_params.task.task_type(),
+        #     delegation_mixing="mean"
+        # )
+
+
+
+        # if param_budget is None:
+        #     model = builder(alpha=1.0)
+        #     params = count_params_without_alloc(model, dummy_input=dummy_input)
+        #     print(f"{(params / 1_000):_.2f}K params")
+        # else:
+        #     alpha, actual_params = find_best_matching_architecture_scalar(
+        #         param_budget=param_budget, 
+        #         dummy_input=dummy_input, 
+        #         model_builder=builder
+        #     )
+
+        #     diff = abs(actual_params - param_budget)
+        #     print(f"Difference between requested and actual #params = {diff}")
+        #     relative_diff = diff / param_budget
+        #     assert relative_diff < 0.2, f"Budget mismatch: {relative_diff:.2%} error"
+        #     model = builder(alpha=alpha)
             
         return model
 
 
     @staticmethod
-    def forward(key: jax.Array, x: jax.Array, model: Le, params: dict) -> tuple[jax.Array, LEInfo]:
+    def forward(key: jax.Array, x: jax.Array, model: Le, params: dict) -> tuple[jax.Array, TrainReturn]:
         return model.apply({"params": params}, x)
     
     @staticmethod
@@ -159,12 +146,15 @@ class LeLearner(Learner[LEInfo]):
         key: jax.Array,
         model: nn.Module,
         params: dict,
-        train_return: LEInfo
+        train_return: TrainReturn,
+        train_params: TrainParams
     ) -> dict[str, jax.Array]:
         
+        soft_chair = LEsolver.get_soft_chair_dist(train_return.power)
+        load_distribution_loss = non_uniformity(soft_chair) * LOAD_DISTRIBUTION_LAMBDA
+
         return {
-            "load_distribution_loss": model.solver.load_distribution_loss(train_return),
-            "specialization_loss": model.solver.specialization_loss(train_return)
+            "load_distribution_loss": load_distribution_loss
         }
 
     
@@ -205,8 +195,7 @@ class LeLearner(Learner[LEInfo]):
                 long_delegations_penalty=trial.suggest_float("long_delegations_penalty", 0.1, 0.99),
                 solver=trial.suggest_categorical("solver", ["sink_one", "sink_many"])
             ),
-            output_mixing=train_params.task.task_type(),
-            cnn_body=True
+            output_mixing=train_params.task.task_type()
         )
 
         param_count = count_params_without_alloc(model, dummy_input)

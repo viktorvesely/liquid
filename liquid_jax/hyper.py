@@ -12,7 +12,7 @@ from learner_base import Learner
 import time
 from train import train, make_train_folder
 from cifar10 import Cifar10
-from learner_le import LeLearner
+from liquid_jax.learner_le_old import LeLearner
 
 def objective_validation_performance(
         trial: optuna.Trial,
@@ -86,9 +86,8 @@ if __name__ == "__main__":
                 epochs=50,
                 lr=5e-4,
                 optimizer="adam",
-                performance_loss="ce",
                 task=Cifar10,
-                n_models_in_ensemble=-1, # Decided by optuna
+                n_predictors=-1, # Decided by optuna
                 learner=LeLearner
             ),
             training_metric="ce_loss",

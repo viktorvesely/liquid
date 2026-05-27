@@ -58,7 +58,7 @@ class DeLearner(Learner[None]):
         
 
         builder = lambda alpha: DeMlp(
-            n_models=train_params.n_models_in_ensemble,
+            n_models=train_params.n_predictors,
             body=(to_param(9 * alpha), to_param(18 * alpha), to_param(32 * alpha), train_params.task.out_dim()),
             output_mixing=train_params.task.task_type(),
             cnn_layers=3

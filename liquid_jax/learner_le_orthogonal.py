@@ -9,7 +9,7 @@ from learner_base import Learner, find_best_matching_architecture_scalar, to_par
 from atomic_networks import get_cnn_layers, get_layers, forward
 from task_base import Task
 from liquid_solver import LEsolver, LEInfo
-from math_utils import mix_weighted_logits, mix_weighted_mean
+from math_utils import mix_weighted_logits_to_probs, mix_weighted_mean
 from structs import TrainParams
 
 class ExpertBodyMlp(nn.Module):
@@ -127,7 +127,7 @@ class Le(nn.Module):
         cosine_similarity = jnp.sum(cosine_similarity_matrix * off_diag_mask) / (h_bodies_norm.shape[0] * num_off_diag)
 
         if self.output_mixing == "classification":
-            y = mix_weighted_logits(ys, leinfo.power)
+            y = mix_weighted_logits_to_probs(ys, leinfo.power)
         elif self.output_mixing == "regression":
             y = mix_weighted_mean(ys, leinfo.power)
 
@@ -146,10 +146,10 @@ class LeMnistLearner(Learner[LEInfo]):
         
 
         builder = lambda alpha: Le(
-            n_models=train_params.n_models_in_ensemble,
+            n_models=train_params.n_predictors,
             body=(to_param(9 * alpha), to_param(16 * alpha), to_param(32 * alpha)),
             out=(train_params.task.out_dim(),),
-            delegation=(train_params.n_models_in_ensemble,),
+            delegation=(train_params.n_predictors,),
             solver=LEsolver(
                 load_distribution_lambda=0.1,
                 specialization_lambda=0.0,

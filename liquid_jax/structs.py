@@ -1,6 +1,9 @@
 
 from dataclasses import dataclass
 from typing import Literal, Type
+
+from flax import struct
+import jax
 from task_base import Task
 from learner_base import Learner
 
@@ -13,9 +16,20 @@ class TrainParams:
     epochs: int
     lr: float
     optimizer: Literal["adam", "sgd"]
-    performance_loss: Literal["ce"]
     task: Type[Task]
     learner: Type[Learner]
-    n_models_in_ensemble: int
+    n_predictors: int
+    n_delegators: int
+    predictor: tuple[int, ...] | None = None
+    delegator: tuple[int, ...] | None = None
     param_budget: int | None = None
     
+
+@struct.dataclass
+class TrainReturn:
+    delegation: jax.Array # (BS, n_delegators, n_predictor)
+    power: jax.Array # (BS, n_predictors)
+    ys: jax.Array = None # (BS, n_predictors, n_output)
+
+
+

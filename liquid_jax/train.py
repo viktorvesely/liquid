@@ -23,27 +23,31 @@ from cifar10 import Cifar10
 from learner_le import LeLearner
 from learner_de import DeLearner
 
-from structs import TrainParams
+from math_utils import ce_loss, ce_loss_logprobs_labels, jsd, mix_weighted_logits, mix_weighted_mean, bregman_divergence
+from structs import TrainParams, TrainReturn
 
 
 g_params = TrainParams(
     batch_size=512,
-    preload_batches_to_gpu=5,
-    valid_batches=3,
-    epochs=30,
+    preload_batches_to_gpu=10,
+    valid_batches=4,
+    epochs=50,
     lr=1e-3,
     optimizer="adam",
-    performance_loss="ce",
     task=Cifar10,
-    n_models_in_ensemble=25,
+    n_predictors=50,
+    n_delegators=3,
     learner=LeLearner
 )
+
+DIVERSITY_LAMBDA = 0.0
 
 @struct.dataclass
 class InOutData:
     
     x: jax.Array
     y: jax.Array
+
 
 @partial(jax.jit, static_argnames=("model", "train_params", "calc_metric"))
 def loss_fn(
@@ -57,44 +61,107 @@ def loss_fn(
     
     k_forward, k_loss = jax.random.split(key)
 
-    yhat, train_return, cos_sim = train_params.learner.forward(
+    train_return: TrainReturn = train_params.learner.forward(
         key=k_forward,
         x=inout.x,
         model=model,
         params=network_params
     )
 
-    if train_params.performance_loss == "ce":
-        loss_batch = optax.softmax_cross_entropy_with_integer_labels(
-            yhat, inout.y
-        )
-    else:
-        raise ValueError(f"loss={train_params.performance_loss} is not implemented")
+    ensemble_logits = train_return.ys
+    ensemble_logprobs = jax.nn.log_softmax(ensemble_logits)
+    ensemble_weights = train_return.power 
+    logprobs = mix_weighted_logits(ensemble_logits, train_return.power)
     
-    
+    # @jax.vmap
+    # def get_optimal_weights(yhat_one: jax.Array, y_one: jax.Array, init_probs: jax.Array):    
+    #     init_weights = jnp.log10(init_probs + 1e-8)
+    #     solver = optax.lbfgs()
+
+    #     def wrapped_loss_fn(weights):
+    #         a = nn.softmax(weights)
+    #         return ce_loss(mix_weighted_logits(yhat_one, a), y_one)
+            
+    #     def step_fn(state, _):
+    #         weights, opt_state = state
+    #         value, grad = jax.value_and_grad(wrapped_loss_fn)(weights)
+    #         updates, new_opt_state = solver.update(
+    #            grad, opt_state, weights, value=value, grad=grad, value_fn=wrapped_loss_fn
+    #         )
+    #         new_weights = optax.apply_updates(weights, updates)
+
+    #         return (new_weights, new_opt_state), None
+
+    #     init_state = (init_weights, solver.init(init_weights))
+    #     (final_weights, _), _ = jax.lax.scan(step_fn, init_state, length=30)
+        
+    #     return nn.softmax(final_weights)
+
+    def error_diversity(
+        ensemble_weights: jax.Array,
+        logits: jax.Array, # BS, models, out
+        labels: jax.Array # BS
+    ):
+        prob = jax.nn.softmax(logits)
+        target_mask = jnp.eye(logits.shape[-1])[labels]
+        
+        correct_p = jnp.take_along_axis(prob, labels[:, jnp.newaxis, jnp.newaxis], axis=-1) 
+        # (BS, models, 1)
+
+        wrong_p = prob * (1 - target_mask[:, jnp.newaxis, :])
+        # (BS, models, out_dim)
+
+        weights = (1.0 - correct_p) * ensemble_weights[:, :, jnp.newaxis]
+        weights = jax.lax.stop_gradient(weights)
+        w_norm = weights / (jnp.sum(weights, axis=1, keepdims=True) + 1e-8)
+        center = jnp.sum(w_norm * wrong_p, axis=1, keepdims=True) 
+        diff_sq = (wrong_p - center) ** 2
+        masked_diff_sq = weights * diff_sq
+        ediv = jnp.mean(masked_diff_sq)
+        return ediv
+
+    loss_batch = ce_loss_logprobs_labels(logprobs, inout.y)
+    diversity_loss = -(DIVERSITY_LAMBDA * error_diversity(train_return.power, ensemble_logits, inout.y))
+
     performance_loss = jnp.mean(loss_batch)
     auxillary_losses = train_params.learner.auxillary_losses(
         key=k_loss,
         model=model,
         params=network_params,
-        train_return=train_return
+        train_return=train_return,
+        train_params=train_params
     )
-    metrics = {f"{train_params.performance_loss}_loss": performance_loss} | auxillary_losses
+    metrics = {
+        "ce_loss": performance_loss,
+        "div_loss": diversity_loss
+    } | auxillary_losses
+
+
 
     aux_values = jax.tree.reduce(lambda accum, aux_loss: accum + aux_loss, auxillary_losses, initializer=0.0)
-    loss = aux_values + performance_loss
+    loss = aux_values + performance_loss + diversity_loss
 
-    metrics["cosine_sim_metric"] = cos_sim
+    def calc_accuracy(yhat, y):
+        hat_inds = jnp.argmax(yhat, axis=-1)
+        return jnp.mean(hat_inds == y)
+
+    def one_sample_kl(combiner: jax.Array, ensemble_weights: jax.Array, individuals: jax.Array):
+        kl_per_model = jax.scipy.special.kl_div(combiner[jnp.newaxis, :], individuals).sum(axis=-1)
+        return jnp.sum(kl_per_model * ensemble_weights) # Only count the models which participated in the decision
 
     if calc_metric:
-        if (tt := train_params.task.task_type()) == "classification":
-            hat_inds = jnp.argmax(yhat, axis=-1)
-            assert hat_inds.shape == inout.y.shape
-            metrics["accuracy_metric"] = jnp.mean(hat_inds == inout.y)
-
-        elif tt == "regression":
-            assert yhat.shape == inout.y.shape
-            metrics["mae_metric"] = jnp.mean(jnp.abs(yhat - inout.y))
+        
+        # optimal_power = get_optimal_weights(train_return.ys, inout.y, train_return.power)
+        # optimal_yhat = mix_weighted_logits(train_return.ys, optimal_power)
+        metrics["accuracy_metric"] = calc_accuracy(logprobs, inout.y)
+        # metrics["optimal_ce_loss"] = jnp.mean(ce_loss(optimal_yhat, inout.y))
+        metrics["kl_fig2"] = jnp.mean(jax.vmap(one_sample_kl)(
+            jax.nn.softmax(logprobs) + 1e-6,
+            ensemble_weights,
+            jax.nn.softmax(ensemble_logprobs) + 1e-6
+        ))
+        metrics["prediction_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(nn.softmax(ensemble_logits)), axis=-1)) / jnp.log(train_return.ys.shape[-1])
+        metrics["power_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(ensemble_weights + 1e-8), axis=-1)) / jnp.log(ensemble_weights.shape[-1])
         
 
     return loss, metrics
@@ -103,7 +170,7 @@ def loss_fn(
 @partial(jax.jit, static_argnames=("optimizer", "model", "train_params"))
 def train_batch(
     key: jax.Array,
-    inout_data: InOutData,
+    inout_data: InOutData,  
     model_params: dict,
     opt_state: dict,
     optimizer: optax.GradientTransformationExtraArgs,
@@ -174,6 +241,43 @@ def train_loader(
         yield batch, k_next
     
 
+def orthogonalize_expert_grads(last_layers: int = 1):
+    def init_fn(params):
+        return optax.EmptyState()
+
+    def update_fn(updates, state, params=None):
+        max_layer = -1
+        if "predictors" in updates:
+            for key in updates["predictors"].keys():
+                layer = int(key.split("_")[-1])
+                max_layer = max(max_layer, layer)
+
+        target_layers = tuple([f"body_layers_{max_layer - i}" for i in range(1, last_layers + 1)])
+        def process_update(key_path, update):
+            path_str = "/".join(str(k) for k in key_path)
+
+            if any(target in path_str for target in target_layers) and ("kernel" in path_str) and ("predictors" in path_str):
+
+                E, I, O = update.shape
+                flat_update = update.reshape(E, I * O)
+                
+                orig_norm = jnp.linalg.norm(flat_update, axis=1, keepdims=True)
+                
+                A = flat_update.T
+                q, _ = jnp.linalg.qr(A, mode='reduced')
+                
+                eps = 1e-8
+                q_scaled = q.T * (orig_norm + eps)
+                
+                return q_scaled.reshape(E, I, O)
+
+            return update
+
+        new_updates = jax.tree.map_with_path(process_update, updates)
+        return new_updates, state
+
+    return optax.GradientTransformation(init_fn, update_fn)
+
 def train(
         key: jax.Array,
         train_params: TrainParams,
@@ -219,11 +323,14 @@ def train(
 
     model_params = model.init(k_init, dummy_input)["params"]
 
+
     # Optimizer
-    optimizer = {
+    optimizer_pure = {
         "sgd": optax.sgd(learning_rate=train_params.lr),
-        "adam": optax.adamw(learning_rate=train_params.lr)
+        "adam": optax.adamw(learning_rate=train_params.lr, weight_decay=1e-3)
     }[train_params.optimizer]
+
+    optimizer = optimizer_pure
     opt_state = optimizer.init(model_params)
     
     metrics = defaultdict(list)
@@ -313,9 +420,25 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
     metrics = deepcopy(metrics)
     v_loss = metrics.pop("validation_loss")
     t_loss = metrics.pop("loss")
+
+    n_additional_figures = 0
+    for name in metrics.keys():
+        suffix = name.split("_")[-1]
+        if "fig" not in suffix:
+            continue
+        fignum = int(suffix.replace("fig", ""))
+        n_additional_figures = max(fignum, n_additional_figures)
+
     
-    fig, (ax_metrics, ax_losses) = plt.subplots(1, 2, figsize=(14, 5))
-    
+    n_all_figures = 2 + n_additional_figures
+    cols = 2
+    rows = math.ceil(n_all_figures / cols)
+
+    fig, axes = plt.subplots(rows, cols, figsize=(14, 5 * rows))
+    axes = axes.ravel()
+    ax_metrics, ax_losses = axes[0], axes[1]
+    rest = axes[2:]
+
     used = 0
     for name in metrics.keys():
         
@@ -337,11 +460,25 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
             continue
 
         ax_losses.plot(metrics[name], color=colors[used], label=tname)
-        ax_losses.plot(metrics[tname], color=colors[used], linestyle="dashed")
+
+        if tname in metrics:
+            ax_losses.plot(metrics[tname], color=colors[used], linestyle="dashed")
 
         used += 1
-    
     ax_losses.legend()
+
+
+    for name in metrics.keys():
+        suffix = name.split("_")[-1]
+        if "fig" not in suffix:
+            continue
+        fignum = int(suffix.replace("fig", ""))
+        figindex = fignum - 1
+        rest[figindex].plot(metrics[name], label=name)
+
+    for ax in rest:
+        ax.legend()
+
     fig.tight_layout()
     fig.savefig(folder / f"{prefix}_losses.png")
     
@@ -349,10 +486,10 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 if __name__ == "__main__":
 
 
-    folder = make_train_folder("check_orthogonality")
+    folder = make_train_folder("decoupled")
     learners = [LeLearner]
     key = jax.random.key(123)
-    param_budget = 200_000
+    param_budget = None
     for learner in learners:
         metrics = train(
             key=key,

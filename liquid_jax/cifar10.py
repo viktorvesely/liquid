@@ -54,9 +54,12 @@ class Cifar10(Task[Cifar10Data]):
         with jax.default_device(cpu):
             data_dict = jnp.load(Cifar10.folder / f"{split}.npz")
             data = Cifar10Data(**data_dict)
-            return data.replace(
+            
+            data = data.replace(
                 img=data.img / 255.0
             )
+            
+            return data
         
     @staticmethod
     def get_xy(

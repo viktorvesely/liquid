@@ -9,10 +9,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-@struct.dataclass
-class LEInfo:
-    delegation: jax.Array 
-    power: jax.Array
+
 
 @dataclass(frozen=True)
 class LEsolver:
@@ -24,15 +21,33 @@ class LEsolver:
     long_delegations_penalty: float = 0.95
     solver: Literal["sink_one", "sink_many"] = "sink_many"
 
-    def load_distribution_loss(
-        self,
-        le_info: LEInfo        
-    ):
-        n_models = le_info.power.shape[-1]
 
+    @staticmethod
+    def get_soft_chair_dist(
+        power: jax.Array,
+        soft_temperature: float = 0.5
+    ):
         # Chair is the model how has the most power for a given region
         # Calculated as power.argmax(dim=1) 
-        soft_chair = jax.nn.softmax(le_info.power / self.load_distribution_temperature, axis=1)
+        soft_chair = jax.nn.softmax(power / soft_temperature, axis=1)
+        
+        # How much were they active across batch
+        soft_chair_dist = soft_chair.mean(axis=0)
+        
+        # Make it a valid distribution
+        soft_chair_dist = soft_chair_dist / soft_chair_dist.sum()
+
+        return soft_chair_dist
+
+
+    def load_distribution_loss(
+        self,
+        power: jax.Array        
+    ):
+        n_models = power.shape[-1]
+        # Chair is the model how has the most power for a given region
+        # Calculated as power.argmax(dim=1) 
+        soft_chair = jax.nn.softmax(power / self.load_distribution_temperature, axis=1)
         
         # How much were they active across batch
         soft_chair_dist = soft_chair.mean(axis=0)
@@ -52,12 +67,12 @@ class LEsolver:
 
     def specialization_loss(
         self,
-        le_info: LEInfo
+        power: jax.Array
     ):
-        n_models = le_info.power.shape[-1]
+        n_models = power.shape[-1]
 
         # Make the power into a distribution
-        power_dist = le_info.power / le_info.power.sum(axis=-1, keepdims=True)
+        power_dist = power / power.sum(axis=-1, keepdims=True)
 
         # Calculate non-uniformity for each batch element
         non_uniformities = n_models * jnp.sum(power_dist ** 2, axis=-1) - 1
@@ -74,7 +89,7 @@ class LEsolver:
     def solve_power(
         self,
         delegation: jax.Array # (batch, from_voter, to_voter)
-    ) -> LEInfo:
+    ):
         
         if self.solver == "sink_one":
             power = self._solve_one_sink(delegation, self.epsilon)
@@ -83,10 +98,7 @@ class LEsolver:
         else:
             raise ValueError(f"Invalid solver = {self.solver}")
 
-        return LEInfo(
-            delegation=delegation,
-            power=power
-        )
+        return power
         
    
     @staticmethod

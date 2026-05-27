@@ -8,7 +8,7 @@ from learner_base import Learner, find_best_matching_architecture_scalar, to_par
 from atomic_networks import get_layers, forward, Mlp
 from task_base import Task
 from liquid_solver import LEsolver, LEInfo
-from math_utils import mix_weighted_logits, mix_weighted_mean
+from math_utils import mix_weighted_logits_to_probs, mix_weighted_mean
 from structs import TrainParams
 
 class MoeGate(nn.Module):
@@ -65,7 +65,7 @@ class MoeMlp(nn.Module):
         leinfo = self.solver.solve_power(delegation)
 
         if self.output_mixing == "classification":
-            y = mix_weighted_logits(ys, leinfo.power)
+            y = mix_weighted_logits_to_probs(ys, leinfo.power)
         elif self .output_mixing == "regression":
             y = mix_weighted_mean(ys, leinfo.power)
 
@@ -84,10 +84,10 @@ class LeMnistLearner(Learner[LEInfo]):
         
 
         builder = lambda alpha: LeMlp(
-            n_models=train_params.n_models_in_ensemble,
+            n_models=train_params.n_predictors,
             body=(),
             out=(to_param(32 * alpha), to_param(16 * alpha), train_params.task.out_dim()),
-            delegation=(to_param(32 * alpha), to_param(8 * alpha), train_params.n_models_in_ensemble),
+            delegation=(to_param(32 * alpha), to_param(8 * alpha), train_params.n_predictors),
             solver=LEsolver(),
             output_mixing=train_params.task.task_type()
         )
