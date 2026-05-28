@@ -47,7 +47,7 @@ class Delegator(nn.Module):
         h = x 
         for feat in self.layer_sizes[:-1]:
             h = nn.Dense(features=feat)(h)
-            h = jax.nn.relu(h)
+            h = jnp.cos(h)
         
         return nn.Dense(features=self.layer_sizes[-1])(h)
 
@@ -130,29 +130,35 @@ def make_problem(
     n_regions: int,
     n_samples: int,
     n_validation_regions: int = 1,
-    x_range: tuple[float, float] = (-1, 1)
+    x_range: tuple[float, float] = (-1, 1),
+    x_gap: float = 0.3
 ):
     k_init, k_regions = jax.random.split(key)
+    k_stops, k_ids, k_val = jax.random.split(k_regions, 3)
+
+    region_counts = jnp.full((n_regions,), fill_value=(n_samples // n_regions))
+    region_counts = region_counts.at[-1].set(n_samples - region_counts[:-1].sum())
+    
+    region_indices = jnp.repeat(jnp.arange(n_regions), region_counts)
+    x = jnp.linspace(x_range[0], x_range[1], num=n_samples) + (region_indices * x_gap)
+    x = x - jnp.mean(x)
 
     predictors = PredictorEnsemble(n_models=n_linear_predictors)
-    x = jnp.linspace(x_range[0], x_range[1], num=n_samples)
     params = predictors.init(k_init, x)
     y_predictors = predictors.apply(params, x)
     
-    k_stops, k_ids = jax.random.split(k_regions)
-
     region_ids = jnp.arange(n_regions) % n_linear_predictors
-    region_counts = jnp.full((n_regions,), fill_value=(n_samples // n_regions))
-    region_counts = region_counts.at[-1].set(n_samples - region_counts[:-1].sum())
     regions = jnp.repeat(region_ids, region_counts)
     
     y = jnp.take_along_axis(y_predictors, regions[:, None], axis=1).squeeze(-1)
 
     inds = jnp.where(jnp.diff(regions) != 0)[0] + 1
     inds = jnp.concatenate((jnp.array([0]), inds, jnp.array([regions.size])))
-    val_region = (inds.size // 2) - 1
+    val_region = (inds.size // 2) - 9
     mask = jnp.zeros((regions.size,)).astype(jnp.int32)
     mask = mask.at[inds[val_region]:inds[val_region + 1]].set(1)
+
+    # mask = jax.random.bernoulli(k_val, p=0.3, shape=(n_samples,))
 
     return System(
         x=x,
@@ -162,7 +168,6 @@ def make_problem(
         params=params,
         val_mask=mask.astype(jnp.bool)
     )
-
 
 def one_sample_kl(combiner: jax.Array, individuals: jax.Array):
     kl_per_model = jax.scipy.special.kl_div(combiner[jnp.newaxis, :], individuals).sum(axis=-1)
@@ -179,13 +184,14 @@ def calculate_kl(combiner_logprobs: jax.Array, delegator_logprobs: jax.Array):
 def train_ensemble(
     system: System, 
     key: jax.Array,
-    n_delegators: int = 3, 
+    n_delegators: int = 5,   # how does this interact with the validation loss here
     preset_predictors: PredictorEnsemble | None = None,
     preset_predictors_params: dict | None = None, 
     n_chunks: int = 500,
     n_chunk_epochs: int = 200,
     delegator_layers: tuple[int, ...] = (32, 16),
-    lr: float = 1e-3
+    lr: float = 1e-3,
+    kl_weight: float =  0.0000
 ):
     model = MixtureEnsemble(n_predictors=system.predictors.n_models, n_delegators=n_delegators, delegator_layers=delegator_layers, preset_predictors=preset_predictors)
     
@@ -228,9 +234,9 @@ def train_ensemble(
                 loss = jnp.mean((y_hat - y)**2)
                 var_preds = jnp.mean(jnp.var(preds, axis=-1))
                 kl = calculate_kl(c_lp, d_lp)
-                return loss, (var_preds, kl)
+                return loss - kl_weight * kl, (loss, var_preds, kl)
             
-            (loss, (variance, kl)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+            (_, (loss, variance, kl)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
             state = state.apply_gradients(grads=grads)
             
             y_hat, _, _, _, _ = model.apply({'params': state.params}, x_val)
@@ -258,9 +264,6 @@ def train_ensemble(
         hist_kl.extend(kl_arr.tolist())
 
     final_y_hat, final_weights, linear_preds, _, _ = model.apply({'params': state.params}, system.x)
-
-
-    print(linear_preds.shape)
 
 
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
@@ -303,13 +306,13 @@ if __name__ == "__main__":
     
 
     system = make_problem(
-        jax.random.key(808),
+        jax.random.key(129321093809),
         n_linear_predictors=2,
-        n_regions=15,
-        n_samples=100
+        n_regions=29,
+        n_samples=150
     )
 
-    # display_system(system)
+    display_system(system)
     
     
     train_ensemble(
