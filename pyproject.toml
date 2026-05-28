@@ -17,6 +17,7 @@ dependencies = [
     "pandas>=3.0.1",
     "plotly>=6.7.0",
     "scikit-learn>=1.8.0",
+    "shapiq>=1.4.1",
     "tensorflow-cpu>=2.21.0",
     "tensorflow-datasets>=4.9.9",
 ]
