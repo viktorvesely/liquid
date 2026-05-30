@@ -9,6 +9,7 @@ from pathlib import Path
 from dataclasses import replace
 import traceback
 
+import operator
 import jax
 import numpy as np
 import optax
@@ -23,7 +24,7 @@ from cifar10 import Cifar10
 from learner_le import LeLearner
 from learner_de import DeLearner
 
-from math_utils import ce_loss, ce_loss_logprobs_labels, jsd, mix_weighted_logits, mix_weighted_mean, bregman_divergence
+from math_utils import ce_loss, mse_loss, ce_loss_logprobs_labels, mix_weighted_logits, mix_weighted_mean, bregman_divergence
 from structs import TrainParams, TrainReturn
 
 
@@ -68,10 +69,16 @@ def loss_fn(
         params=network_params
     )
 
-    ensemble_logits = train_return.ys
-    ensemble_logprobs = jax.nn.log_softmax(ensemble_logits)
+    task_type = train_params.task.task_type()
     ensemble_weights = train_return.power 
-    logprobs = mix_weighted_logits(ensemble_logits, train_return.power)
+
+    if task_type == "classification":
+        ensemble_logits = train_return.ys
+        ensemble_logprobs = jax.nn.log_softmax(ensemble_logits)
+        logprobs = mix_weighted_logits(ensemble_logits, train_return.power)
+    elif task_type == "regression":
+        ensemble_ys = train_return.ys
+        yhat = mix_weighted_mean(ensemble_ys, ensemble_weights)
     
     # @jax.vmap
     # def get_optimal_weights(yhat_one: jax.Array, y_one: jax.Array, init_probs: jax.Array):    
@@ -97,7 +104,7 @@ def loss_fn(
         
     #     return nn.softmax(final_weights)
 
-    def error_diversity(
+    def error_diversity_classification(
         ensemble_weights: jax.Array,
         logits: jax.Array, # BS, models, out
         labels: jax.Array # BS
@@ -119,9 +126,24 @@ def loss_fn(
         masked_diff_sq = weights * diff_sq
         ediv = jnp.mean(masked_diff_sq)
         return ediv
+    
+    def diversity_regression(
+        ensemble_weights: jax.Array, # (Bs, models)
+        yhat: jax.Array, # Bs, out
+        ensemble_ys: jax.Array, # BS, models, out
+    ):
+        distance_sq = jnp.mean((ensemble_ys - yhat[:, jnp.newaxis, :]) ** 2, axis=-1)
+        distance_sq = distance_sq * ensemble_weights
+        return jnp.mean(distance_sq)
 
-    loss_batch = ce_loss_logprobs_labels(logprobs, inout.y)
-    diversity_loss = -(DIVERSITY_LAMBDA * error_diversity(train_return.power, ensemble_logits, inout.y))
+    if task_type == "classification":
+        diversity = error_diversity_classification(train_return.power, ensemble_logits, inout.y)
+        loss_batch = ce_loss_logprobs_labels(logprobs, inout.y)
+    elif task_type == "regression":
+        diversity = diversity_regression(ensemble_weights, yhat, ensemble_ys)
+        loss_batch = mse_loss(yhat, inout.y)
+    
+    diversity_loss = -(DIVERSITY_LAMBDA * diversity)
 
     performance_loss = jnp.mean(loss_batch)
     auxillary_losses = train_params.learner.auxillary_losses(
@@ -131,14 +153,16 @@ def loss_fn(
         train_return=train_return,
         train_params=train_params
     )
+
+    performance_loss_name = "ce_loss" if task_type == "classification" else "mse_loss"
+
     metrics = {
-        "ce_loss": performance_loss,
+        performance_loss_name: performance_loss,
         "div_loss": diversity_loss
     } | auxillary_losses
 
 
-
-    aux_values = jax.tree.reduce(lambda accum, aux_loss: accum + aux_loss, auxillary_losses, initializer=0.0)
+    aux_values = jax.tree.reduce_associative(operator.add, auxillary_losses)
     loss = aux_values + performance_loss + diversity_loss
 
     def calc_accuracy(yhat, y):

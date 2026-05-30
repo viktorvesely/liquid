@@ -45,6 +45,13 @@ def ce_loss_logprobs_labels(
     loss = -jnp.sum(onehot * logprobs, axis=-1)
     return loss / jnp.log(2)
 
+def mse_loss(
+    yhat: jax.Array,
+    y: jax.Array
+):
+    assert yhat.shape == y.shape
+    return (yhat - y) ** 2
+
 def jsd(
     logits: jax.Array,  # (BS, models, classes)
     weights: jax.Array  # (BS, models)
@@ -135,3 +142,4 @@ def mix_logits(
     weights = jnp.ones((1, n_models)) / n_models
     
     return mix_weighted_logits(logits, weights)
+

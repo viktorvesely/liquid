@@ -20,4 +20,5 @@ dependencies = [
     "shapiq>=1.4.1",
     "tensorflow-cpu>=2.21.0",
     "tensorflow-datasets>=4.9.9",
+    "ucimlrepo>=0.0.7",
 ]
