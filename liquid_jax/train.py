@@ -22,13 +22,14 @@ from task_base import Task
 from mnist import Mnist
 from cifar10 import Cifar10
 from bikes import Bikes
+from energy import Energy
 from learner_le import LeLearner
 from learner_de import DeLearner
 
 from math_utils import ce_loss, mse_loss, ce_loss_logprobs_labels, mix_weighted_logits, mix_weighted_mean, bregman_divergence
 from structs import TrainParams, TrainReturn
 
-CurrentTask = Bikes
+CurrentTask = Energy
 n_delegators = 5
 n_predictors = 20
 

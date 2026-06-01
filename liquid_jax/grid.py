@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from itertools import product
+from typing import Type
 
 import jax
 from flax import struct
@@ -9,8 +10,10 @@ from matplotlib import pyplot as plt
 
 from cifar10 import Cifar10
 from bikes import Bikes
+from svhn import Svhn
 from learner_le import LeLearner
 from structs import TrainParams
+from task_base import Task
 from train import finish_run, make_train_folder, train
 
 @struct.dataclass
@@ -41,25 +44,29 @@ class GridSpec:
     valid_batches: int
     epochs: int
     architecture: Architecture
+    task: Type[Task]
 
 
 specs: dict[str, GridSpec] = {
     "cifar10": GridSpec(
-        preload_batches_to_gpu=10,
+        preload_batches_to_gpu=20,
         valid_batches=4,
         epochs=50,
+        task=Cifar10,
         architecture=big_mlp
     ),
     "svhn": GridSpec(
-        preload_batches_to_gpu=10,
+        preload_batches_to_gpu=20,
         valid_batches=4,
         epochs=50,
+        task=Svhn,
         architecture=big_mlp
     ),
     "bikes": GridSpec(
         preload_batches_to_gpu=50,
         valid_batches=4,
         epochs=1_000,
+        task=Bikes,
         architecture=small_mlp
     ),
 }
@@ -92,7 +99,7 @@ if __name__ == "__main__":
             epochs=gridspec.epochs,
             lr=1e-3,
             optimizer="adam",
-            task=Cifar10,
+            task=gridspec.task,
             n_predictors=-1,
             n_delegators=-1,
             learner=LeLearner
@@ -108,7 +115,7 @@ if __name__ == "__main__":
 
         specs = list(product(spec_predictors, spec_delegators, widths_predictors, widths_delegators))
 
-        finished = 0    
+        finished = 0
 
         for n_predictors, n_delegators, predictor_width, delegator_width in reversed(specs):
 
