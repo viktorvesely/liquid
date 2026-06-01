@@ -21,24 +21,30 @@ import jax.numpy as jnp
 from task_base import Task
 from mnist import Mnist
 from cifar10 import Cifar10
+from bikes import Bikes
 from learner_le import LeLearner
 from learner_de import DeLearner
 
 from math_utils import ce_loss, mse_loss, ce_loss_logprobs_labels, mix_weighted_logits, mix_weighted_mean, bregman_divergence
 from structs import TrainParams, TrainReturn
 
+CurrentTask = Bikes
+n_delegators = 5
+n_predictors = 20
 
 g_params = TrainParams(
     batch_size=512,
-    preload_batches_to_gpu=10,
+    preload_batches_to_gpu=50,
     valid_batches=4,
-    epochs=50,
+    epochs=500,
     lr=1e-3,
     optimizer="adam",
-    task=Cifar10,
-    n_predictors=50,
-    n_delegators=3,
-    learner=LeLearner
+    task=CurrentTask,
+    n_predictors=n_predictors,
+    n_delegators=n_delegators,
+    learner=LeLearner,
+    predictor=(16, 8, CurrentTask.out_dim()),
+    delegator=(8, n_predictors)
 )
 
 DIVERSITY_LAMBDA = 0.0
@@ -127,20 +133,26 @@ def loss_fn(
         ediv = jnp.mean(masked_diff_sq)
         return ediv
     
-    def diversity_regression(
-        ensemble_weights: jax.Array, # (Bs, models)
-        yhat: jax.Array, # Bs, out
-        ensemble_ys: jax.Array, # BS, models, out
+    def error_correlation(
+        ensemble_weights: jax.Array,
+        y: jax.Array,
+        ensemble_ys: jax.Array,
     ):
-        distance_sq = jnp.mean((ensemble_ys - yhat[:, jnp.newaxis, :]) ** 2, axis=-1)
-        distance_sq = distance_sq * ensemble_weights
-        return jnp.mean(distance_sq)
+        errors = ensemble_ys - y[:, jnp.newaxis, :]
+        
+        cov = jnp.einsum('bmi,bni->bmn', errors, errors)
+        std = jnp.sqrt(jnp.sum(errors ** 2, axis=-1)) + 1e-8
+        corr = cov / jnp.einsum('bm,bn->bmn', std, std)
+        
+        weights_matrix = jnp.einsum('bm,bn->bmn', ensemble_weights, ensemble_weights)
+        
+        return jnp.mean(corr * weights_matrix)
 
     if task_type == "classification":
         diversity = error_diversity_classification(train_return.power, ensemble_logits, inout.y)
         loss_batch = ce_loss_logprobs_labels(logprobs, inout.y)
     elif task_type == "regression":
-        diversity = diversity_regression(ensemble_weights, yhat, ensemble_ys)
+        diversity = error_correlation(ensemble_weights, yhat, ensemble_ys)
         loss_batch = mse_loss(yhat, inout.y)
     
     diversity_loss = -(DIVERSITY_LAMBDA * diversity)
@@ -174,19 +186,23 @@ def loss_fn(
         return jnp.sum(kl_per_model * ensemble_weights) # Only count the models which participated in the decision
 
     if calc_metric:
-        
-        # optimal_power = get_optimal_weights(train_return.ys, inout.y, train_return.power)
-        # optimal_yhat = mix_weighted_logits(train_return.ys, optimal_power)
-        metrics["accuracy_metric"] = calc_accuracy(logprobs, inout.y)
-        # metrics["optimal_ce_loss"] = jnp.mean(ce_loss(optimal_yhat, inout.y))
-        metrics["kl_fig2"] = jnp.mean(jax.vmap(one_sample_kl)(
-            jax.nn.softmax(logprobs) + 1e-6,
-            ensemble_weights,
-            jax.nn.softmax(ensemble_logprobs) + 1e-6
-        ))
-        metrics["prediction_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(nn.softmax(ensemble_logits)), axis=-1)) / jnp.log(train_return.ys.shape[-1])
         metrics["power_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(ensemble_weights + 1e-8), axis=-1)) / jnp.log(ensemble_weights.shape[-1])
         
+        if task_type == "classification":
+
+            # optimal_power = get_optimal_weights(train_return.ys, inout.y, train_return.power)
+            # optimal_yhat = mix_weighted_logits(train_return.ys, optimal_power)
+            metrics["accuracy_metric"] = calc_accuracy(logprobs, inout.y)
+            # metrics["optimal_ce_loss"] = jnp.mean(ce_loss(optimal_yhat, inout.y))
+            metrics["kl_fig2"] = jnp.mean(jax.vmap(one_sample_kl)(
+                jax.nn.softmax(logprobs) + 1e-6,
+                ensemble_weights,
+                jax.nn.softmax(ensemble_logprobs) + 1e-6
+            ))
+            metrics["prediction_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(nn.softmax(ensemble_logits)), axis=-1)) / jnp.log(train_return.ys.shape[-1])
+        
+        elif task_type == "regression":
+            ...
 
     return loss, metrics
 
@@ -510,7 +526,7 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 if __name__ == "__main__":
 
 
-    folder = make_train_folder("decoupled")
+    folder = make_train_folder("bikes")
     learners = [LeLearner]
     key = jax.random.key(123)
     param_budget = None

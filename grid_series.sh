@@ -1,6 +1,17 @@
 #!/bin/bash
+
+TIME_LIMIT=${1:-"6:00:00"}
+shift
+TASKS=("$@")
+
+if [ ${#TASKS[@]} -eq 0 ]; then
+    echo "Error: No tasks specified."
+    exit 1
+fi
+
+sbatch --time="$TIME_LIMIT" <<EOD
+#!/bin/bash
 #SBATCH --mem=20GB
-#SBATCH --time=6:00:00
 #SBATCH --job-name=grid
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=a100:1
@@ -13,4 +24,5 @@ module load CUDA/13.2.0
 
 source .venv/bin/activate
 cd liquid_jax
-srun python grid.py
+srun python grid.py --tasks ${TASKS[@]}
+EOD
