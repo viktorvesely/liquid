@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 
 from cifar10 import Cifar10
 from bikes import Bikes
+from energy import Energy
 from svhn import Svhn
 from learner_le import LeLearner
 from structs import TrainParams
@@ -68,6 +69,13 @@ specs: dict[str, GridSpec] = {
         epochs=1_000,
         task=Bikes,
         architecture=small_mlp
+    ),
+    "bikes": GridSpec(
+        preload_batches_to_gpu=50,
+        valid_batches=4,
+        epochs=2_000,
+        task=Energy,
+        architecture=big_mlp
     ),
 }
 

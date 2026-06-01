@@ -37,15 +37,15 @@ g_params = TrainParams(
     batch_size=512,
     preload_batches_to_gpu=50,
     valid_batches=4,
-    epochs=500,
+    epochs=2_000,
     lr=1e-3,
     optimizer="adam",
     task=CurrentTask,
     n_predictors=n_predictors,
     n_delegators=n_delegators,
     learner=LeLearner,
-    predictor=(16, 8, CurrentTask.out_dim()),
-    delegator=(8, n_predictors)
+    predictor=(64, 32, 8, CurrentTask.out_dim()),
+    delegator=(64, 16, n_predictors)
 )
 
 DIVERSITY_LAMBDA = 0.0
@@ -142,8 +142,9 @@ def loss_fn(
         errors = ensemble_ys - y[:, jnp.newaxis, :]
         
         cov = jnp.einsum('bmi,bni->bmn', errors, errors)
-        std = jnp.sqrt(jnp.sum(errors ** 2, axis=-1)) + 1e-8
-        corr = cov / jnp.einsum('bm,bn->bmn', std, std)
+        std = jnp.sqrt(jnp.sum(errors ** 2, axis=-1))
+        std_matrix = jnp.einsum('bm,bn->bmn', std, std)
+        corr = cov / (std_matrix + 1e-8)
         
         weights_matrix = jnp.einsum('bm,bn->bmn', ensemble_weights, ensemble_weights)
         
@@ -153,7 +154,7 @@ def loss_fn(
         diversity = error_diversity_classification(train_return.power, ensemble_logits, inout.y)
         loss_batch = ce_loss_logprobs_labels(logprobs, inout.y)
     elif task_type == "regression":
-        diversity = error_correlation(ensemble_weights, yhat, ensemble_ys)
+        diversity = 0.0 # error_correlation(ensemble_weights, yhat, ensemble_ys)
         loss_batch = mse_loss(yhat, inout.y)
     
     diversity_loss = -(DIVERSITY_LAMBDA * diversity)
@@ -527,7 +528,7 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 if __name__ == "__main__":
 
 
-    folder = make_train_folder("bikes")
+    folder = make_train_folder("energy")
     learners = [LeLearner]
     key = jax.random.key(123)
     param_budget = None
