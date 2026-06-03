@@ -69,3 +69,13 @@ Specialization loss = 5e-4 and  load loss = 1e-2 seems kinda nice
 
 ![alt text](image-13.png)
 Specialization loss = 1e-4 and no load loss
+
+
+# Synthetic
+
+Cosine
+![alt text](image-15.png)
+
+![alt text](image-16.png)
+
+Relu

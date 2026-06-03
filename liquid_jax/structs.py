@@ -6,6 +6,7 @@ from flax import struct
 import jax
 from task_base import Task
 from learner_base import Learner
+from atomic_networks import Architecture
 
 @dataclass(frozen=True)
 class TrainParams:
@@ -20,8 +21,8 @@ class TrainParams:
     learner: Type[Learner]
     n_predictors: int
     n_delegators: int
-    predictor: tuple[int, ...] | None = None
-    delegator: tuple[int, ...] | None = None
+    delegators_mixing: Literal["sum", "product"]
+    architecture: Architecture
     param_budget: int | None = None
     
 

@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import optuna
 
 from learner_base import Learner, count_params_without_alloc, find_best_matching_architecture_scalar, to_param
-from atomic_networks import Mlp, get_cnn_layers, get_layers, forward
+from atomic_networks import CnnMlp, Mlp, get_cnn_layers, get_layers, forward
 from liquid_solver import LEsolver
 from math_utils import non_uniformity
 from structs import TrainParams, TrainReturn
@@ -19,15 +19,30 @@ class Le(nn.Module):
     delegator: tuple[int, ...]
     solver: LEsolver | None
     output_mixing: Literal["classification", "regression"]
-    delegation_mixing: Literal["mean", "liquid"]
-    cnn_body: bool = False
+    delegation_mixing: Literal["sum", "product"]
+    n_cnn_layers: int = 0
+    kernel_size: int = 3
 
     def setup(self):
         
         assert self.delegator[-1] == self.n_predictors, "Last dim of delegation needs to equal to n_predictors"
 
+        pred_cnn = self.predictor[:self.n_cnn_layers]
+        pred_mlp = self.predictor[self.n_cnn_layers:]
+        del_cnn = self.delegator[:self.n_cnn_layers]
+        del_mlp = self.delegator[self.n_cnn_layers:]
+
+        if self.n_cnn_layers > 0:
+            BaseModule = CnnMlp
+            pred_kwargs = {'cnn': pred_cnn, 'mlp': pred_mlp, 'kernel_size': self.kernel_size, 'stride': 2}
+            del_kwargs = {'cnn': del_cnn, 'mlp': del_mlp, 'kernel_size': self.kernel_size, 'stride': 2}
+        else:
+            BaseModule = Mlp
+            pred_kwargs = {'body': pred_mlp}
+            del_kwargs = {'body': del_mlp}
+
         Predictors = nn.vmap(
-            Mlp,
+            BaseModule,
             variable_axes={'params': 0},
             split_rngs={'params': True}, # Vmap over different models
             in_axes=None, # Do not vmap over batch elements
@@ -35,14 +50,11 @@ class Le(nn.Module):
             out_axes=1 # Stack the model outputs to axis=1
         )
         
-        self.predictors = Predictors(
-            body=self.predictor
-        )
-
+        self.predictors = Predictors(**pred_kwargs)
 
         if self.n_delegators > 0:
             Delegators = nn.vmap(
-                Mlp,
+                BaseModule,
                 variable_axes={'params': 0},
                 split_rngs={'params': True}, # Vmap over different models
                 in_axes=None, # Do not vmap over batch elements
@@ -50,37 +62,44 @@ class Le(nn.Module):
                 out_axes=1 # Stack the model outputs to axis=1
             )
 
-            self.delegators = Delegators(body=self.delegator)
+            self.delegators = Delegators(**del_kwargs)
         else:
             self.delegators = lambda x: jnp.ones((x.shape[0], 1, self.n_predictors)) / self.n_predictors 
 
     def __call__(self, x: jax.Array):
 
-        if not self.cnn_body:
+        if self.n_cnn_layers == 0:
             x = x if x.ndim == 2 else x.reshape((x.shape[0], -1))
 
         ys = self.predictors(x)
-        delegation = self.delegators(x)
-        delegation = nn.softmax(delegation, axis=-1)
+        delegation_logit = self.delegators(x)
+        delegation_logprobs = nn.log_softmax(delegation_logit, axis=-1)
+        delegation_probs = nn.softmax(delegation_logit, axis=-1)
 
 
-        if self.delegation_mixing == "liquid":
-            output = self.solver.solve_power(delegation)
-        elif self.delegation_mixing == "mean":
-            unscaled_power = jnp.mean(delegation, axis=-2)
+
+        if self.delegation_mixing == "sum":
+            unscaled_power = jnp.mean(delegation_probs, axis=-2)
             power = unscaled_power / (jnp.sum(unscaled_power, axis=-1, keepdims=True) + 1e-8)
             output = TrainReturn(
-                delegation=delegation,
+                delegation=delegation_probs,
                 power=power,
                 ys=ys
             )
+        elif self.delegation_mixing == "product":
+            power  = nn.softmax(jnp.sum(delegation_logprobs, axis=-2))
+            output = TrainReturn(
+                delegation=delegation_probs,
+                power=power,
+                ys=ys
+            )
+
         else:
             raise ValueError(f"{self.delegation_mixing} unknown delegation mixing")
         
         return output
     
 
-DELEGATION_MIXING = "mean"
 LOAD_DISTRIBUTION_LAMBDA = 1
 
 class LeLearner(Learner[TrainReturn]):
@@ -94,16 +113,17 @@ class LeLearner(Learner[TrainReturn]):
         
 
 
-        if train_params.predictor is not None and train_params.delegator is not None:
-            model = Le(
-                n_predictors=train_params.n_predictors,
-                n_delegators=train_params.n_delegators,
-                predictor=train_params.predictor,
-                delegator=train_params.delegator,
-                solver=None,
-                output_mixing=train_params.task.task_type(),
-                delegation_mixing="mean"
-            )
+        model = Le(
+            n_predictors=train_params.n_predictors,
+            n_delegators=train_params.n_delegators,
+            predictor=train_params.architecture.predictor,
+            delegator=train_params.architecture.delegator,
+            n_cnn_layers=train_params.architecture.cnn,
+            solver=None,
+            output_mixing=train_params.task.task_type(),
+            delegation_mixing=train_params.delegators_mixing
+        )
+
 
         # builder = lambda alpha: Le(
         #     n_predictors=train_params.n_predictors,

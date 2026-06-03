@@ -16,66 +16,83 @@ from learner_le import LeLearner
 from structs import TrainParams
 from task_base import Task
 from train import finish_run, make_train_folder, train
+from atomic_networks import Architecture, small_cnn, two_layer_mlp, three_layer_mlp
 
 @struct.dataclass
-class Architecture:
+class ArchitectureSpecs:
     spec_predictors: tuple[int, ...]
     spec_delegators: tuple[int, ...]
     widths_predictors: tuple[int, ...]
     widths_delegators: tuple[int, ...]
+    base: Architecture
 
-big_mlp = Architecture(
+cnn_specs = ArchitectureSpecs(
     spec_predictors = (2, 4, 8, 16, 32, 64),
     spec_delegators = (0, 1, 2, 4, 8, 16, 32, 64),
-    widths_predictors = (8, 64),
-    widths_delegators = (4, 32),
+    widths_predictors = (1, 4, 8),
+    widths_delegators = (1, 4, 8),
+    base = small_cnn
 )
 
-small_mlp = Architecture(
+small_mlp = ArchitectureSpecs(
     spec_predictors = (2, 4, 8, 16, 32, 64),
     spec_delegators = (0, 1, 2, 4, 8, 16, 32, 64),
-    widths_predictors = (8, 16),
-    widths_delegators = (4, 8),
+    widths_predictors = (4, 8, 16),
+    widths_delegators = (4, 8, 16),
+    base = two_layer_mlp
+)
+
+big_mlp = ArchitectureSpecs(
+    spec_predictors = (2, 4, 8, 16, 32, 64),
+    spec_delegators = (0, 1, 2, 4, 8, 16, 32, 64),
+    widths_predictors = (4, 8, 16),
+    widths_delegators = (4, 8, 16),
+    base = three_layer_mlp
 )
 
 @struct.dataclass
 class GridSpec:
 
+    batch_size: int
     preload_batches_to_gpu: int
     valid_batches: int
     epochs: int
-    architecture: Architecture
+    architecture_specs: ArchitectureSpecs
     task: Type[Task]
 
 
 specs: dict[str, GridSpec] = {
     "cifar10": GridSpec(
+        batch_size = 64,
         preload_batches_to_gpu=20,
-        valid_batches=4,
+        valid_batches=20,
         epochs=50,
         task=Cifar10,
-        architecture=big_mlp
+        architecture_specs=cnn_specs
     ),
     "svhn": GridSpec(
+        atch_size = 64,
         preload_batches_to_gpu=20,
-        valid_batches=4,
+        valid_batches=20,
         epochs=50,
         task=Svhn,
-        architecture=big_mlp
+        architecture_specs=cnn_specs
     ),
     "bikes": GridSpec(
+        batch_size = 256,
         preload_batches_to_gpu=50,
-        valid_batches=4,
+        valid_batches=7,
         epochs=1_000,
         task=Bikes,
-        architecture=small_mlp
+        architecture_specs=small_mlp
     ),
-    "bikes": GridSpec(
+    "energy": GridSpec(
+        batch_size = 256,
         preload_batches_to_gpu=50,
-        valid_batches=4,
+        valid_batches=7,
         epochs=2_000,
         task=Energy,
-        architecture=big_mlp
+        architecture_specs=big_mlp
     ),
 }
 
@@ -92,8 +109,16 @@ if __name__ == "__main__":
         nargs="+",
         required=True,
     )
+    parser.add_argument(
+        "--agg",
+        type=str,
+        choices=("sum", "product"),
+        required=True
+    )
     args = parser.parse_args()
 
+    
+    delegators_mixing = args.agg
     tasks: list[str] = args.tasks
 
     for task in tasks:
@@ -101,7 +126,7 @@ if __name__ == "__main__":
         gridspec = specs[task]
 
         g_params = TrainParams(
-            batch_size=512,
+            batch_size=gridspec.batch_size,
             preload_batches_to_gpu=gridspec.preload_batches_to_gpu,
             valid_batches=gridspec.valid_batches,
             epochs=gridspec.epochs,
@@ -110,16 +135,17 @@ if __name__ == "__main__":
             task=gridspec.task,
             n_predictors=-1,
             n_delegators=-1,
-            learner=LeLearner
+            learner=LeLearner,
         )
 
-        folder = make_train_folder(f"grid_{task}")
+        folder = make_train_folder(f"grid_{task}_agg_{delegators_mixing}")
         key = jax.random.key(123)
 
-        spec_predictors = gridspec.architecture.spec_predictors
-        spec_delegators = gridspec.architecture.spec_delegators
-        widths_predictors = gridspec.architecture.widths_predictors
-        widths_delegators = gridspec.architecture.widths_delegators
+        spec_predictors = gridspec.architecture_specs.spec_predictors
+        spec_delegators = gridspec.architecture_specs.spec_delegators
+        widths_predictors = gridspec.architecture_specs.widths_predictors
+        widths_delegators = gridspec.architecture_specs.widths_delegators
+
 
         specs = list(product(spec_predictors, spec_delegators, widths_predictors, widths_delegators))
 
@@ -141,8 +167,13 @@ if __name__ == "__main__":
                     learner=LeLearner,
                     n_predictors=n_predictors,
                     n_delegators=n_delegators,
-                    predictor=(predictor_width, predictor_width // 2, g_params.task.out_dim()),
-                    delegator=(delegator_width, n_predictors)
+                    delegators_mixing=delegators_mixing,
+                    architecture=gridspec.architecture_specs.base.determine_size(
+                        predictor_base=predictor_width,
+                        delegator_base=delegator_width,
+                        out_dim=gridspec.task.out_dim(),
+                        n_predictors=n_predictors
+                    )
                 )
             )
             finish_run(metrics, folder, prefix=prefix)

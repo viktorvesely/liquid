@@ -1,5 +1,51 @@
+from __future__ import annotations
+
+from flax import struct
 import flax.linen as nn
 import jax
+
+@struct.dataclass
+class Architecture:
+    predictor: tuple[int, ...]
+    delegator: tuple[int, ...]
+    cnn: int = 0
+
+    def determine_size(
+            self,
+            predictor_base: int,
+            delegator_base: int,
+            out_dim: int,
+            n_predictors: int
+        ) -> Architecture:
+        arch = Architecture(
+            predictor=tuple((predictor_base * l) for l in self.predictor) + (out_dim,),
+            delegator=tuple((delegator_base * l) for l in self.delegator) + (n_predictors,),
+            cnn=self.cnn
+        )
+        print(arch)
+        return arch
+    
+two_layer_mlp = Architecture(
+    predictor=(2, 1),
+    delegator=(2, 1)
+)
+
+three_layer_mlp = Architecture(
+    predictor=(3, 2, 1),
+    delegator=(3, 2, 1)
+)
+
+small_cnn = Architecture(
+    predictor=(1, 2, 4),
+    delegator=(1, 2, 4),
+    cnn=3
+)
+
+big_cnn = Architecture(
+    predictor=(1, 2, 4, 8),
+    delegator=(1, 2, 4, 8),
+    cnn=4
+)  
 
 def get_layers(neurons: tuple[int, ...], bias_std: float = 1e-4):
 

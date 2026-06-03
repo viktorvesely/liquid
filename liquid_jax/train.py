@@ -29,23 +29,30 @@ from learner_de import DeLearner
 from math_utils import ce_loss, mse_loss, ce_loss_logprobs_labels, mix_weighted_logits, mix_weighted_mean, bregman_divergence
 from structs import TrainParams, TrainReturn
 
-CurrentTask = Energy
+from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
+
+CurrentTask = Cifar10
 n_delegators = 5
-n_predictors = 20
+n_predictors = 10
 
 g_params = TrainParams(
-    batch_size=512,
-    preload_batches_to_gpu=50,
+    batch_size=128,
+    preload_batches_to_gpu=20,
     valid_batches=4,
-    epochs=2_000,
+    epochs=20,
     lr=1e-3,
     optimizer="adam",
     task=CurrentTask,
     n_predictors=n_predictors,
     n_delegators=n_delegators,
     learner=LeLearner,
-    predictor=(64, 32, 8, CurrentTask.out_dim()),
-    delegator=(64, 16, n_predictors)
+    delegators_mixing="sum",
+    architecture=small_cnn.determine_size(
+        predictor_base=4,
+        delegator_base=1,
+        out_dim=CurrentTask.out_dim(),
+        n_predictors=n_predictors
+    )
 )
 
 DIVERSITY_LAMBDA = 0.0
