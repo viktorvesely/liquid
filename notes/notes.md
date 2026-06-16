@@ -79,3 +79,8 @@ Cosine
 ![alt text](image-16.png)
 
 Relu
+
+
+# tempo
+
+![alt text](image-17.png)

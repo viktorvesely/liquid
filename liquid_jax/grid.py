@@ -71,7 +71,7 @@ specs: dict[str, GridSpec] = {
         architecture_specs=cnn_specs
     ),
     "svhn": GridSpec(
-        atch_size = 64,
+        batch_size = 64,
         preload_batches_to_gpu=20,
         valid_batches=20,
         epochs=50,
@@ -135,6 +135,8 @@ if __name__ == "__main__":
             task=gridspec.task,
             n_predictors=-1,
             n_delegators=-1,
+            delegators_mixing=delegators_mixing,
+            architecture=None,
             learner=LeLearner,
         )
 

@@ -2,29 +2,30 @@ from __future__ import annotations
 from dataclasses import asdict
 from functools import partial
 from itertools import product
+from pathlib import Path
+from typing import Literal
 
 import jax
 import jax.numpy as jnp
 import optax
 from flax import linen as nn
-from flax import struct
+from flax import struct, serialization
 from flax.training import train_state
-from flax.core import unfreeze, freeze
-from typing import Literal
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap, BoundaryNorm
+import plotly.graph_objects as go
 from tqdm import tqdm
+
 
 class LinearPredictor(nn.Module):
     @nn.compact
     def __call__(self, x: jax.Array):
-        weight = self.param('weight', jax.nn.initializers.normal(), tuple())
-        bias = self.param('bias', jax.nn.initializers.normal(), tuple())
-        return weight * x + bias
+        return nn.Dense(1)(x).squeeze(-1)
 
 
 class PredictorEnsemble(nn.Module):
     n_models: int
-    
+
     @nn.compact
     def __call__(self, x: jax.Array):
         ensemble = nn.vmap(
@@ -35,62 +36,158 @@ class PredictorEnsemble(nn.Module):
             out_axes=1,
             axis_size=self.n_models
         )
-        return ensemble()(x) 
+        return ensemble()(x)
 
 
 class Delegator(nn.Module):
-    
     n_predictors: int
+    hidden_width: int = 16
 
     @nn.compact
     def __call__(self, x: jax.Array):
-
-        fw = 16
-        sw = 8
-
-        if activation_function == "cos":
-            h = nn.Dense(fw)(x)
-            h = jnp.cos(h)
-            h = nn.Dense(sw)(h)
-            h = jnp.cos(h)
-        elif activation_function == "relu":
-            h = nn.Dense(fw)(h)
-            h = nn.relu(h)
-            h = nn.Dense(sw)(h)
-            h = nn.relu(h)
-        else:
-            raise ValueError(activation_function)
-
+        h = nn.Dense(self.hidden_width)(x)
+        h = nn.relu(h)
         return nn.Dense(self.n_predictors)(h)
 
-def display_system(system: System):
 
-    from matplotlib import pyplot as plt
+@struct.dataclass
+class System:
+    x: jax.Array
+    y: jax.Array
+    val_mask: jax.Array
+    regions: jax.Array
+    boundary_x: jax.Array
+    boundary_y: jax.Array
+    true_weights: jax.Array
+    true_biases: jax.Array
+    true_function_vectors: jax.Array
+    function_cosine_distance: jax.Array
+    n_predictors: int
 
-    n_groups = int(system.regions.max()) + 1
-    fig, ax = plt.subplots()
-
-    for i_group in range(n_groups):
-        mask = system.regions == i_group
-        ax.scatter(system.x[mask], system.y[mask], label=str(i_group))
 
 
-    ax.scatter(system.x[system.val_mask], system.y[system.val_mask], color="black", marker="x")
-    fig.savefig("system.png")
+def true_function(system: System, x: jax.Array):
+    boundary_at_x = jnp.interp(x[:, 0], system.boundary_x, system.boundary_y)
+    regions = (x[:, 1] >= boundary_at_x).astype(jnp.int32)
+    weights = system.true_weights[regions]
+    biases = system.true_biases[regions]
+    y = jnp.sum(x * weights, axis=-1) + biases
+    return y, regions
 
+
+def display_disagreement_system(system: System, output_path: str | Path = "system_disagreement.png"):
+    fig, ax = plt.subplots(figsize=(7, 6))
+
+    # grid_axis = jnp.linspace(-1, 1, 300)
+    # gx, gy = jnp.meshgrid(grid_axis, grid_axis)
+    # grid = jnp.stack((gx.reshape(-1), gy.reshape(-1)), axis=-1)
+    # _, grid_regions = true_function(system, grid)
+    disagreement = system.function_cosine_distance
+    # signed_disagreement = jnp.where(grid_regions == 0, -disagreement, disagreement).reshape(gx.shape)
+
+    # cmap = ListedColormap(["#2166ac", "#b2182b"])
+    # norm = BoundaryNorm([-1.0, 0.0, 1.0], cmap.N)
+
+    # ax.contourf(gx, gy, signed_disagreement, levels=[-1.0, 0.0, 1.0], cmap=cmap, norm=norm, alpha=0.55)
+    ax.scatter(system.x[~system.val_mask, 0], system.x[~system.val_mask, 1], s=25)
+    ax.scatter(system.x[system.val_mask, 0], system.x[system.val_mask, 1], marker="x", s=65)
+    ax.plot(system.boundary_x, system.boundary_y, color="black", linewidth=2.0)
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_xlabel("x0")
+    ax.set_ylabel("x1")
+    ax.set_title(f"Two Linear Regions, Absolute Cosine Distance: {float(disagreement):.4f}")
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def display_true_surface_html(system: System, output_path: str | Path = "true_surface.html"):
+    grid_axis = jnp.linspace(-1, 1, 180)
+    gx, gy = jnp.meshgrid(grid_axis, grid_axis)
+    grid = jnp.stack((gx.reshape(-1), gy.reshape(-1)), axis=-1)
+    z, regions = true_function(system, grid)
+    z = z.reshape(gx.shape)
+    regions = regions.reshape(gx.shape)
+    boundary_grid = jnp.stack((system.boundary_x, system.boundary_y), axis=-1)
+    boundary_z, _ = true_function(system, boundary_grid)
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Surface(
+            x=gx,
+            y=gy,
+            z=z,
+            surfacecolor=regions,
+            colorscale=[[0.0, "#2166ac"], [0.499, "#2166ac"], [0.5, "#b2182b"], [1.0, "#b2182b"]],
+            showscale=False,
+            opacity=0.9
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter3d(
+            x=system.boundary_x,
+            y=system.boundary_y,
+            z=boundary_z,
+            mode="lines",
+            line=dict(color="black", width=8),
+            name="boundary"
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter3d(
+            x=system.x[:, 0],
+            y=system.x[:, 1],
+            z=system.y,
+            mode="markers",
+            marker=dict(size=3, color=system.y, colorscale="Viridis", opacity=0.75),
+            name="samples"
+        )
+    )
+
+    fig.update_layout(
+        title="True Piecewise Linear Regression Surface",
+        scene=dict(
+            xaxis_title="x0",
+            yaxis_title="x1",
+            zaxis_title="y"
+        ),
+        width=900,
+        height=750
+    )
+
+    fig.write_html(output_path, include_plotlyjs="cdn")
+
+
+def display_system(system: System, output_dir: str | Path = "."):
+    output_dir = Path(output_dir)
+    display_disagreement_system(system, output_dir / "system_disagreement.png")
+    display_true_surface_html(system, output_dir / "true_surface.html")
+
+@struct.dataclass
+class Predictions:
+    predictions: jax.Array
+    aggregated_y: jax.Array
+    delegations: jax.Array
+    aggregated_d: jax.Array
+
+@struct.dataclass
+class EpochSnapshot:
+    predictions: Predictions
+    loss: jax.Array
 
 class MixtureEnsemble(nn.Module):
     n_predictors: int
     n_delegators: int
-    preset_predictors: PredictorEnsemble | None = None
+    delegator_hidden_width: int = 16
+    agg: Literal["sum", "product"] = "sum"
 
     def setup(self):
+        self.predictors = PredictorEnsemble(n_models=self.n_predictors)
 
-        if self.preset_predictors is None:
-            self.predictors = PredictorEnsemble(n_models=self.n_predictors)
-        else:
-            self.predictors = self.preset_predictors.clone(name="predictors")
-        
         if self.n_delegators > 0:
             Delegators = nn.vmap(
                 Delegator,
@@ -100,15 +197,17 @@ class MixtureEnsemble(nn.Module):
                 axis_size=self.n_delegators,
                 out_axes=1
             )
-            self.delegators = Delegators(n_predictors=self.n_predictors)
+            self.delegators = Delegators(
+                n_predictors=self.n_predictors,
+                hidden_width=self.delegator_hidden_width
+            )
         else:
             self.delegators = lambda x: jnp.zeros((x.shape[0], 1, self.n_predictors)) - jnp.log(self.n_predictors)
 
     def __call__(self, x: jax.Array):
-        x_in = x.reshape((-1, 1))
-        
-        preds = self.predictors(x)
-        
+        x_in = x.reshape((-1, x.shape[-1]))
+        preds = self.predictors(x_in)
+
         if self.n_delegators > 0:
             del_logits = self.delegators(x_in)
             del_logprobs = jax.nn.log_softmax(del_logits, axis=-1)
@@ -117,82 +216,109 @@ class MixtureEnsemble(nn.Module):
             del_logprobs = self.delegators(x_in)
             del_logits = del_logprobs
             del_probs = jax.nn.softmax(del_logits, axis=-1)
-            
-        combiner_logprobs = del_logprobs.sum(axis=1) 
+
+        combiner_logprobs = del_logprobs.sum(axis=1)
         combiner_probs = del_probs.mean(axis=1)
 
-        if agg == "product":
+        if self.agg == "product":
             weights = jax.nn.softmax(combiner_logprobs, axis=-1)
-        elif agg == "sum":
+        elif self.agg == "sum":
             weights = combiner_probs / combiner_probs.sum(axis=-1, keepdims=True)
         else:
-            raise ValueError(agg)
-        
+            raise ValueError(self.agg)
+
         y_hat = jnp.sum(weights * preds, axis=-1)
-        
-        return y_hat, weights, preds, del_logprobs, combiner_logprobs
+
+        return Predictions(
+            predictions=preds,
+            aggregated_y=y_hat,
+            delegations=del_probs,
+            aggregated_d=weights
+        )
 
 
-@struct.dataclass
-class System:
-    x: jax.Array
-    y: jax.Array
-    val_mask: jax.Array
-    regions: jax.Array
-    predictors: nn.Module
-    params: dict
+def snapshot_to_dict(s: EpochSnapshot):
+    return {
+        "loss": s.loss,
+        "predictions.predictions": s.predictions.predictions,
+        "predictions.aggregated_y": s.predictions.aggregated_y,
+        "predictions.delegations": s.predictions.delegations,
+        "predictions.aggregated_d": s.predictions.aggregated_d,
+    }
 
-@struct.dataclass
-class Predictions:
-    x: jax.Array
-    joint_y: jax.Array
-    predictors: jax.Array
-    effective_predictors: jax.Array
 
 def make_problem(
     key: jax.Array,
     n_linear_predictors: int,
-    n_regions: int,
+    n_boundary_segments: int,
     n_samples: int,
-    n_validation_regions: int = 1,
     x_range: tuple[float, float] = (-1, 1),
-    x_gap: float = 0.3
+    boundary_spread: float = 0.35,
+    val_fraction: float = 0.5,
+    function_weight_scale: float = 1.0,
+    function_bias_scale: float = 0.3
 ):
-    k_init, k_regions = jax.random.split(key)
-    k_stops, k_ids, k_val = jax.random.split(k_regions, 3)
+    if n_boundary_segments < 1:
+        raise ValueError("n_boundary_segments must be at least 1")
 
-    region_counts = jnp.full((n_regions,), fill_value=(n_samples // n_regions))
-    region_counts = region_counts.at[-1].set(n_samples - region_counts[:-1].sum())
-    
-    region_indices = jnp.repeat(jnp.arange(n_regions), region_counts)
-    x = jnp.linspace(x_range[0], x_range[1], num=n_samples) + (region_indices * x_gap)
-    x = x - jnp.mean(x)
+    if n_linear_predictors < 2:
+        raise ValueError("n_linear_predictors must be at least 2")
 
-    predictors = PredictorEnsemble(n_models=n_linear_predictors)
-    params = predictors.init(k_init, x)
-    y_predictors = predictors.apply(params, x)
-    
-    region_ids = jnp.arange(n_regions) % n_linear_predictors
-    regions = jnp.repeat(region_ids, region_counts)
-    
-    y = jnp.take_along_axis(y_predictors, regions[:, None], axis=1).squeeze(-1)
+    k_x, k_boundary, k_val, k_weights, k_biases = jax.random.split(key, 5)
 
-    inds = jnp.where(jnp.diff(regions) != 0)[0] + 1
-    inds = jnp.concatenate((jnp.array([0]), inds, jnp.array([regions.size])))
-    val_region = (inds.size // 2) - 9
-    mask = jnp.zeros((regions.size,)).astype(jnp.int32)
-    mask = mask.at[inds[val_region]:inds[val_region + 1]].set(1)
+    x = jax.random.uniform(
+        k_x,
+        shape=(n_samples, 2),
+        minval=x_range[0],
+        maxval=x_range[1]
+    )
 
-    # mask = jax.random.bernoulli(k_val, p=0.3, shape=(n_samples,))
+    boundary_x = jnp.linspace(x_range[0], x_range[1], n_boundary_segments + 1)
+    interior_count = n_boundary_segments - 1
+
+    if interior_count > 0:
+        interior_offsets = jax.random.uniform(
+            k_boundary,
+            shape=(interior_count,),
+            minval=-boundary_spread,
+            maxval=boundary_spread
+        )
+        offsets = jnp.concatenate((jnp.zeros((1,)), interior_offsets, jnp.zeros((1,))))
+    else:
+        offsets = jnp.zeros((2,))
+
+    boundary_y = jnp.clip(boundary_x + offsets, x_range[0], x_range[1])
+    boundary_at_x = jnp.interp(x[:, 0], boundary_x, boundary_y)
+    regions = (x[:, 1] >= boundary_at_x).astype(jnp.int32)
+
+    true_weights = jax.random.normal(k_weights, shape=(2, 2)) * function_weight_scale
+    true_biases = jax.random.normal(k_biases, shape=(2,)) * function_bias_scale
+    selected_weights = true_weights[regions]
+    selected_biases = true_biases[regions]
+    y = jnp.sum(x * selected_weights, axis=-1) + selected_biases
+
+    true_function_vectors = jnp.concatenate((true_weights, true_biases[:, None]), axis=-1)
+    v0 = true_function_vectors[0]
+    v1 = true_function_vectors[1]
+    cosine_similarity = jnp.sum(v0 * v1) / ((jnp.linalg.norm(v0) * jnp.linalg.norm(v1)) + 1e-8)
+    function_cosine_distance = 1.0 - jnp.abs(cosine_similarity)
+
+    val_mask = jax.random.bernoulli(k_val, p=val_fraction, shape=(n_samples,))
 
     return System(
         x=x,
         y=y,
         regions=regions,
-        predictors=predictors,
-        params=params,
-        val_mask=mask.astype(jnp.bool)
+        boundary_x=boundary_x,
+        boundary_y=boundary_y,
+        true_weights=true_weights,
+        true_biases=true_biases,
+        true_function_vectors=true_function_vectors,
+        function_cosine_distance=function_cosine_distance,
+        n_predictors=n_linear_predictors,
+        val_mask=val_mask.astype(bool)
     )
+
 
 def one_sample_kl(combiner: jax.Array, individuals: jax.Array):
     kl_per_model = jax.scipy.special.kl_div(combiner[jnp.newaxis, :], individuals).sum(axis=-1)
@@ -207,225 +333,130 @@ def calculate_kl(combiner_logprobs: jax.Array, delegator_logprobs: jax.Array):
 
 
 def train_ensemble(
-    system: System, 
+    system: System,
     key: jax.Array,
     n_seeds: int = 10,
-    n_delegators: int = 5,   # how does this interact with the validation loss here
-    preset_predictors: PredictorEnsemble | None = None,
-    preset_predictors_params: dict | None = None, 
-    n_chunks: int = 300,
-    n_chunk_epochs: int = 200,
+    n_delegators: int = 5,
+    n_chunks: int = 750,
+    n_chunk_epochs: int = 50,
     lr: float = 1e-3,
-    kl_weight: float =  0.0000,
-    output_fig: bool = False,
-    display_seed: int = 0
+    delegator_hidden_width: int = 16,
+    agg: Literal["sum", "product"] = "sum",
 ):
-    model = MixtureEnsemble(n_predictors=system.predictors.n_models, n_delegators=n_delegators, preset_predictors=preset_predictors)
-    
+    model = MixtureEnsemble(
+        n_predictors=system.n_predictors,
+        n_delegators=n_delegators,
+        delegator_hidden_width=delegator_hidden_width,
+        agg=agg
+    )
+
     keys = jax.random.split(key, n_seeds)
     init_params = jax.vmap(lambda k: model.init(k, system.x)['params'])(keys)
-    
-    freeze_predictors = (preset_predictors is not None) and (preset_predictors_params is not None)
-
-    if freeze_predictors:
-        
-        # 1. Inject the pretrained parameters
-        init_params = unfreeze(init_params)
-        init_params["predictors"] = jax.tree.map(
-            lambda x: jnp.broadcast_to(x, (n_seeds,) + x.shape), 
-            preset_predictors_params["params"]
-        )
-        init_params = freeze(init_params)
-
-        # 2. Create partition labels matching the param tree structure
-        labels = jax.tree.map(lambda _: "train", init_params)
-        labels = unfreeze(labels)
-        labels["predictors"] = jax.tree.map(lambda _: "freeze", labels["predictors"])
-        labels = freeze(labels)
-
-        # 3. Route 'train' to AdamW, and 'freeze' to zero updates
-        tx = optax.multi_transform(
-            {"train": optax.adamw(lr), "freeze": optax.set_to_zero()},
-            labels
-        )
-    else:
-        tx = optax.adamw(lr)
-
+    tx = optax.adamw(lr)
     create_fn = lambda p: train_state.TrainState.create(apply_fn=model.apply, params=p, tx=tx)
     state = jax.vmap(create_fn)(init_params)
-    
+
     x_train, y_train = system.x[~system.val_mask], system.y[~system.val_mask]
-    x_val, y_val = system.x[system.val_mask], system.y[system.val_mask]
 
     @jax.jit
-    @partial(jax.vmap, in_axes=(0, None, None, None, None))
-    def train_chunk(state, x, y, x_val, y_val):
+    @partial(jax.vmap, in_axes=(0, None, None))
+    def train_chunk(state, x, y):
         def step_fn(state, _):
             def loss_fn(params):
-                y_hat, weights, preds, d_lp, c_lp = model.apply({'params': params}, x)
-                loss = jnp.mean((y_hat - y)**2)
-                var_preds = jnp.mean(jnp.var(preds, axis=-1))
-                kl = calculate_kl(c_lp, d_lp)
-                return loss - kl_weight * kl, (loss, var_preds, kl)
-            
-            (_, (loss, variance, kl)), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
+                predictions: Predictions = model.apply({'params': params}, x)
+                loss = jnp.mean((predictions.aggregated_y - y) ** 2)
+                gini = jnp.mean(1 - jnp.sum(predictions.aggregated_d ** 2, axis=-1))
+                return loss + 0.01 * gini
+
+            grads = jax.grad(loss_fn)(state.params)
             state = state.apply_gradients(grads=grads)
-            
-            y_hat, _, _, _, _ = model.apply({'params': state.params}, x_val)
-            val_loss = jnp.mean((y_hat - y_val)**2)
+            return state, None
 
-            return state, (loss, val_loss, variance, kl)
-            
-        
-            
-        return jax.lax.scan(step_fn, state, None, length=n_chunk_epochs)
+        state, _ = jax.lax.scan(step_fn, state, None, length=n_chunk_epochs)
 
-    @jax.jit
-    def eval_step(params, x_val, y_val):
-        y_hat, _, _, _, _ = model.apply({'params': params}, x_val)
-        return jnp.mean((y_hat - y_val)**2)
+        predictions: Predictions = model.apply({"params": state.params}, system.x)
+        loss = (predictions.aggregated_y - system.y) ** 2
+        snapshot = EpochSnapshot(
+            predictions=predictions,
+            loss=loss
+        )
 
-    hist_tr_loss, hist_v_loss, hist_var, hist_kl = [], [], [], []
+        return state, snapshot
+
+    snapshots = []
 
     for chunk in tqdm(range(n_chunks)):
-        state, (tr_loss_arr, val_loss_arr, var_preds_arr, kl_arr) = train_chunk(state, x_train, y_train, x_val, y_val)
+        state, snapshot = train_chunk(
+            state,
+            x_train,
+            y_train,
+        )
 
-        tr_loss_arr = jnp.mean(tr_loss_arr, axis=0)
-        val_loss_arr = jnp.mean(val_loss_arr, axis=0)
-        var_preds_arr = jnp.mean(var_preds_arr, axis=0)
-        kl_arr = jnp.mean(kl_arr, axis=0)
-        
-        hist_tr_loss.append(tr_loss_arr)
-        hist_v_loss.append(val_loss_arr)
-        hist_var.append(var_preds_arr)
-        hist_kl.append(kl_arr)
-
-    hist_tr_loss = jnp.concatenate(hist_tr_loss, axis=0)
-    hist_v_loss = jnp.concatenate(hist_v_loss, axis=0)
-    hist_var = jnp.concatenate(hist_var, axis=0)
-    hist_kl = jnp.concatenate(hist_kl, axis=0)
-
-    final_y_hat, final_weights, linear_preds, _, _ = jax.vmap(
-        lambda p: model.apply({'params': p}, system.x)
-    )(state.params)
-    
-    def calc_soft(weights: jax.Array):
-        return jnp.exp(-jnp.sum(weights * jnp.log(weights + 1e-8), axis=-1))
-
-    soft_models = jax.vmap(calc_soft)(final_weights)
+        snapshots.append(snapshot)
 
 
-    if output_fig:
-        fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-        
-        axs[0, 0].plot(hist_tr_loss, label="Train Loss")
-        axs[0, 0].plot(hist_v_loss, label="Val Loss")
-        axs[0, 0].set_yscale('log')
-        axs[0, 0].legend()
-        
-        axs[0, 1].plot(hist_var, color='purple')
-        axs[0, 1].set_title("Predictor Variance (Diversity)")
-        
-        axs[1, 0].plot(hist_kl, color='green')
-        axs[1, 0].set_title("KL Divergence (Combiner vs Delegators)")
-        
-        ax_fin = axs[1, 1]
-        ax_fin.scatter(x_train, y_train, color='gray', alpha=0.5, label='Train')
-        ax_fin.scatter(x_val, y_val, color='blue', marker='*', s=150, edgecolor='black', label='Val')
-        ax_fin.plot(system.x, final_y_hat[display_seed], color='black', linewidth=2.5, label='Ensemble Pred')
-        
-        for i_linear in range(linear_preds.shape[2]):
-            ax_fin.plot(system.x, linear_preds[display_seed, :, i_linear], label=f"lm-{i_linear}")
-
-        ax_fin.legend()
-        
-        ax_twin = ax_fin.twinx()
-      
-        ax_twin.plot(system.x, soft_models[display_seed], color='red', linestyle='--', alpha=0.7, label='Soft Models')
-        ax_twin.set_ylabel("Effective Active Models", color='red')
-        ax_twin.tick_params(axis='y', labelcolor='red')
-        
-        plt.tight_layout()
-        plt.savefig("ensemble_training.png")
-
-
-    return (
-        hist_tr_loss,
-        hist_v_loss,
-        hist_var,
-        hist_kl,
-    ), Predictions(
-        x=system.x,
-        joint_y=final_y_hat,
-        predictors=linear_preds,
-        effective_predictors=soft_models
-    )
+    snapshots = jax.tree.map(lambda *xs: jnp.stack(xs), *snapshots)
+ 
+    return snapshots
 
 
 if __name__ == "__main__":
-    from pathlib import Path
-
     base = Path(__file__).parent / "synthetic_runs"
     base.mkdir(exist_ok=True)
 
     train_seed = 123
-    system_seed = 129321093809
+    system_seed = 7878
     n_predictors = 2
-    n_regions = 29
-    n_samples = 150
-    activation_function = "cos" # "cos" "relu"
-    agg: Literal["sum", "product"] = "sum" # ""
+    n_boundary_segments = 8
+    n_samples = 300
+    boundary_spread = 0.5
+    function_weight_scale = 1.0
+    function_bias_scale = 0.3
+    delegator_hidden_width = 4
+    only_display = False
+    agg: Literal["sum", "product"] = "product"
 
-    folder = base / f"ts_{train_seed}_ss_{system_seed}_predictors_{n_predictors}_regions_{n_regions}_samples_{n_samples}_activation_{activation_function}_agg_{agg}"
+    folder = base / f"ts_{train_seed}_ss_{system_seed}_predictors_{n_predictors}_segments_{n_boundary_segments}_samples_{n_samples}_spread_{boundary_spread}_agg_{agg}"
     folder.mkdir(exist_ok=True)
-    for ent in folder.iterdir(): ent.unlink()
+    for ent in folder.iterdir():
+        ent.unlink()
 
     k_train = jax.random.key(train_seed)
 
     system = make_problem(
         jax.random.key(system_seed),
         n_linear_predictors=n_predictors,
-        n_regions=n_regions,
-        n_samples=n_samples
+        n_boundary_segments=n_boundary_segments,
+        n_samples=n_samples,
+        boundary_spread=boundary_spread,
+        function_weight_scale=function_weight_scale,
+        function_bias_scale=function_bias_scale
     )
 
-    display_system(system)
-    
-    
-    
-    freeze_specs = (True, False)
-    delegators_specs = (1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16)
+    if only_display:
+        display_system(system, Path("."))
+        exit(0)
 
-    specs = tuple(product(freeze_specs, delegators_specs))
+    display_system(system, folder)
+
+    delegators_specs = (1, 2, 4, 8, 16, 32, 64)
+    specs = tuple(product(delegators_specs))
     finished = 0
-    for frozen_predictors, n_delegators in specs:
+
+    for (n_delegators,) in specs:
         jax.clear_caches()
         plt.close("all")
 
-
-        
-        (train_loss, val_loss, var, kl), predictions = train_ensemble(
+        snapshots: EpochSnapshot = train_ensemble(
             system,
             key=k_train,
             n_delegators=n_delegators,
-            preset_predictors_params=system.params if frozen_predictors else None,
-            preset_predictors=system.predictors if frozen_predictors else None
-        )
+            delegator_hidden_width=delegator_hidden_width,
+            agg=agg
+        )   
 
-        predictions_data = {f"{k}_predictions": v for k, v in asdict(predictions).items()}
-        data = dict(
-            train_loss=train_loss,
-            val_loss=val_loss,
-            predictor_variance=var,
-            delegator_kl=kl,
-        )
-
-        jnp.savez(
-            folder / f"frozen_{frozen_predictors}_delegators_{n_delegators}.npz",
-            **(data | predictions_data)
-        )
+    
+        jnp.savez(folder / f"delegators_{n_delegators}.npz", **snapshot_to_dict(snapshots))
 
         finished += 1
         print(f"{finished} / {len(specs)}")
-
-    
