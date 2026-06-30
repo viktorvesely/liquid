@@ -6,32 +6,68 @@ import optax
 from flax import linen as nn
 
 from structs import ForwardArgs, ForwardReturn, TrainParams, Model
-
 @partial(jax.jit, static_argnames=("train_params", "steps"))
 def optimal_convex_weights(
     y: jax.Array,
     predictions: jax.Array,
     train_params: TrainParams,
+    steps: int = 5_000
 ):
-    
+
     batch_size = y.shape[0]
-    n_predictors = y.shape[1]
+    n_predictors = predictions.shape[1]
     optimizer = optax.adam(learning_rate=1e-3)
 
     def init(w):
         return optimizer.init(w)
 
-    weights = jnp.full((batch_size, n_predictors), 1 / n_predictors)
-    opt_state = jax.vmap(init)(weights)
+    weights = jnp.full(
+        (batch_size, n_predictors),
+        1 / n_predictors
+    )
+    opt_state = init(weights)
     state = (weights, opt_state)
 
-    def optimize(state, _):
-        
-        weights, opt_state = state
-    
-    def solve():
-        ...
+    def loss_fn(weights: jax.Array):
+        loss = eval_loss(
+            weights,
+            predictions,
+            y,
+            train_params
+        )
+        return jnp.mean(loss)
 
+    def step(state):
+
+        weight, opt_state = state
+
+        grads = jax.grad(loss_fn)(weight)
+        updates, opt_state = optimizer.update(
+            grads,
+            opt_state,
+            weight
+        )
+        weight = optax.apply_updates(weight, updates)
+        weight = jax.vmap(
+            optax.projections.projection_simplex
+        )(weight)
+
+        return weight, opt_state
+
+    def optimize(state, _):
+        state = step(state)
+        return state, None
+
+    state, _ = jax.lax.scan(
+        optimize,
+        state,
+        length=steps
+    )
+    weights, _ = state
+
+    return weights
+
+def loss_decomposition
 
 def eval_loss(
     weights: jax.Array, # (BS, n_predictors)
@@ -41,8 +77,16 @@ def eval_loss(
 ):
     
     task_type = train_params.task.task_type()
+    
+    if task_type == "classification":
+        agg_prediction = mix_weighted_logits(predictions, weights)
+        loss = optax.softmax_cross_entropy_with_integer_labels(agg_prediction, y)
+    elif task_type == "regression":
+        agg_prediction = mix_weighted_mean(predictions, weights)
+        assert agg_prediction.shape == y.shape
+        loss = jnp.mean((agg_prediction - y) ** 2, axis=-1)
 
-
+    return loss
 
 @partial(jax.jit, static_argnames=("ensemble_model", "train_params"))
 def loss(

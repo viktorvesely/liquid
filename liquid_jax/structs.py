@@ -37,8 +37,13 @@ class ForwardArgs:
     key: jax.Array
     x: jax.Array
 
-
-
 class Model(Protocol):
     def apply(self, params: dict, args: ForwardArgs) -> ForwardReturn:
         ...
+
+
+@struct.dataclass
+class InOutData:
+    
+    x: jax.Array
+    y: jax.Array

@@ -27,7 +27,7 @@ from learner_le import LeLearner
 from learner_de import DeLearner
 
 from math_utils import ce_loss, mse_loss, ce_loss_logprobs_labels, mix_weighted_logits, mix_weighted_mean, bregman_divergence
-from structs import TrainParams, ForwardReturn
+from structs import InOutData, TrainParams, ForwardReturn
 
 from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
@@ -57,11 +57,6 @@ g_params = TrainParams(
 
 DIVERSITY_LAMBDA = 0.0
 
-@struct.dataclass
-class InOutData:
-    
-    x: jax.Array
-    y: jax.Array
 
 
 @partial(jax.jit, static_argnames=("model", "train_params", "calc_metric"))
@@ -290,43 +285,6 @@ def train_loader(
         yield batch, k_next
     
 
-def orthogonalize_expert_grads(last_layers: int = 1):
-    def init_fn(params):
-        return optax.EmptyState()
-
-    def update_fn(updates, state, params=None):
-        max_layer = -1
-        if "predictors" in updates:
-            for key in updates["predictors"].keys():
-                layer = int(key.split("_")[-1])
-                max_layer = max(max_layer, layer)
-
-        target_layers = tuple([f"body_layers_{max_layer - i}" for i in range(1, last_layers + 1)])
-        def process_update(key_path, update):
-            path_str = "/".join(str(k) for k in key_path)
-
-            if any(target in path_str for target in target_layers) and ("kernel" in path_str) and ("predictors" in path_str):
-
-                E, I, O = update.shape
-                flat_update = update.reshape(E, I * O)
-                
-                orig_norm = jnp.linalg.norm(flat_update, axis=1, keepdims=True)
-                
-                A = flat_update.T
-                q, _ = jnp.linalg.qr(A, mode='reduced')
-                
-                eps = 1e-8
-                q_scaled = q.T * (orig_norm + eps)
-                
-                return q_scaled.reshape(E, I, O)
-
-            return update
-
-        new_updates = jax.tree.map_with_path(process_update, updates)
-        return new_updates, state
-
-    return optax.GradientTransformation(init_fn, update_fn)
-
 def train(
         key: jax.Array,
         train_params: TrainParams,
@@ -335,7 +293,6 @@ def train(
     
     cpu = jax.devices("cpu")[0]
     gpu = jax.devices("gpu")[0]
-    
 
     key, k_init, k_loop, k_loader = jax.random.split(key, 4) 
 
