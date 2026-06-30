@@ -9,7 +9,7 @@ from learner_base import Learner, count_params_without_alloc, find_best_matching
 from atomic_networks import CnnMlp, Mlp, get_cnn_layers, get_layers, forward
 from liquid_solver import LEsolver
 from math_utils import non_uniformity
-from structs import TrainParams, TrainReturn
+from structs import TrainParams, ForwardReturn
 
 
 class Le(nn.Module):
@@ -81,17 +81,17 @@ class Le(nn.Module):
         if self.delegation_mixing == "sum":
             unscaled_power = jnp.mean(delegation_probs, axis=-2)
             power = unscaled_power / (jnp.sum(unscaled_power, axis=-1, keepdims=True) + 1e-8)
-            output = TrainReturn(
-                delegation=delegation_probs,
+            output = ForwardReturn(
+                delegations=delegation_probs,
                 power=power,
-                ys=ys
+                predictions=ys
             )
         elif self.delegation_mixing == "product":
             power  = nn.softmax(jnp.sum(delegation_logprobs, axis=-2))
-            output = TrainReturn(
-                delegation=delegation_probs,
+            output = ForwardReturn(
+                delegations=delegation_probs,
                 power=power,
-                ys=ys
+                predictions=ys
             )
 
         else:
@@ -102,7 +102,7 @@ class Le(nn.Module):
 
 LOAD_DISTRIBUTION_LAMBDA = 1
 
-class LeLearner(Learner[TrainReturn]):
+class LeLearner(Learner[ForwardReturn]):
 
     @staticmethod
     def get_model(
@@ -158,7 +158,7 @@ class LeLearner(Learner[TrainReturn]):
 
 
     @staticmethod
-    def forward(key: jax.Array, x: jax.Array, model: Le, params: dict) -> tuple[jax.Array, TrainReturn]:
+    def forward(key: jax.Array, x: jax.Array, model: Le, params: dict) -> tuple[jax.Array, ForwardReturn]:
         return model.apply({"params": params}, x)
     
     @staticmethod
@@ -166,7 +166,7 @@ class LeLearner(Learner[TrainReturn]):
         key: jax.Array,
         model: nn.Module,
         params: dict,
-        train_return: TrainReturn,
+        train_return: ForwardReturn,
         train_params: TrainParams
     ) -> dict[str, jax.Array]:
         

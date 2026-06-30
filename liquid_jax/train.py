@@ -27,7 +27,7 @@ from learner_le import LeLearner
 from learner_de import DeLearner
 
 from math_utils import ce_loss, mse_loss, ce_loss_logprobs_labels, mix_weighted_logits, mix_weighted_mean, bregman_divergence
-from structs import TrainParams, TrainReturn
+from structs import TrainParams, ForwardReturn
 
 from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
@@ -76,7 +76,7 @@ def loss_fn(
     
     k_forward, k_loss = jax.random.split(key)
 
-    train_return: TrainReturn = train_params.learner.forward(
+    train_return: ForwardReturn = train_params.learner.forward(
         key=k_forward,
         x=inout.x,
         model=model,
@@ -87,11 +87,11 @@ def loss_fn(
     ensemble_weights = train_return.power 
 
     if task_type == "classification":
-        ensemble_logits = train_return.ys
+        ensemble_logits = train_return.predictions
         ensemble_logprobs = jax.nn.log_softmax(ensemble_logits)
         logprobs = mix_weighted_logits(ensemble_logits, train_return.power)
     elif task_type == "regression":
-        ensemble_ys = train_return.ys
+        ensemble_ys = train_return.predictions
         yhat = mix_weighted_mean(ensemble_ys, ensemble_weights)
     
     # @jax.vmap
@@ -208,7 +208,7 @@ def loss_fn(
                 ensemble_weights,
                 jax.nn.softmax(ensemble_logprobs) + 1e-6
             ))
-            metrics["prediction_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(nn.softmax(ensemble_logits)), axis=-1)) / jnp.log(train_return.ys.shape[-1])
+            metrics["prediction_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(nn.softmax(ensemble_logits)), axis=-1)) / jnp.log(train_return.predictions.shape[-1])
         
         elif task_type == "regression":
             ...

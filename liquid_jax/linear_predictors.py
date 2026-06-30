@@ -20,7 +20,7 @@ from tqdm import tqdm
 class LinearPredictor(nn.Module):
     @nn.compact
     def __call__(self, x: jax.Array):
-        return nn.Dense(1)(x).squeeze(-1)
+        return nn.Dense(1)(x)
 
 
 class PredictorEnsemble(nn.Module):
@@ -227,7 +227,7 @@ class MixtureEnsemble(nn.Module):
         else:
             raise ValueError(self.agg)
 
-        y_hat = jnp.sum(weights * preds, axis=-1)
+        y_hat = jnp.sum(weights[:, :, jnp.newaxis] * preds, axis=-2)
 
         return Predictions(
             predictions=preds,
@@ -307,7 +307,7 @@ def make_problem(
 
     return System(
         x=x,
-        y=y,
+        y=y[:, jnp.newaxis],
         regions=regions,
         boundary_x=boundary_x,
         boundary_y=boundary_y,
@@ -331,6 +331,45 @@ def calculate_kl(combiner_logprobs: jax.Array, delegator_logprobs: jax.Array):
         jax.nn.softmax(delegator_logprobs, axis=-1) + 1e-6
     ))
 
+def mse_ensemble_loss(
+    individual_predictions: jax.Array,
+    y: jax.Array,
+    weights: jax.Array
+):
+    
+    y_expanded = y[:, jnp.newaxis, :]
+    assert (
+            y_expanded.ndim == individual_predictions.ndim
+        ) and (
+            y_expanded.shape[-1] ==  individual_predictions.shape[-1]
+        ) and (
+            y_expanded.shape[0] ==  individual_predictions.shape[0]
+        )
+
+    sq_error = (y_expanded - individual_predictions) ** 2
+    weighted_loss_per_sample = jnp.sum(
+        sq_error * weights[:, :, jnp.newaxis],
+        axis=1,
+    )
+    return weighted_loss_per_sample
+
+def mse_ensemble_eval(
+    individual_predictions: jax.Array,
+    y: jax.Array,
+    weights: jax.Array
+):
+    
+    assert (
+            y.ndim == (individual_predictions.ndim - 1)
+        ) and (
+            y.shape[-1] == individual_predictions.shape[-1]
+        ) and (
+            y.shape[0] ==  individual_predictions.shape[0]
+        )
+
+    y_combiner = jnp.sum(individual_predictions * weights[:, :, jnp.newaxis], axis=-2)
+    per_sample_error = jnp.mean((y - y_combiner) ** 2, axis=-1)
+    return per_sample_error
 
 def train_ensemble(
     system: System,
@@ -360,13 +399,18 @@ def train_ensemble(
 
     @jax.jit
     @partial(jax.vmap, in_axes=(0, None, None))
-    def train_chunk(state, x, y):
+    def train_chunk(state, x: jax.Array, y: jax.Array):
         def step_fn(state, _):
             def loss_fn(params):
                 predictions: Predictions = model.apply({'params': params}, x)
-                loss = jnp.mean((predictions.aggregated_y - y) ** 2)
-                gini = jnp.mean(1 - jnp.sum(predictions.aggregated_d ** 2, axis=-1))
-                return loss + 0.01 * gini
+        
+                loss = mse_ensemble_loss(predictions.predictions, y, predictions.aggregated_d)
+                loss = jnp.mean(loss)
+                
+                mean_weights = jnp.mean(predictions.aggregated_d, axis=0)
+                across_sample_gini = 1 - jnp.sum(mean_weights ** 2)
+
+                return loss - 0.5 * across_sample_gini
 
             grads = jax.grad(loss_fn)(state.params)
             state = state.apply_gradients(grads=grads)
@@ -375,10 +419,10 @@ def train_ensemble(
         state, _ = jax.lax.scan(step_fn, state, None, length=n_chunk_epochs)
 
         predictions: Predictions = model.apply({"params": state.params}, system.x)
-        loss = (predictions.aggregated_y - system.y) ** 2
+        eval_loss = mse_ensemble_eval(predictions.predictions, system.y, predictions.aggregated_d)
         snapshot = EpochSnapshot(
             predictions=predictions,
-            loss=loss
+            loss=eval_loss
         )
 
         return state, snapshot
@@ -414,49 +458,49 @@ if __name__ == "__main__":
     function_bias_scale = 0.3
     delegator_hidden_width = 4
     only_display = False
-    agg: Literal["sum", "product"] = "product"
 
-    folder = base / f"ts_{train_seed}_ss_{system_seed}_predictors_{n_predictors}_segments_{n_boundary_segments}_samples_{n_samples}_spread_{boundary_spread}_agg_{agg}"
-    folder.mkdir(exist_ok=True)
-    for ent in folder.iterdir():
-        ent.unlink()
+    for agg in ("sum", "product"):
+        folder = base / f"ts_{train_seed}_ss_{system_seed}_predictors_{n_predictors}_segments_{n_boundary_segments}_samples_{n_samples}_spread_{boundary_spread}_agg_{agg}"
+        folder.mkdir(exist_ok=True)
+        for ent in folder.iterdir():
+            ent.unlink()
 
-    k_train = jax.random.key(train_seed)
+        k_train = jax.random.key(train_seed)
 
-    system = make_problem(
-        jax.random.key(system_seed),
-        n_linear_predictors=n_predictors,
-        n_boundary_segments=n_boundary_segments,
-        n_samples=n_samples,
-        boundary_spread=boundary_spread,
-        function_weight_scale=function_weight_scale,
-        function_bias_scale=function_bias_scale
-    )
+        system = make_problem(
+            jax.random.key(system_seed),
+            n_linear_predictors=n_predictors,
+            n_boundary_segments=n_boundary_segments,
+            n_samples=n_samples,
+            boundary_spread=boundary_spread,
+            function_weight_scale=function_weight_scale,
+            function_bias_scale=function_bias_scale
+        )
 
-    if only_display:
-        display_system(system, Path("."))
-        exit(0)
+        if only_display:
+            display_system(system, Path("."))
+            exit(0)
 
-    display_system(system, folder)
+        display_system(system, folder)
 
-    delegators_specs = (1, 2, 4, 8, 16, 32, 64)
-    specs = tuple(product(delegators_specs))
-    finished = 0
+        delegators_specs = (1, 2, 4, 8, 16, 32, 64)
+        specs = tuple(product(delegators_specs))
+        finished = 0
 
-    for (n_delegators,) in specs:
-        jax.clear_caches()
-        plt.close("all")
+        for (n_delegators,) in specs:
+            jax.clear_caches()
+            plt.close("all")
 
-        snapshots: EpochSnapshot = train_ensemble(
-            system,
-            key=k_train,
-            n_delegators=n_delegators,
-            delegator_hidden_width=delegator_hidden_width,
-            agg=agg
-        )   
+            snapshots: EpochSnapshot = train_ensemble(
+                system,
+                key=k_train,
+                n_delegators=n_delegators,
+                delegator_hidden_width=delegator_hidden_width,
+                agg=agg
+            )   
 
-    
-        jnp.savez(folder / f"delegators_{n_delegators}.npz", **snapshot_to_dict(snapshots))
+        
+            jnp.savez(folder / f"delegators_{n_delegators}.npz", **snapshot_to_dict(snapshots))
 
-        finished += 1
-        print(f"{finished} / {len(specs)}")
+            finished += 1
+            print(f"{finished} / {len(specs)}")

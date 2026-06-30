@@ -1,113 +1,171 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 import optax
+from flax import linen as nn
+
+from structs import ForwardArgs, ForwardReturn, TrainParams, Model
+
+@partial(jax.jit, static_argnames=("train_params", "steps"))
+def optimal_convex_weights(
+    y: jax.Array,
+    predictions: jax.Array,
+    train_params: TrainParams,
+):
+    
+    batch_size = y.shape[0]
+    n_predictors = y.shape[1]
+    optimizer = optax.adam(learning_rate=1e-3)
+
+    def init(w):
+        return optimizer.init(w)
+
+    weights = jnp.full((batch_size, n_predictors), 1 / n_predictors)
+    opt_state = jax.vmap(init)(weights)
+    state = (weights, opt_state)
+
+    def optimize(state, _):
+        
+        weights, opt_state = state
+    
+    def solve():
+        ...
+
+
+def eval_loss(
+    weights: jax.Array, # (BS, n_predictors)
+    predictions: jax.Array, # (BS, n_predictors, out)
+    y: jax.Array, # (BS, out)
+    train_params: TrainParams
+):
+    
+    task_type = train_params.task.task_type()
+
+
+
+@partial(jax.jit, static_argnames=("ensemble_model", "train_params"))
+def loss(
+    ensemble_params: dict,
+    key: jax.Array,
+    train_params: TrainParams,
+    ensemble_model: Model,
+    x: jax.Array,
+    y: jax.Array,
+):
+    
+    task_type = train_params.task.task_type()
+    delegators_mixing = train_params.delegators_mixing
+    n_delegators = train_params.n_delegators
+    n_predictors = train_params.n_predictors
+    batch_size = x.shape[0]
+    agg_delegation: jax.Array = None # (BS, n_predictors), will be probabilities
+    agg_prediction: jax.Array = None # (BS, out)
+    perfomance_loss_per_model: jax.Array = None # (BS, n_predictors)
+    ambiguity_per_model: jax.Array = None # (BS, n_predictors)
+ 
+    forward_args = ForwardArgs(key, x)
+    forward_return = ensemble_model.apply(ensemble_params, forward_args)
+    predictions = forward_return.predictions # (BS, n_predictors, out)
+    predictions_no_gradient = jax.lax.stop_gradient(predictions)
+    delegations_logits = forward_return.delegations # (BS, n_delegators, n_predictors)
+    delegations_logprobs = jax.nn.log_softmax(delegations_logits, axis=-1)
+    delegations_probs = jax.nn.softmax(delegations_logits, axis=-1)
+
+    # Aggregate delegators
+    if n_delegators == 0:
+        # Unifrom weights
+        agg_delegation = jnp.full((batch_size, n_predictors), 1 / n_predictors)
+    elif delegators_mixing == "product":
+        # Mix logprobs
+        agg_delegation = jnp.mean(delegations_logprobs, axis=-2)
+        agg_delegation = jnp.exp(agg_delegation)
+        agg_delegation = agg_delegation / jnp.sum(agg_delegation, axis=-1, keepdims=True)  
+    elif delegators_mixing == "sum":
+        # Mix probs
+        agg_delegation = jnp.mean(delegations_probs, axis=-2)
+        agg_delegation = agg_delegation / jnp.sum(agg_delegation, axis=-1, keepdims=True)  
+    
+    # Aggregate predictors for centroid ambiguity calculations
+    # Ambiguity calculation does not influence predictors
+    if task_type == "classification":
+        agg_prediction = mix_weighted_logits(predictions_no_gradient, agg_delegation) 
+    elif task_type == "regression":
+        agg_prediction = mix_weighted_mean(predictions_no_gradient, agg_delegation)
+
+    # Calc losses
+    if task_type == "classification":
+        perfomance_loss_per_model = ce_loss(predictions, y)
+        ambiguity_per_model = jax.vmap(kl_ambiguity, in_axes=(None, 1), out_axes=1)(
+            jax.nn.softmax(agg_prediction), 
+            jax.nn.softmax(predictions_no_gradient)
+        )
+    elif task_type == "regression":
+        perfomance_loss_per_model = mse_loss(predictions, y)
+        ambiguity_per_model = jax.vmap(var_ambiguity, in_axes=(None, 1), out_axes=1)(
+            agg_prediction, 
+            predictions_no_gradient
+        )
+    
+    assert perfomance_loss_per_model.shape == (batch_size, n_predictors), perfomance_loss_per_model.shape
+
+    loss_per_sample = jnp.sum(agg_delegation * perfomance_loss_per_model, axis=-1) - jnp.sum(agg_delegation * ambiguity_per_model, axis=-1)
+    
+    return jnp.mean(loss_per_sample)
 
 def mix_weighted_mean(
-        y: jax.Array,
-        weights: jax.Array
+        y: jax.Array, # (BS, n_predictors, out)
+        weights: jax.Array # (BS, n_predictors)
     ) -> jax.Array:
-        
-        # y (batch, n_models, n_out)
-        # power (batch, n_models)
         assert y.ndim == (weights.ndim + 1)
         return jnp.sum(y * jnp.expand_dims(weights, axis=-1), axis=1)
-
-
-def mix_weighted_logits_to_probs(
-    logits: jax.Array,
-    weights: jax.Array
-) -> jax.Array:
-    
-    assert logits.ndim == (weights.ndim + 1)
-    probs = jax.nn.softmax(logits, axis=-1)
-    return mix_weighted_mean(probs, weights)
       
 
-def mix_weighted_logits(logits: jax.Array, weights: jax.Array) -> jax.Array:
+def mix_weighted_logits(
+        logits: jax.Array, # (BS, n_predictors, out)
+        weights: jax.Array # (BS, n_predictors)
+    ) -> jax.Array:
+
     log_probs = jax.nn.log_softmax(logits, axis=-1)
     weights = jnp.expand_dims(weights, axis=-1)
-    mixed_log_probs = jnp.sum(log_probs * weights, axis=-2)
-    return jax.nn.log_softmax(mixed_log_probs, axis=-1)
+    mixed_weighted_logits = jnp.sum(log_probs * weights, axis=-2)
+    return mixed_weighted_logits
 
 def ce_loss(
-    logits: jax.Array,
-    labels: jax.Array
+    predictions_logits: jax.Array, # (BS, n_predictors, out)
+    labels: jax.Array # (BS,)
 ):
-    return optax.softmax_cross_entropy_with_integer_labels(logits, labels)
-
-def ce_loss_logprobs_labels(
-    logprobs: jax.Array, # log_2 = log_e (p)
-    labels: jax.Array
-):
-    n_classes = logprobs.shape[-1]
-    I = jnp.eye(n_classes)
-    onehot = I[labels]
-    loss = -jnp.sum(onehot * logprobs, axis=-1)
-    return loss / jnp.log(2)
+    one_loss = lambda logits: optax.softmax_cross_entropy_with_integer_labels(logits, labels)
+    return jax.vmap(one_loss, in_axes=1, out_axes=1)(predictions_logits)
 
 def mse_loss(
-    yhat: jax.Array,
+    predictions: jax.Array,
     y: jax.Array
 ):
-    assert yhat.shape == y.shape
-    return (yhat - y) ** 2
+    assert (predictions.shape[0] == y.shape[0]) and (predictions.shape[-1] == y.shape[-1]) and (predictions.ndim == 3) and (y.ndim == 2) 
+    return jnp.mean((predictions - y[:, jnp.newaxis, :]) ** 2, axis=-1)
 
-def jsd(
-    logits: jax.Array,  # (BS, models, classes)
-    weights: jax.Array  # (BS, models)
-) -> jax.Array:
-    
-    # Expand weights to broadcast across classes: (BS, models, 1)
-    w_expanded = jnp.expand_dims(weights, axis=-1)
-    
-    probs = jax.nn.softmax(logits, axis=-1)
-    log_probs = jax.nn.log_softmax(logits, axis=-1)
-    
-    # 1. Calculate the weighted mean probability distribution across models
-    mean_probs = jnp.sum(probs * w_expanded, axis=1, keepdims=True)
-    
-    # 2. Log of mean probs (clamped to prevent log(0) - numerical stability)
-    log_mean_probs = jnp.log(jnp.clip(mean_probs, a_min=1e-8))
-    
-    # 3. KL divergence between each model's distribution and the mean distribution -> (BS, models)
-    kl = jnp.sum(probs * (log_probs - log_mean_probs), axis=-1)
-    
-    # 4. JSD is the weighted sum of the KL divergences across the ensemble models
-    jsd_per_sample = jnp.sum(weights * kl, axis=1) # (BS,)
 
-    return jsd_per_sample
-
-def bregman_divergence(
-    weights: jax.Array, # (BS, models)
-    logits: jax.Array, # (BS, models, classes)
-    labels: jax.Array  # (BS,)
+def var_ambiguity(
+    centroid: jax.Array,
+    other: jax.Array
 ):
-    probs = jax.nn.softmax(logits, axis=-1)
-    
-    # Gather probabilities for the target class across all models
-    target_probs = jnp.take_along_axis(probs, labels[:, jnp.newaxis, jnp.newaxis], axis=-1).squeeze(-1)
-    eps = 1e-7
-    target_probs = jnp.clip(target_probs, eps, 1.0)
-    # (BS, models)
+    return jnp.mean((centroid - other) ** 2, axis=-1)
 
-    mean_target_probs = jnp.sum(weights * target_probs, axis=1, keepdims=True)
-    mean_target_probs = jnp.clip(mean_target_probs, eps, 1.0)
-    # (BS, 1)
-
-    # 3. Calculate Bregman Divergence with g(t) = -log(t)
-    # d_{-log}(p, p_mean) = -log(p) + log(p_mean) + (p - p_mean) / p_mean
-    bregman_div = -jnp.log(target_probs) + jnp.log(mean_target_probs) + (target_probs - mean_target_probs) / mean_target_probs
-    bregman_div = bregman_div * weights
-    # (BS, models)
-    return jnp.sum(bregman_div, axis=-1)
-
-def mse_loss(
-    yhat: jax.Array,
-    y: jax.Array
+def kl_ambiguity(
+    centroid: jax.Array,
+    other: jax.Array,
+    epsilon: float = 1e-6,
 ):
-    assert yhat.shape == y.shape
-    return (yhat - y) ** 2
+    centroid_safe = jnp.clip(centroid, min=epsilon)
+    other_safe = jnp.clip(other, min=epsilon)
 
+    kl_per_class = centroid * (
+        jnp.log(centroid_safe) - jnp.log(other_safe)
+    )
+
+    return jnp.sum(kl_per_class, axis=-1)
+    
 def non_uniformity(
     dist: jax.Array
 ):
@@ -122,24 +180,4 @@ def non_uniformity(
 
     return non_uniformity 
 
-
-def mix_mean(
-        y: jax.Array,
-    ) -> jax.Array:
-        # y (batch, n_models, n_out)
-        n_models = y.shape[1]
-        weights = jnp.ones((1, n_models)) / n_models
-        return mix_weighted_mean(y, weights)
-
-def mix_logits(
-    logits: jax.Array,
-) -> jax.Array:
-    
-    raise ValueError("Implement mixing probabilities like we said in the paper")
-
-    # logits (batch, n_models, n_out)
-    n_models = logits.shape[1]
-    weights = jnp.ones((1, n_models)) / n_models
-    
-    return mix_weighted_logits(logits, weights)
 

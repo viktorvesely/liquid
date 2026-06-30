@@ -1,6 +1,6 @@
 
 from dataclasses import dataclass
-from typing import Literal, Type
+from typing import Literal, Protocol, Type
 
 from flax import struct
 import jax
@@ -27,10 +27,18 @@ class TrainParams:
     
 
 @struct.dataclass
-class TrainReturn:
-    delegation: jax.Array # (BS, n_delegators, n_predictor)
-    power: jax.Array # (BS, n_predictors)
-    ys: jax.Array = None # (BS, n_predictors, n_output)
+class ForwardReturn:
+    delegations: jax.Array # (BS, n_delegators, n_predictor)
+    predictions: jax.Array # (BS, n_predictors, n_output)
+
+
+@struct.dataclass
+class ForwardArgs:
+    key: jax.Array
+    x: jax.Array
 
 
 
+class Model(Protocol):
+    def apply(self, params: dict, args: ForwardArgs) -> ForwardReturn:
+        ...

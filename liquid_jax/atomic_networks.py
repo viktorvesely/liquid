@@ -36,14 +36,14 @@ three_layer_mlp = Architecture(
 )
 
 small_cnn = Architecture(
-    predictor=(1, 2, 4),
-    delegator=(1, 2, 4),
+    predictor=(1, 2, 3),
+    delegator=(1, 2, 3),
     cnn=3
 )
 
 big_cnn = Architecture(
-    predictor=(1, 2, 4, 8),
-    delegator=(1, 2, 4, 8),
+    predictor=(1, 2, 3, 4),
+    delegator=(1, 2, 3, 4),
     cnn=4
 )  
 
