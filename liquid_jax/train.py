@@ -23,11 +23,11 @@ from mnist import Mnist
 from cifar10 import Cifar10
 from bikes import Bikes
 from energy import Energy
-from learner_le import LeLearner
-from learner_de import DeLearner
+from architectures import Ensemble
 
-from math_utils import ce_loss, mse_loss, ce_loss_logprobs_labels, mix_weighted_logits, mix_weighted_mean, bregman_divergence
-from structs import InOutData, TrainParams, ForwardReturn
+from structs import InOutData, TrainParams, ForwardArgs
+from utils import train_loader
+from math_utils import loss as loss_fn
 
 from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
@@ -36,189 +36,32 @@ n_delegators = 5
 n_predictors = 10
 
 g_params = TrainParams(
-    batch_size=128,
+    batch_size=64,
     preload_batches_to_gpu=20,
     valid_batches=4,
     epochs=20,
     lr=1e-3,
-    optimizer="adam",
     task=CurrentTask,
     n_predictors=n_predictors,
     n_delegators=n_delegators,
-    learner=LeLearner,
     delegators_mixing="sum",
+    ambiguity_gradient="delegators",
     architecture=small_cnn.determine_size(
-        predictor_base=4,
+        predictor_base=2,
         delegator_base=1,
         out_dim=CurrentTask.out_dim(),
         n_predictors=n_predictors
     )
 )
 
-DIVERSITY_LAMBDA = 0.0
-
-
-
-@partial(jax.jit, static_argnames=("model", "train_params", "calc_metric"))
-def loss_fn(
-    network_params: dict,
-    key: jax.Array,
-    inout: InOutData,
-    model: nn.Module,
-    train_params: TrainParams,
-    calc_metric: bool = False 
-):
-    
-    k_forward, k_loss = jax.random.split(key)
-
-    train_return: ForwardReturn = train_params.learner.forward(
-        key=k_forward,
-        x=inout.x,
-        model=model,
-        params=network_params
-    )
-
-    task_type = train_params.task.task_type()
-    ensemble_weights = train_return.power 
-
-    if task_type == "classification":
-        ensemble_logits = train_return.predictions
-        ensemble_logprobs = jax.nn.log_softmax(ensemble_logits)
-        logprobs = mix_weighted_logits(ensemble_logits, train_return.power)
-    elif task_type == "regression":
-        ensemble_ys = train_return.predictions
-        yhat = mix_weighted_mean(ensemble_ys, ensemble_weights)
-    
-    # @jax.vmap
-    # def get_optimal_weights(yhat_one: jax.Array, y_one: jax.Array, init_probs: jax.Array):    
-    #     init_weights = jnp.log10(init_probs + 1e-8)
-    #     solver = optax.lbfgs()
-
-    #     def wrapped_loss_fn(weights):
-    #         a = nn.softmax(weights)
-    #         return ce_loss(mix_weighted_logits(yhat_one, a), y_one)
-            
-    #     def step_fn(state, _):
-    #         weights, opt_state = state
-    #         value, grad = jax.value_and_grad(wrapped_loss_fn)(weights)
-    #         updates, new_opt_state = solver.update(
-    #            grad, opt_state, weights, value=value, grad=grad, value_fn=wrapped_loss_fn
-    #         )
-    #         new_weights = optax.apply_updates(weights, updates)
-
-    #         return (new_weights, new_opt_state), None
-
-    #     init_state = (init_weights, solver.init(init_weights))
-    #     (final_weights, _), _ = jax.lax.scan(step_fn, init_state, length=30)
-        
-    #     return nn.softmax(final_weights)
-
-    def error_diversity_classification(
-        ensemble_weights: jax.Array,
-        logits: jax.Array, # BS, models, out
-        labels: jax.Array # BS
-    ):
-        prob = jax.nn.softmax(logits)
-        target_mask = jnp.eye(logits.shape[-1])[labels]
-        
-        correct_p = jnp.take_along_axis(prob, labels[:, jnp.newaxis, jnp.newaxis], axis=-1) 
-        # (BS, models, 1)
-
-        wrong_p = prob * (1 - target_mask[:, jnp.newaxis, :])
-        # (BS, models, out_dim)
-
-        weights = (1.0 - correct_p) * ensemble_weights[:, :, jnp.newaxis]
-        weights = jax.lax.stop_gradient(weights)
-        w_norm = weights / (jnp.sum(weights, axis=1, keepdims=True) + 1e-8)
-        center = jnp.sum(w_norm * wrong_p, axis=1, keepdims=True) 
-        diff_sq = (wrong_p - center) ** 2
-        masked_diff_sq = weights * diff_sq
-        ediv = jnp.mean(masked_diff_sq)
-        return ediv
-    
-    def error_correlation(
-        ensemble_weights: jax.Array,
-        y: jax.Array,
-        ensemble_ys: jax.Array,
-    ):
-        errors = ensemble_ys - y[:, jnp.newaxis, :]
-        
-        cov = jnp.einsum('bmi,bni->bmn', errors, errors)
-        std = jnp.sqrt(jnp.sum(errors ** 2, axis=-1))
-        std_matrix = jnp.einsum('bm,bn->bmn', std, std)
-        corr = cov / (std_matrix + 1e-8)
-        
-        weights_matrix = jnp.einsum('bm,bn->bmn', ensemble_weights, ensemble_weights)
-        
-        return jnp.mean(corr * weights_matrix)
-
-    if task_type == "classification":
-        diversity = error_diversity_classification(train_return.power, ensemble_logits, inout.y)
-        loss_batch = ce_loss_logprobs_labels(logprobs, inout.y)
-    elif task_type == "regression":
-        diversity = 0.0 # error_correlation(ensemble_weights, yhat, ensemble_ys)
-        loss_batch = mse_loss(yhat, inout.y)
-    
-    diversity_loss = -(DIVERSITY_LAMBDA * diversity)
-
-    performance_loss = jnp.mean(loss_batch)
-    auxillary_losses = train_params.learner.auxillary_losses(
-        key=k_loss,
-        model=model,
-        params=network_params,
-        train_return=train_return,
-        train_params=train_params
-    )
-
-    performance_loss_name = "ce_loss" if task_type == "classification" else "mse_loss"
-
-    metrics = {
-        performance_loss_name: performance_loss,
-        "div_loss": diversity_loss
-    } | auxillary_losses
-
-
-    aux_values = jax.tree.reduce_associative(operator.add, auxillary_losses)
-    loss = aux_values + performance_loss + diversity_loss
-
-    def calc_accuracy(yhat, y):
-        hat_inds = jnp.argmax(yhat, axis=-1)
-        return jnp.mean(hat_inds == y)
-
-    def one_sample_kl(combiner: jax.Array, ensemble_weights: jax.Array, individuals: jax.Array):
-        kl_per_model = jax.scipy.special.kl_div(combiner[jnp.newaxis, :], individuals).sum(axis=-1)
-        return jnp.sum(kl_per_model * ensemble_weights) # Only count the models which participated in the decision
-
-    if calc_metric:
-        metrics["power_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(ensemble_weights + 1e-8), axis=-1)) / jnp.log(ensemble_weights.shape[-1])
-        
-        if task_type == "classification":
-
-            # optimal_power = get_optimal_weights(train_return.ys, inout.y, train_return.power)
-            # optimal_yhat = mix_weighted_logits(train_return.ys, optimal_power)
-            metrics["accuracy_metric"] = calc_accuracy(logprobs, inout.y)
-            # metrics["optimal_ce_loss"] = jnp.mean(ce_loss(optimal_yhat, inout.y))
-            metrics["kl_fig2"] = jnp.mean(jax.vmap(one_sample_kl)(
-                jax.nn.softmax(logprobs) + 1e-6,
-                ensemble_weights,
-                jax.nn.softmax(ensemble_logprobs) + 1e-6
-            ))
-            metrics["prediction_entropy_fig1"] = jnp.mean(jnp.sum(jax.scipy.special.entr(nn.softmax(ensemble_logits)), axis=-1)) / jnp.log(train_return.predictions.shape[-1])
-        
-        elif task_type == "regression":
-            ...
-
-    return loss, metrics
-
-
-@partial(jax.jit, static_argnames=("optimizer", "model", "train_params"))
+@partial(jax.jit, static_argnames=("optimizer", "ensemble", "train_params"))
 def train_batch(
     key: jax.Array,
     inout_data: InOutData,  
-    model_params: dict,
+    ensemble_params: dict,
     opt_state: dict,
     optimizer: optax.GradientTransformationExtraArgs,
-    model: nn.Module,
+    ensemble: Ensemble,
     train_params: TrainParams
 ):
     
@@ -233,12 +76,12 @@ def train_batch(
         key, network_params, opt_state = carry
         key, k_use = jax.random.split(key)
 
-
         (loss, metrics), grad = jax.value_and_grad(loss_fn, has_aux=True)(
             network_params,
             key=k_use,
-            inout=inout_batch,
-            model=model,
+            x=inout_batch.x,
+            y=inout_batch.y,
+            ensemble_model=ensemble,
             train_params=train_params
         )
 
@@ -248,41 +91,13 @@ def train_batch(
         return (key, network_params, opt_state), (loss, metrics)
     
 
-    (key, model_params, opt_state), (loss, metrics) = jax.lax.scan(train_step, (key, model_params, opt_state), inout_data)
+    (key, ensemble_params, opt_state), (loss, metrics) = jax.lax.scan(train_step, (key, ensemble_params, opt_state), inout_data)
 
     loss = jnp.mean(loss)
     metrics = jax.tree.map(jnp.mean, metrics)
 
-    return (model_params, opt_state), (loss, metrics)
+    return (ensemble_params, opt_state), (loss, metrics)
 
-
-def train_loader(
-    key: jax.Array,
-    inout: InOutData,
-    batch_size: int,
-    desired_batches: int
-):
-    
-    desired_size = batch_size * desired_batches
-    actual_size = inout.x.shape[0]
-    difference = desired_size - actual_size
-    assert difference < actual_size
-
-    k1, k2, k_next = jax.random.split(key, 3)
-
-    proper_inds = jax.random.permutation(k1, actual_size)
-    added_inds = jax.random.permutation(k2, difference) 
-    
-    all_inds = jnp.concatenate((proper_inds, added_inds))
-    
-    for i_batch in range(desired_batches):
-        start = i_batch * batch_size
-        end = start + batch_size
-
-        batch_inds = all_inds[start:end]
-        batch = jax.tree.map(lambda x: x[batch_inds, ...], inout)
-
-        yield batch, k_next
     
 
 def train(
@@ -291,7 +106,6 @@ def train(
         trial: object | None = None
     ):
     
-    cpu = jax.devices("cpu")[0]
     gpu = jax.devices("gpu")[0]
 
     key, k_init, k_loop, k_loader = jax.random.split(key, 4) 
@@ -308,36 +122,24 @@ def train(
 
     # Train, Valid split
     n_valid = train_params.batch_size * train_params.valid_batches
-    inout_valid = jax.tree.map(lambda x: jax.device_put(x[:n_valid, ...], device=gpu), inout_data)
-    inout_train = jax.tree.map(lambda x: x[n_valid:, ...], inout_data)
+    inout_valid: InOutData = jax.tree.map(lambda x: jax.device_put(x[:n_valid, ...], device=gpu), inout_data)
+    inout_train: InOutData = jax.tree.map(lambda x: x[n_valid:, ...], inout_data)
 
     # Model
-    dummy_input = x[[0], ...]
+    dummy_input = ForwardArgs(x=x[[0], ...])
 
-    if trial is None:
-        model = train_params.learner.get_model(
-            train_params=train_params,
-            param_budget=train_params.param_budget,
-            dummy_input=dummy_input
-        )
-    else:
-        model = train_params.learner.boot_from_trial(
-            train_params=train_params,
-            dummy_input=dummy_input,
-            trial=trial
-        )
+    ensemble = Ensemble(
+        n_predictors=train_params.n_predictors,
+        n_delegators=train_params.n_delegators,
+        predictor=train_params.architecture.predictor,
+        delegator=train_params.architecture.delegator,
+        n_cnn_layers=train_params.architecture.cnn   
+    )
 
-    model_params = model.init(k_init, dummy_input)["params"]
-
-
-    # Optimizer
-    optimizer_pure = {
-        "sgd": optax.sgd(learning_rate=train_params.lr),
-        "adam": optax.adamw(learning_rate=train_params.lr, weight_decay=1e-3)
-    }[train_params.optimizer]
-
-    optimizer = optimizer_pure
-    opt_state = optimizer.init(model_params)
+    optimizer = optax.adamw(learning_rate=train_params.lr)
+    
+    ensemble_params = ensemble.init(k_init, dummy_input)["params"]
+    opt_state = optimizer.init(ensemble_params)
     
     metrics = defaultdict(list)
 
@@ -356,29 +158,29 @@ def train(
             k_loop, k_use = jax.random.split(k_loop)
             inout_batch = jax.tree.map(lambda x: jax.device_put(x, device=gpu), inout_batch)
             
-            (model_params, opt_state), (loss, tr_metrics) = train_batch(
+            (ensemble_params, opt_state), (loss, tr_metrics) = train_batch(
                 key=k_use,
                 inout_data=inout_batch,
-                model_params=model_params,
+                ensemble_params=ensemble_params,
                 opt_state=opt_state,
                 optimizer=optimizer,
-                model=model,
+                ensemble=ensemble,
                 train_params=train_params,
             )
 
             epoch_metrics["loss"].append(loss)
             for k, v in tr_metrics.items():
                 epoch_metrics[k].append(v.item())
-
+     
         k_loop, k_use = jax.random.split(k_loop)
 
         va_loss, va_metrics = loss_fn(
-            model_params,
-            k_use,
-            inout_valid,
-            model,
-            train_params,
-            calc_metric=True
+            ensemble_params=ensemble_params,
+            key=k_use,
+            train_params=train_params,
+            ensemble_model=ensemble,
+            x=inout_valid.x,
+            y=inout_valid.y
         )
         metrics["validation_loss"].append(va_loss.item())
         for k, v in va_metrics.items():
@@ -387,7 +189,6 @@ def train(
         for k, v in epoch_metrics.items():
             metrics[k].append(np.mean(v).item())
 
-    
     return metrics
 
 def make_train_folder(experiment_name: str) -> Path:
@@ -448,10 +249,16 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
     used = 0
     for name in metrics.keys():
         
-        if not name.endswith("metric"):
+        if name.startswith("validation") and name.endswith("metric"):
+            tname = name.removeprefix("validation_")
+        else:
             continue
 
         ax_metrics.plot(metrics[name], color=colors[used], label=name.removesuffix("_metric"))
+
+        if tname in metrics:
+            ax_metrics.plot(metrics[tname], color=colors[used], linestyle="dashed")
+
 
         used += 1
 
@@ -492,17 +299,10 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 if __name__ == "__main__":
 
 
-    folder = make_train_folder("energy")
-    learners = [LeLearner]
+    folder = make_train_folder("paper")
     key = jax.random.key(123)
-    param_budget = None
-    for learner in learners:
-        metrics = train(
-            key=key,
-            train_params=replace(
-                g_params,
-                learner=learner,
-                param_budget=param_budget
-            )
-        )
-        finish_run(metrics, folder, prefix=learner.__name__)
+    metrics = train(
+        key=key,
+        train_params=g_params
+    )
+    finish_run(metrics, folder, prefix="paper")

@@ -5,7 +5,10 @@ import jax.numpy as jnp
 import optax
 from flax import linen as nn
 
-from structs import ForwardArgs, ForwardReturn, TrainParams, Model
+from structs import ForwardArgs, ForwardReturn, TrainParams, Ensemble
+
+
+
 @partial(jax.jit, static_argnames=("train_params", "steps"))
 def optimal_convex_weights(
     y: jax.Array,
@@ -67,7 +70,19 @@ def optimal_convex_weights(
 
     return weights
 
-def loss_decomposition
+def loss_predictor_delegator_decomposition(
+    predictions: jax.Array,
+    agg_delegations: jax.Array,
+    y: jax.Array,
+    restricted_oracle_delegations: jax.Array,
+    train_params: TrainParams
+):
+    
+    loss = eval_loss(agg_delegations, predictions, y, train_params)
+    loss_under_oracle = eval_loss(restricted_oracle_delegations, predictions, y, train_params)
+    delegators_regret = loss - loss_under_oracle
+    predictor_loss = loss_under_oracle
+    return predictor_loss, delegators_regret
 
 def eval_loss(
     weights: jax.Array, # (BS, n_predictors)
@@ -93,14 +108,13 @@ def loss(
     ensemble_params: dict,
     key: jax.Array,
     train_params: TrainParams,
-    ensemble_model: Model,
+    ensemble_model: Ensemble,
     x: jax.Array,
     y: jax.Array,
 ):
     
     task_type = train_params.task.task_type()
-    delegators_mixing = train_params.delegators_mixing
-    n_delegators = train_params.n_delegators
+    ambiguity_gradient = train_params.ambiguity_gradient
     n_predictors = train_params.n_predictors
     batch_size = x.shape[0]
     agg_delegation: jax.Array = None # (BS, n_predictors), will be probabilities
@@ -108,27 +122,14 @@ def loss(
     perfomance_loss_per_model: jax.Array = None # (BS, n_predictors)
     ambiguity_per_model: jax.Array = None # (BS, n_predictors)
  
-    forward_args = ForwardArgs(key, x)
-    forward_return = ensemble_model.apply(ensemble_params, forward_args)
+    forward_args = ForwardArgs(x)
+    forward_return = ensemble_model.apply({"params": ensemble_params}, forward_args)
     predictions = forward_return.predictions # (BS, n_predictors, out)
-    predictions_no_gradient = jax.lax.stop_gradient(predictions)
+    predictions_no_gradient = jax.lax.stop_gradient(predictions) if ambiguity_gradient != "both" else predictions 
     delegations_logits = forward_return.delegations # (BS, n_delegators, n_predictors)
-    delegations_logprobs = jax.nn.log_softmax(delegations_logits, axis=-1)
-    delegations_probs = jax.nn.softmax(delegations_logits, axis=-1)
 
     # Aggregate delegators
-    if n_delegators == 0:
-        # Unifrom weights
-        agg_delegation = jnp.full((batch_size, n_predictors), 1 / n_predictors)
-    elif delegators_mixing == "product":
-        # Mix logprobs
-        agg_delegation = jnp.mean(delegations_logprobs, axis=-2)
-        agg_delegation = jnp.exp(agg_delegation)
-        agg_delegation = agg_delegation / jnp.sum(agg_delegation, axis=-1, keepdims=True)  
-    elif delegators_mixing == "sum":
-        # Mix probs
-        agg_delegation = jnp.mean(delegations_probs, axis=-2)
-        agg_delegation = agg_delegation / jnp.sum(agg_delegation, axis=-1, keepdims=True)  
+    agg_delegation = aggregate_delegators(train_params, delegations_logits)
     
     # Aggregate predictors for centroid ambiguity calculations
     # Ambiguity calculation does not influence predictors
@@ -137,6 +138,9 @@ def loss(
     elif task_type == "regression":
         agg_prediction = mix_weighted_mean(predictions_no_gradient, agg_delegation)
 
+
+    metrics = {}
+
     # Calc losses
     if task_type == "classification":
         perfomance_loss_per_model = ce_loss(predictions, y)
@@ -144,18 +148,70 @@ def loss(
             jax.nn.softmax(agg_prediction), 
             jax.nn.softmax(predictions_no_gradient)
         )
+        metrics["accuracy_metric"] = classification_accuracy(agg_prediction, y)
     elif task_type == "regression":
         perfomance_loss_per_model = mse_loss(predictions, y)
         ambiguity_per_model = jax.vmap(var_ambiguity, in_axes=(None, 1), out_axes=1)(
             agg_prediction, 
             predictions_no_gradient
         )
+        metrics["r2_metric"] = regression_r2(agg_prediction, y)
     
-    assert perfomance_loss_per_model.shape == (batch_size, n_predictors), perfomance_loss_per_model.shape
+    # Load balancing loss
+    batch_agg_delegation = agg_delegation.mean(axis=-1)
+    batch_agg_delegation = batch_agg_delegation / batch_agg_delegation.sum() # Shouldn't be needed
+    model_usage_uniformity = gini_impurity(batch_agg_delegation) # 0 - fully pure; 1 - fully uniform 
+    load_balancing_loss = train_params.load_balancing_lambda * (1 - model_usage_uniformity)
 
-    loss_per_sample = jnp.sum(agg_delegation * perfomance_loss_per_model, axis=-1) - jnp.sum(agg_delegation * ambiguity_per_model, axis=-1)
+    assert perfomance_loss_per_model.shape == (batch_size, n_predictors), ambiguity_per_model.shape == (batch_size, n_predictors)
+    weighted_perfomance = jnp.sum(agg_delegation * perfomance_loss_per_model, axis=-1)
+    weighted_ambiguity = jnp.sum(agg_delegation * ambiguity_per_model, axis=-1)
+
+    loss_per_sample =  (
+        weighted_perfomance - 
+        (weighted_ambiguity if ambiguity_gradient != "none" else jax.lax.stop_gradient(weighted_ambiguity)) 
+    )
+    performance_loss = jnp.mean(loss_per_sample)
+
     
-    return jnp.mean(loss_per_sample)
+    return performance_loss + load_balancing_loss, {"performance_loss": performance_loss, "load_balancing_loss": load_balancing_loss} | metrics
+
+def classification_accuracy(
+    agg_prediction: jax.Array,
+    y: jax.Array,
+) -> jax.Array:
+    return jnp.mean(jnp.argmax(agg_prediction, axis=-1) == y)
+
+
+def regression_r2(
+    agg_prediction: jax.Array,
+    y: jax.Array,
+) -> jax.Array:
+    ss_res = jnp.sum((y - agg_prediction) ** 2)
+    ss_tot = jnp.sum((y - jnp.mean(y, axis=0)) ** 2)
+    return 1 - ss_res / ss_tot
+
+def aggregate_delegators(
+        train_params: TrainParams,
+        delegations_logits: jax.Array
+    ):
+    
+    delegators_mixing = train_params.delegators_mixing
+    agg_delegation: jax.Array = None # (BS, n_predictors), will be probabilities
+    delegations_logprobs = jax.nn.log_softmax(delegations_logits, axis=-1)
+    delegations_probs = jax.nn.softmax(delegations_logits, axis=-1)
+    
+    if delegators_mixing == "product":
+        # Mix logprobs
+        agg_delegation = jnp.mean(delegations_logprobs, axis=-2)
+        agg_delegation = jnp.exp(agg_delegation)
+        agg_delegation = agg_delegation / jnp.sum(agg_delegation, axis=-1, keepdims=True)  
+    elif delegators_mixing == "sum":
+        # Mix probs
+        agg_delegation = jnp.mean(delegations_probs, axis=-2)
+        agg_delegation = agg_delegation / jnp.sum(agg_delegation, axis=-1, keepdims=True)
+    
+    return agg_delegation
 
 def mix_weighted_mean(
         y: jax.Array, # (BS, n_predictors, out)
@@ -209,19 +265,18 @@ def kl_ambiguity(
     )
 
     return jnp.sum(kl_per_class, axis=-1)
-    
-def non_uniformity(
-    dist: jax.Array
-):
-    assert dist.ndim == 1, "Implement some form of axing"
-
-    n = dist.shape[-1]
-    # Make it like uniform (more stable than maximizing entropy)
-    non_uniformity = n* jnp.sum(dist ** 2) - 1
-    
-    # Range before: [0, n_models - 1], now [0, 1]
-    non_uniformity = non_uniformity / (n - 1)
-
-    return non_uniformity 
 
 
+
+def gini_impurity(
+    dist: jax.Array,
+    axis: int | None = None,
+):  # 0 - fully pure; 1 - fully uniform 
+    if axis is None:
+        assert dist.ndim == 1
+        axis = 0
+
+    n = dist.shape[axis]
+    impurity = 1 - jnp.sum(dist**2, axis=axis)
+
+    return impurity / (1 - 1 / n)

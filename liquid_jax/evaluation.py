@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import optax
 from flax import linen as nn
 
-from structs import TrainParams, InOutData
+from structs import TrainParams, InOutData, Ensemble, Predictors, Delegators
 from math_utils import optimal_convex_weights
 
 
@@ -19,7 +19,6 @@ def train_oracle(
     epochs_p: float = 0.1,
     n_seeds: int = 8,
 ):
-    gpu = jax.devices("gpu")[0]
     k_init, k_loader = jax.random.split(key)
 
     optimal_weights = optimal_convex_weights(
@@ -40,13 +39,13 @@ def train_oracle(
     optimal_w_valid = optimal_weights[n_train:]
 
     inout_train_delegations = InOutData(
-        x=jax.device_put(inout_train_predictions.x, device=gpu),
-        y=jax.device_put(optimal_w_train, device=gpu),
+        x=inout_train_predictions.x,
+        y=optimal_w_train,
     )
 
     inout_valid_delegations = InOutData(
-        x=jax.device_put(inout_valid_predictions.x, device=gpu),
-        y=jax.device_put(optimal_w_valid, device=gpu),
+        x=inout_valid_predictions.x,
+        y=optimal_w_valid,
     )
 
     optimizer = optax.adamw(learning_rate=1e-3)
@@ -243,3 +242,22 @@ def train_oracle(
         lambda x: x[best_seed],
         best_delegator_params,
     )
+
+def get_evaluation_metrics(
+    key: jax.Array,
+    delegators: Delegators,
+    delegators_params: dict,
+    ensemble: Ensemble,
+    ensemble_params: dict,
+    predictors: Predictors,
+    predictors_params: dict,
+    inout_train_predictions: InOutData,
+    inout_valid_predictions: InOutData,
+    train_params: TrainParams,
+):
+    
+    assert (len(inout_train_predictions.y.shape) - 1) == len(inout_valid_predictions.y.shape), "Inout train predictions needs to be prepared for batching" 
+
+    key, k_train_oracle = jax.random.split(key, 2)
+    predictions = predictors.apply({"params": predictors_params}, )
+

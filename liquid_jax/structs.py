@@ -16,31 +16,39 @@ class TrainParams:
     valid_batches: int
     epochs: int
     lr: float
-    optimizer: Literal["adam", "sgd"]
     task: Type[Task]
-    learner: Type[Learner]
     n_predictors: int
     n_delegators: int
     delegators_mixing: Literal["sum", "product"]
+    ambiguity_gradient: Literal["both", "delegators", "none"]
     architecture: Architecture
-    param_budget: int | None = None
+    load_balancing_lambda: float = 0.2
     
+type Predictions = jax.Array # (BS, n_delegators, n_predictor)
+type Delegations = jax.Array # (BS, n_predictors, n_output)
 
 @struct.dataclass
 class ForwardReturn:
-    delegations: jax.Array # (BS, n_delegators, n_predictor)
-    predictions: jax.Array # (BS, n_predictors, n_output)
+    delegations: Delegations 
+    predictions: Predictions 
 
 
 @struct.dataclass
 class ForwardArgs:
-    key: jax.Array
     x: jax.Array
 
-class Model(Protocol):
+
+class Ensemble(Protocol):
     def apply(self, params: dict, args: ForwardArgs) -> ForwardReturn:
         ...
 
+class Predictors(Protocol):
+    def apply(self, params: dict, x: jax.Array) -> Predictions:
+        ...
+
+class Delegators(Protocol):
+    def apply(self, params: dict, x: jax.Array) -> Delegations:
+        ...
 
 @struct.dataclass
 class InOutData:
