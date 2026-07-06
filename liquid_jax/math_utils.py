@@ -73,16 +73,16 @@ def optimal_convex_weights(
 def loss_predictor_delegator_decomposition(
     predictions: jax.Array,
     agg_delegations: jax.Array,
+    agg_oracle_delegations: jax.Array,
     y: jax.Array,
-    restricted_oracle_delegations: jax.Array,
     train_params: TrainParams
 ):
     
     loss = eval_loss(agg_delegations, predictions, y, train_params)
-    loss_under_oracle = eval_loss(restricted_oracle_delegations, predictions, y, train_params)
+    loss_under_oracle = eval_loss(agg_oracle_delegations, predictions, y, train_params)
     delegators_regret = loss - loss_under_oracle
     predictor_loss = loss_under_oracle
-    return predictor_loss, delegators_regret
+    return (predictor_loss, delegators_regret), (loss, loss_under_oracle)
 
 def eval_loss(
     weights: jax.Array, # (BS, n_predictors)

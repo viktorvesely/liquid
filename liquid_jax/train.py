@@ -31,6 +31,8 @@ from math_utils import loss as loss_fn
 
 from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
+PROFILER = False
+
 CurrentTask = Cifar10
 n_delegators = 5
 n_predictors = 10
@@ -57,58 +59,105 @@ g_params = TrainParams(
 @partial(jax.jit, static_argnames=("optimizer", "ensemble", "train_params"))
 def train_batch(
     key: jax.Array,
-    inout_data: InOutData,  
+    inout_data: InOutData,
     ensemble_params: dict,
-    opt_state: dict,
+    opt_state: dict, 
     optimizer: optax.GradientTransformationExtraArgs,
     ensemble: Ensemble,
-    train_params: TrainParams
+    train_params: TrainParams,
 ):
-    
-    # To batches
     bs = train_params.batch_size
-    assert (inout_data.x.shape[0] % bs) == 0, "Gpu batch needs to be divisible by the batch_size"
-    n_batches = inout_data.x.shape[0] // bs
-    inout_data = jax.tree.map(lambda x: x.reshape((n_batches, bs) + x.shape[1:]), inout_data)
-    
-    def train_step(carry, inout_batch: InOutData):
-        
-        key, network_params, opt_state = carry
-        key, k_use = jax.random.split(key)
+    assert (inout_data.x.shape[0] % bs) == 0, (
+        "Gpu batch needs to be divisible by the batch_size"
+    )
 
-        (loss, metrics), grad = jax.value_and_grad(loss_fn, has_aux=True)(
-            network_params,
-            key=k_use,
+    n_batches = inout_data.x.shape[0] // bs
+    inout_data = jax.tree.map(
+        lambda x: x.reshape((n_batches, bs) + x.shape[1:]),
+        inout_data,
+    )
+
+    def one_seed_loss(
+        params: dict,
+        seed_key: jax.Array,
+        inout_batch: InOutData,
+    ):
+        return loss_fn(
+            params,
+            key=seed_key,
             x=inout_batch.x,
             y=inout_batch.y,
             ensemble_model=ensemble,
-            train_params=train_params
+            train_params=train_params,
         )
 
-        updates, opt_state = optimizer.update(grad, opt_state, network_params)
-        network_params = optax.apply_updates(network_params, updates)
+    one_seed_value_and_grad = jax.value_and_grad(
+        one_seed_loss,
+        has_aux=True,
+    )
 
-        return (key, network_params, opt_state), (loss, metrics)
-    
+    def one_seed_update(grad, state, params):
+        updates, state = optimizer.update(grad, state, params)
+        params = optax.apply_updates(params, updates)
+        return params, state
 
-    (key, ensemble_params, opt_state), (loss, metrics) = jax.lax.scan(train_step, (key, ensemble_params, opt_state), inout_data)
+    def train_step(carry, inout_batch: InOutData):
+        keys, network_params, opt_state = carry
+        keys, k_use = split_seed_keys(keys)
 
-    loss = jnp.mean(loss)
-    metrics = jax.tree.map(jnp.mean, metrics)
+        (loss, metrics), grad = jax.vmap(
+            one_seed_value_and_grad,
+            in_axes=(0, 0, None),
+        )(
+            network_params,
+            k_use,
+            inout_batch,
+        )
+
+        network_params, opt_state = jax.vmap(one_seed_update)(
+            grad,
+            opt_state,
+            network_params,
+        )
+
+        return (
+            keys,
+            network_params,
+            opt_state,
+        ), (
+            loss,
+            metrics,
+        )
+
+    (_, ensemble_params, opt_state), (loss, metrics) = jax.lax.scan(
+        train_step,
+        (key, ensemble_params, opt_state),
+        inout_data,
+    )
+
+    # Before reduction (n_batches, n_seeds)
+    loss = jnp.mean(loss, axis=0)
+    metrics = jax.tree.map(lambda x: jnp.mean(x, axis=0), metrics)
 
     return (ensemble_params, opt_state), (loss, metrics)
 
     
+def split_seed_keys(keys: jax.Array) -> tuple[jax.Array, jax.Array]:
+    pairs = jax.vmap(lambda k: jax.random.split(k, 2))(keys)
+    return pairs[:, 0], pairs[:, 1]
+
 
 def train(
         key: jax.Array,
         train_params: TrainParams,
-        trial: object | None = None
+        profile_dir: Path,
+        profile_batches: int = 5,
+        n_seeds: int = 5,
     ):
     
     gpu = jax.devices("gpu")[0]
 
-    key, k_init, k_loop, k_loader = jax.random.split(key, 4) 
+    key, k_loop, k_loader, k_seeds = jax.random.split(key, 4) 
 
     # Data
     fullData = train_params.task.load_cpu(split="train")
@@ -138,10 +187,29 @@ def train(
 
     optimizer = optax.adamw(learning_rate=train_params.lr)
     
-    ensemble_params = ensemble.init(k_init, dummy_input)["params"]
-    opt_state = optimizer.init(ensemble_params)
+    def init_one(init_key):
+        return ensemble.init(init_key, dummy_input)["params"]
+
+    seed_keys = jax.random.split(k_seeds, n_seeds)
+    k_init, k_loop = split_seed_keys(seed_keys)
+    ensemble_params = jax.vmap(init_one)(k_init)
+    opt_state = jax.vmap(optimizer.init)(ensemble_params)
     
     metrics = defaultdict(list)
+
+    global_step = 0
+
+    def validate_one(params, seed_key):
+        return loss_fn(
+            ensemble_params=params,
+            key=seed_key,
+            train_params=train_params,
+            ensemble_model=ensemble,
+            x=inout_valid.x,
+            y=inout_valid.y,
+        )
+    validate_seeds = jax.vmap(validate_one)
+
 
     for i_epoch in tqdm.tqdm(range(train_params.epochs)):
 
@@ -155,40 +223,77 @@ def train(
             ):
 
 
-            k_loop, k_use = jax.random.split(k_loop)
+            k_loop, k_use = split_seed_keys(k_loop)
             inout_batch = jax.tree.map(lambda x: jax.device_put(x, device=gpu), inout_batch)
-            
-            (ensemble_params, opt_state), (loss, tr_metrics) = train_batch(
-                key=k_use,
-                inout_data=inout_batch,
-                ensemble_params=ensemble_params,
-                opt_state=opt_state,
-                optimizer=optimizer,
-                ensemble=ensemble,
-                train_params=train_params,
+
+
+            start_profile = profile_dir is not None and global_step == 1
+            stop_profile = (
+                profile_dir is not None
+                and global_step == 1 + profile_batches
             )
 
-            epoch_metrics["loss"].append(loss)
+            if PROFILER and start_profile:
+                jax.profiler.start_trace(str(profile_dir))
+
+            if PROFILER:
+                with jax.profiler.StepTraceAnnotation(
+                    "train_step",
+                    step_num=global_step,
+                ):
+            
+                    (ensemble_params, opt_state), (loss, tr_metrics) = train_batch(
+                        key=k_use,
+                        inout_data=inout_batch,
+                        ensemble_params=ensemble_params,
+                        opt_state=opt_state,
+                        optimizer=optimizer,
+                        ensemble=ensemble,
+                        train_params=train_params,
+                    )
+                    jax.block_until_ready(loss)
+            else:
+                (ensemble_params, opt_state), (loss, tr_metrics) = train_batch(
+                    key=k_use,
+                    inout_data=inout_batch,
+                    ensemble_params=ensemble_params,
+                    opt_state=opt_state,
+                    optimizer=optimizer,
+                    ensemble=ensemble,
+                    train_params=train_params,
+                )
+
+            if PROFILER and stop_profile:
+                jax.profiler.stop_trace()
+            
+            global_step += 1
+
+            epoch_metrics["loss"].append(np.asarray(loss))
+
             for k, v in tr_metrics.items():
-                epoch_metrics[k].append(v.item())
+                epoch_metrics[k].append(np.asarray(v))
+            
      
-        k_loop, k_use = jax.random.split(k_loop)
+        k_loop, k_use = split_seed_keys(k_loop)
 
-        va_loss, va_metrics = loss_fn(
-            ensemble_params=ensemble_params,
-            key=k_use,
-            train_params=train_params,
-            ensemble_model=ensemble,
-            x=inout_valid.x,
-            y=inout_valid.y
+        va_loss, va_metrics = validate_seeds(
+            ensemble_params,
+            k_use,
         )
-        metrics["validation_loss"].append(va_loss.item())
+        metrics["validation_loss"].append(np.asarray(va_loss))
+
         for k, v in va_metrics.items():
-            metrics[f"validation_{k}"].append(v.item())
+            metrics[f"validation_{k}"].append(np.asarray(v))
 
-        for k, v in epoch_metrics.items():
-            metrics[k].append(np.mean(v).item())
+        for k, values in epoch_metrics.items():
+            values = np.stack(values, axis=0)
+            metrics[k].append(values.mean(axis=0))
 
+    metrics = {
+        name: np.stack(values, axis=0)
+        for name, values in metrics.items()
+    }
+    
     return metrics
 
 def make_train_folder(experiment_name: str) -> Path:
@@ -213,9 +318,48 @@ def finish_run(metrics: dict[str, list[float]], folder: Path, prefix: str = ""):
         traceback.print_exc()
 
 def save_metrics(metrics: dict[str, list[float]], folder: Path, prefix: str = ""):
+    json_metrics = {
+        name: values.tolist()
+        for name, values in metrics.items()
+    }
+
     with open(folder / f"{prefix}_metrics.json", mode="w") as f:
-        json.dump(metrics, f)
+        json.dump(json_metrics, f)
     
+
+def plot_seed_summary(
+    ax,
+    values: np.ndarray,
+    *,
+    label: str,
+    color: str,
+    linestyle: str = "solid",
+):
+    values = np.asarray(values)
+
+    mean = values.mean(axis=1)
+    lower, upper = np.quantile(
+        values,
+        [0.025, 0.975],
+        axis=1,
+    )
+
+    epochs = np.arange(len(mean))
+
+    ax.plot(
+        epochs,
+        mean,
+        color=color,
+        linestyle=linestyle,
+        label=label,
+    )
+    ax.fill_between(
+        epochs,
+        lower,
+        upper,
+        color=color,
+        alpha=0.2,
+    )
 
 def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefix: str = ""):
 
@@ -248,17 +392,30 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 
     used = 0
     for name in metrics.keys():
-        
+
         if name.startswith("validation") and name.endswith("metric"):
             tname = name.removeprefix("validation_")
         else:
             continue
 
-        ax_metrics.plot(metrics[name], color=colors[used], label=name.removesuffix("_metric"))
+        color = colors[used % len(colors)]
+        label = name.removeprefix("validation_").removesuffix("_metric")
+
+        plot_seed_summary(
+            ax_metrics,
+            metrics[name],
+            label=f"validation {label}",
+            color=color,
+        )
 
         if tname in metrics:
-            ax_metrics.plot(metrics[tname], color=colors[used], linestyle="dashed")
-
+            plot_seed_summary(
+                ax_metrics,
+                metrics[tname],
+                label=f"train {label}",
+                color=color,
+                linestyle="dashed",
+            )
 
         used += 1
 
@@ -266,18 +423,32 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 
     used = 0
     for name in metrics.keys():
-        
+
         if name.startswith("validation") and name.endswith("loss"):
             tname = name.removeprefix("validation_")
         else:
             continue
 
-        ax_losses.plot(metrics[name], color=colors[used], label=tname)
+        color = colors[used % len(colors)]
+
+        plot_seed_summary(
+            ax_losses,
+            metrics[name],
+            label=f"validation {tname}",
+            color=color,
+        )
 
         if tname in metrics:
-            ax_losses.plot(metrics[tname], color=colors[used], linestyle="dashed")
+            plot_seed_summary(
+                ax_losses,
+                metrics[tname],
+                label=f"train {tname}",
+                color=color,
+                linestyle="dashed",
+            )
 
         used += 1
+
     ax_losses.legend()
 
 
@@ -287,7 +458,12 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
             continue
         fignum = int(suffix.replace("fig", ""))
         figindex = fignum - 1
-        rest[figindex].plot(metrics[name], label=name)
+        plot_seed_summary(
+            rest[figindex],
+            metrics[name],
+            label=name,
+            color=colors[figindex % len(colors)],
+        )
 
     for ax in rest:
         ax.legend()
@@ -299,10 +475,11 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 if __name__ == "__main__":
 
 
-    folder = make_train_folder("paper")
+    folder = make_train_folder("profile_single_seed")
     key = jax.random.key(123)
     metrics = train(
         key=key,
-        train_params=g_params
+        train_params=g_params,
+        profile_dir=folder
     )
     finish_run(metrics, folder, prefix="paper")

@@ -23,4 +23,5 @@ dependencies = [
     "tensorflow-cpu>=2.21.0",
     "tensorflow-datasets>=4.9.9",
     "ucimlrepo>=0.0.7",
+    "xprof>=2.22.3",
 ]
