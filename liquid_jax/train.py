@@ -23,11 +23,12 @@ from mnist import Mnist
 from cifar10 import Cifar10
 from bikes import Bikes
 from energy import Energy
-from architectures import Ensemble
+from architectures import Ensemble, split_ensemble
 
 from structs import InOutData, TrainParams, ForwardArgs
 from utils import train_loader
 from math_utils import loss as loss_fn
+from evaluation import get_evaluation_metrics
 
 from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
@@ -39,9 +40,9 @@ n_predictors = 10
 
 g_params = TrainParams(
     batch_size=64,
-    preload_batches_to_gpu=20,
-    valid_batches=4,
-    epochs=20,
+    preload_batches_to_gpu=50,
+    valid_batches=10,
+    epochs=50,
     lr=1e-3,
     task=CurrentTask,
     n_predictors=n_predictors,
@@ -49,8 +50,8 @@ g_params = TrainParams(
     delegators_mixing="sum",
     ambiguity_gradient="delegators",
     architecture=small_cnn.determine_size(
-        predictor_base=2,
-        delegator_base=1,
+        predictor_base=4,
+        delegator_base=2,
         out_dim=CurrentTask.out_dim(),
         n_predictors=n_predictors
     )
@@ -141,7 +142,8 @@ def train_batch(
 
     return (ensemble_params, opt_state), (loss, metrics)
 
-    
+
+
 def split_seed_keys(keys: jax.Array) -> tuple[jax.Array, jax.Array]:
     pairs = jax.vmap(lambda k: jax.random.split(k, 2))(keys)
     return pairs[:, 0], pairs[:, 1]
@@ -157,7 +159,7 @@ def train(
     
     gpu = jax.devices("gpu")[0]
 
-    key, k_loop, k_loader, k_seeds = jax.random.split(key, 4) 
+    key, k_loop, k_loader, k_seeds, k_eval = jax.random.split(key, 5) 
 
     # Data
     fullData = train_params.task.load_cpu(split="train")
@@ -294,6 +296,21 @@ def train(
         for name, values in metrics.items()
     }
     
+
+    (predictors, predictors_params), (delegators, delegators_params) = split_ensemble(ensemble, ensemble_params)
+
+    get_evaluation_metrics(
+        key=k_eval,
+        delegators=delegators,
+        delegators_params=delegators_params,
+        predictors=predictors,
+        predictors_params=predictors_params,
+        inout_train_predictions=inout_train,
+        inout_valid_predictions=inout_valid,
+        train_params=train_params,
+        use_seed=0
+    )
+
     return metrics
 
 def make_train_folder(experiment_name: str) -> Path:

@@ -8,13 +8,6 @@ from structs import ForwardReturn, ForwardArgs
 
 from flax.core import FrozenDict, freeze
 
-
-def split_ensemble_params(params: FrozenDict) -> tuple[FrozenDict, FrozenDict]:
-    return (
-        freeze({"params": params["delegators"]}),
-        freeze({"params": params["predictors"]}),
-    )
-
 class Predictors(nn.Module):
     n_predictors: int
     predictor: tuple[int, ...]
@@ -97,6 +90,7 @@ class Delegators(nn.Module):
         return delegations_logits
 
 
+
 class Ensemble(nn.Module):
     n_predictors: int
     n_delegators: int
@@ -106,21 +100,8 @@ class Ensemble(nn.Module):
     kernel_size: int = 3
 
     def setup(self):
+        self.predictors, self.delegators = get_modules(self)
         
-        self.predictors = Predictors(
-            n_predictors = self.n_predictors,
-            predictor = self.predictor,
-            n_cnn_layers = self.n_cnn_layers,
-            kernel_size = self.kernel_size
-        )
-
-        self.delegators = Delegators(
-            n_delegators=self.n_delegators,
-            n_predictors=self.n_predictors,
-            delegator=self.delegator,
-            n_cnn_layers=self.n_cnn_layers,
-            kernel_size=self.kernel_size
-        )
 
     def __call__(self, args: ForwardArgs) -> ForwardReturn:
         
@@ -131,3 +112,35 @@ class Ensemble(nn.Module):
             delegations=delegations_logits,
             predictions=predictions
         )
+
+
+def get_modules(ensemble: Ensemble):
+    predictors = Predictors(
+        n_predictors = ensemble.n_predictors,
+        predictor = ensemble.predictor,
+        n_cnn_layers = ensemble.n_cnn_layers,
+        kernel_size = ensemble.kernel_size
+    )
+
+    delegators = Delegators(
+        n_delegators=ensemble.n_delegators,
+        n_predictors=ensemble.n_predictors,
+        delegator=ensemble.delegator,
+        n_cnn_layers=ensemble.n_cnn_layers,
+        kernel_size=ensemble.kernel_size
+    )
+
+    return predictors, delegators
+
+def split_ensemble(
+        ensemble: Ensemble,
+        ensemble_params: FrozenDict
+    ) -> tuple[tuple[Predictors, FrozenDict], tuple[Delegators, FrozenDict]]:
+    
+    delegators_params = ensemble_params["delegators"]
+    predictors_params = ensemble_params["predictors"]
+
+    predictors, delegators = get_modules(ensemble)
+
+    return (predictors, predictors_params), (delegators, delegators_params)    
+

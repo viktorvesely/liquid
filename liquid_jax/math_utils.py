@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Literal
 
 import jax
 import jax.numpy as jnp
@@ -14,20 +15,15 @@ def optimal_convex_weights(
     y: jax.Array,
     predictions: jax.Array,
     train_params: TrainParams,
-    steps: int = 5_000
+    weights0: jax.Array,
+    steps: int = 500
 ):
 
-    batch_size = y.shape[0]
-    n_predictors = predictions.shape[1]
     optimizer = optax.adam(learning_rate=1e-3)
-
     def init(w):
         return optimizer.init(w)
 
-    weights = jnp.full(
-        (batch_size, n_predictors),
-        1 / n_predictors
-    )
+    weights = weights0
     opt_state = init(weights)
     state = (weights, opt_state)
 
@@ -70,19 +66,63 @@ def optimal_convex_weights(
 
     return weights
 
-def loss_predictor_delegator_decomposition(
+def verify_weights_improvement(
+    y: jax.Array,
+    predictions: jax.Array,
+    oracle_weights: jax.Array,
+    weights: jax.Array,
+    train_params: TrainParams,
+    verbal: bool = False,
+    atol: float = 1e-4
+):
+
+    normal_loss = eval_loss(
+        weights,
+        predictions,
+        y,
+        train_params
+    )
+    normal_loss = jnp.mean(normal_loss)
+
+    oracle_loss = eval_loss(
+        oracle_weights,
+        predictions,
+        y,
+        train_params
+    )
+    oracle_loss = jnp.mean(oracle_loss)
+    
+    sign_difference = oracle_loss - normal_loss
+    almost_equal = sign_difference <= atol
+    improved = oracle_loss < normal_loss
+    
+    assert improved or almost_equal, f"Loss with oracle weights is larger than without by {sign_difference}"
+
+    if not verbal:
+        return
+    
+    if improved:
+        print("Oracle weights are better")
+    elif almost_equal:
+        print(f"Oracle weights are equal with difference = {sign_difference}")
+
+
+def eval_predictor_delegator_decomposition(
     predictions: jax.Array,
     agg_delegations: jax.Array,
     agg_oracle_delegations: jax.Array,
     y: jax.Array,
-    train_params: TrainParams
+    train_params: TrainParams,
+    use: Literal["loss", "metric"] = "loss",
 ):
     
-    loss = eval_loss(agg_delegations, predictions, y, train_params)
-    loss_under_oracle = eval_loss(agg_oracle_delegations, predictions, y, train_params)
-    delegators_regret = loss - loss_under_oracle
-    predictor_loss = loss_under_oracle
-    return (predictor_loss, delegators_regret), (loss, loss_under_oracle)
+    eval_fn = eval_loss if use == "loss" else eval_metric
+    
+    metric = eval_fn(agg_delegations, predictions, y, train_params)
+    metric_under_oracle = eval_fn(agg_oracle_delegations, predictions, y, train_params)
+    delegators_regret = metric - metric_under_oracle
+    predictor_error = metric_under_oracle
+    return (predictor_error, delegators_regret), (metric, metric_under_oracle)
 
 def eval_loss(
     weights: jax.Array, # (BS, n_predictors)
@@ -102,6 +142,26 @@ def eval_loss(
         loss = jnp.mean((agg_prediction - y) ** 2, axis=-1)
 
     return loss
+
+def eval_metric(
+    weights: jax.Array, # (BS, n_predictors)
+    predictions: jax.Array, # (BS, n_predictors, out)
+    y: jax.Array, # (BS, out)
+    train_params: TrainParams
+):
+    
+    task_type = train_params.task.task_type()
+    
+    if task_type == "classification":
+        agg_prediction = mix_weighted_logits(predictions, weights)
+        metric = classification_accuracy(agg_prediction, y)
+    elif task_type == "regression":
+        agg_prediction = mix_weighted_mean(predictions, weights)
+        assert agg_prediction.shape == y.shape
+        metric = regression_r2(agg_prediction, y)
+
+    return metric
+
 
 @partial(jax.jit, static_argnames=("ensemble_model", "train_params"))
 def loss(

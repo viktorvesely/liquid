@@ -35,16 +35,16 @@ three_layer_mlp = Architecture(
     delegator=(3, 2, 1)
 )
 
-small_cnn = Architecture(
+big_cnn = Architecture(
     predictor=(1, 2, 3),
     delegator=(1, 2, 3),
     cnn=3
 )
 
-big_cnn = Architecture(
-    predictor=(1, 2, 3, 4),
-    delegator=(1, 2, 3, 4),
-    cnn=4
+small_cnn = Architecture(
+    predictor=(1, 2),
+    delegator=(1, 2),
+    cnn=2
 )  
 
 def get_layers(neurons: tuple[int, ...], bias_std: float = 1e-4):
