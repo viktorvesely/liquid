@@ -50,6 +50,9 @@ def jit_functions(
     ))
 
     if USE_THREE_LAYER_DELEGATOR:
+
+        assert train_params.architecture.cnn == 0, "Implement some powerful oracle for CNNs"
+
         architecture = three_layer_mlp.determine_size(
             predictor_base=1,
             delegator_base=THREE_LAYER_DELEGATOR_BASE,
@@ -127,7 +130,7 @@ def train_oracle_batch(
     delegators: nn.Module,
     train_params: TrainParams
 ):
-    print(f" Compiling {train_oracle_batch.__name__}")
+    # print(f" Compiling {train_oracle_batch.__name__}")
     
     batch_size = train_params.batch_size
     assert inout_data.x.shape[0] % train_params.batch_size == 0, (
@@ -204,7 +207,7 @@ def validate_and_update_best(
     delegators: nn.Module, 
     train_params: TrainParams
 ):
-    print(f" Compiling {validate_and_update_best.__name__}")
+    # print(f" Compiling {validate_and_update_best.__name__}")
     valid_losses = jax.vmap(
         oracle_loss_fn,
         in_axes=(0, None, None, None),
@@ -261,7 +264,7 @@ def train_oracle(
     train_params: TrainParams,
     jit_funcs: JittedFunctions,
     epochs_p: float = 0.25,
-    n_seeds: int = 8,
+    n_seeds: int = 5,
 ):
     gpu = jax.devices("gpu")[0]
 
@@ -399,7 +402,7 @@ def apply_delegators_agg(
     delegators: nn.Module,
     train_params: TrainParams
 ):
-    print(f" Compiling {apply_delegators_agg.__name__}")
+    # print(f" Compiling {apply_delegators_agg.__name__}")
     delegations = delegators.apply({"params": delegator_params}, x)
     agg_delegations = aggregate_delegators(train_params, delegations)
     return agg_delegations, delegations
@@ -409,7 +412,7 @@ def apply_predictors(
     x: jax.Array,
     predictors: nn.Module,
 ):
-    print(f" Compiling {apply_predictors.__name__}")
+    # print(f" Compiling {apply_predictors.__name__}")
     predictions = predictors.apply({"params": predictor_params}, x)
     return predictions
 
@@ -450,8 +453,8 @@ def get_evaluation_metrics(
 
     all_metrics = jax.tree.map(lambda *values: jnp.stack(values), *all_metrics)
     
-    for k, v in all_metrics.items():
-        print(k, v.shape)
+    # for k, v in all_metrics.items():
+    #     print(k, v.shape)
 
     return all_metrics
 
@@ -556,8 +559,8 @@ def one_get_evaluation_metrics(
     )
 
 
-    print(f" From epoch = {from_epoch}")
-    print(f" Metric = {metric:.3f} Metric oracle {metric_under_oracle:.3f}")
+    print(f"From epoch = {from_epoch}")
+    print(f"Metric = {metric:.3f} Metric oracle {metric_under_oracle:.3f}")
 
     # Error ambiguity decompositions
 

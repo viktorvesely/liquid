@@ -18,6 +18,8 @@ from task_base import Task
 from train import finish_run, make_train_folder, train
 from atomic_networks import Architecture, small_cnn, two_layer_mlp, three_layer_mlp
 
+
+
 @struct.dataclass
 class ArchitectureSpecs:
     spec_predictors: tuple[int, ...]
