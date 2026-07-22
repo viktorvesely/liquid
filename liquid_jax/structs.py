@@ -24,8 +24,8 @@ class TrainParams:
     architecture: Architecture
     load_balancing_lambda: float = 0.2
     
-type Predictions = jax.Array # (BS, n_delegators, n_predictor)
-type Delegations = jax.Array # (BS, n_predictors, n_output)
+type Predictions = jax.Array  # (BS, n_predictors, n_output)
+type Delegations = jax.Array  # (BS, n_delegators, n_predictor)
 
 @struct.dataclass
 class ForwardReturn:

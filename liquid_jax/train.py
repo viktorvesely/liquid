@@ -34,24 +34,24 @@ from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
 PROFILER = False
 
-CurrentTask = Cifar10
+CurrentTask = Bikes
 n_delegators = 5
 n_predictors = 10
 
 g_params = TrainParams(
-    batch_size=64,
+    batch_size=256,
     preload_batches_to_gpu=50,
     valid_batches=10,
-    epochs=50,
+    epochs=500,
     lr=1e-3,
     task=CurrentTask,
     n_predictors=n_predictors,
     n_delegators=n_delegators,
     delegators_mixing="sum",
     ambiguity_gradient="delegators",
-    architecture=small_cnn.determine_size(
-        predictor_base=4,
-        delegator_base=2,
+    architecture=two_layer_mlp.determine_size(
+        predictor_base=16,
+        delegator_base=4,
         out_dim=CurrentTask.out_dim(),
         n_predictors=n_predictors
     )
@@ -299,7 +299,7 @@ def train(
 
     (predictors, predictors_params), (delegators, delegators_params) = split_ensemble(ensemble, ensemble_params)
 
-    get_evaluation_metrics(
+    eval_metrics = get_evaluation_metrics(
         key=k_eval,
         delegators=delegators,
         delegators_params=delegators_params,
@@ -307,11 +307,10 @@ def train(
         predictors_params=predictors_params,
         inout_train_predictions=inout_train,
         inout_valid_predictions=inout_valid,
-        train_params=train_params,
-        use_seed=0
+        train_params=train_params
     )
 
-    return metrics
+    return metrics, eval_metrics
 
 def make_train_folder(experiment_name: str) -> Path:
     exp_folder = Path(__file__).parent / "runs"
@@ -321,7 +320,20 @@ def make_train_folder(experiment_name: str) -> Path:
     folder.mkdir()
     return folder
 
-def finish_run(metrics: dict[str, list[float]], folder: Path, prefix: str = ""):
+def finish_run(
+        metrics: dict[str, list[float]],
+        eval_metrics: dict[str, jax.Array],
+        folder: Path,
+        prefix: str = ""
+    ):
+
+    try:
+        save_eval_metrics(eval_metrics, folder, prefix)
+    except Exception:
+        print("Error during EVAL metric saving")
+        traceback.print_exc()
+
+
     try:
         save_metrics(metrics, folder, prefix)
     except Exception:
@@ -342,6 +354,10 @@ def save_metrics(metrics: dict[str, list[float]], folder: Path, prefix: str = ""
 
     with open(folder / f"{prefix}_metrics.json", mode="w") as f:
         json.dump(json_metrics, f)
+
+
+def save_eval_metrics(metrics: dict[str, jax.Array], folder: Path, prefix: str = ""):
+    jnp.savez(folder / f"{prefix}_eval_metrics.npz", **metrics)
     
 
 def plot_seed_summary(
@@ -494,9 +510,9 @@ if __name__ == "__main__":
 
     folder = make_train_folder("profile_single_seed")
     key = jax.random.key(123)
-    metrics = train(
+    metrics, eval_metrics = train(
         key=key,
         train_params=g_params,
         profile_dir=folder
     )
-    finish_run(metrics, folder, prefix="paper")
+    finish_run(metrics, eval_metrics, folder, prefix="paper")

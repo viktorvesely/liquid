@@ -120,9 +120,69 @@ def eval_predictor_delegator_decomposition(
     
     metric = eval_fn(agg_delegations, predictions, y, train_params)
     metric_under_oracle = eval_fn(agg_oracle_delegations, predictions, y, train_params)
+
+    if use == "loss":
+        metric = jnp.mean(metric)
+        metric_under_oracle = jnp.mean(metric_under_oracle)
+
     delegators_regret = metric - metric_under_oracle
     predictor_error = metric_under_oracle
+
     return (predictor_error, delegators_regret), (metric, metric_under_oracle)
+
+
+def delegator_error_ambiguity_decomposition(
+    delegations: jax.Array, # (BS, delegators, predictors) logits
+    agg_oracle_delegations: jax.Array, # (BS. predictors) logits 
+    train_params: TrainParams
+):
+    
+    agg_delegations = aggregate_delegators(train_params, delegations)
+
+    perfomance_loss_per_model = ce_loss_no_integers(delegations, agg_oracle_delegations)
+
+    if train_params.delegators_mixing == "product":
+        ambiguity_per_model = jax.vmap(kl_ambiguity, in_axes=(None, 1), out_axes=1)(
+            agg_delegations, # Already probs 
+            jax.nn.softmax(delegations)
+        )
+    elif train_params.delegators_mixing == "sum":
+        ambiguity_per_model = jax.vmap(probability_mixing_ambiguity, in_axes=(None, None, 1), out_axes=1)(
+            agg_oracle_delegations, # Already probs 
+            agg_delegations, # Already probs 
+            jax.nn.softmax(delegations)
+        )
+    
+    return perfomance_loss_per_model, ambiguity_per_model 
+     
+
+def predictor_error_ambiguity_decomposition(
+    predictions: jax.Array,
+    y: jax.Array,
+    task_type: Literal["classification", "regression"],
+    agg_delegation: jax.Array,
+):
+        
+    if task_type == "classification":
+        agg_prediction = mix_weighted_logits(predictions, agg_delegation) 
+    elif task_type == "regression":
+        agg_prediction = mix_weighted_mean(predictions, agg_delegation)
+
+    if task_type == "classification":
+        perfomance_loss_per_model = ce_loss(predictions, y)
+        ambiguity_per_model = jax.vmap(kl_ambiguity, in_axes=(None, 1), out_axes=1)(
+            jax.nn.softmax(agg_prediction), 
+            jax.nn.softmax(predictions)
+        )
+    elif task_type == "regression":
+        perfomance_loss_per_model = mse_loss(predictions, y)
+        ambiguity_per_model = jax.vmap(var_ambiguity, in_axes=(None, 1), out_axes=1)(
+            agg_prediction, 
+            predictions
+        )
+
+    return perfomance_loss_per_model, ambiguity_per_model
+    
 
 def eval_loss(
     weights: jax.Array, # (BS, n_predictors)
@@ -298,6 +358,13 @@ def ce_loss(
     one_loss = lambda logits: optax.softmax_cross_entropy_with_integer_labels(logits, labels)
     return jax.vmap(one_loss, in_axes=1, out_axes=1)(predictions_logits)
 
+def ce_loss_no_integers(
+    predictions_logits: jax.Array, # (BS, n_predictors, out)
+    target_probs: jax.Array # (BS, out)
+):
+    one_loss = lambda logits: optax.safe_softmax_cross_entropy(logits, target_probs)
+    return jax.vmap(one_loss, in_axes=1, out_axes=1)(predictions_logits)
+
 def mse_loss(
     predictions: jax.Array,
     y: jax.Array
@@ -326,6 +393,21 @@ def kl_ambiguity(
 
     return jnp.sum(kl_per_class, axis=-1)
 
+
+def probability_mixing_ambiguity(
+    true: jax.Array,
+    centroid: jax.Array,
+    other: jax.Array,
+    epsilon: float = 1e-6,
+):
+    mixed_safe = jnp.clip(centroid, min=epsilon)
+    other_safe = jnp.clip(other, min=epsilon)
+
+    return jnp.sum(
+        true
+        * (jnp.log(mixed_safe) - jnp.log(other_safe)),
+        axis=-1,
+    )
 
 
 def gini_impurity(
