@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from functools import partial
 import math
+import time
 from typing import Callable
 
+from jax.flatten_util import ravel_pytree
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -16,8 +18,8 @@ from utils import train_loader
 from atomic_networks import three_layer_mlp
 from architectures import Ensemble, get_modules
 
-USE_THREE_LAYER_DELEGATOR = True
-THREE_LAYER_DELEGATOR_BASE = 16
+USE_THREE_LAYER_DELEGATOR = False
+THREE_LAYER_DELEGATOR_BASE = 8
 
 @struct.dataclass
 class InOutDataOracle:
@@ -42,7 +44,7 @@ def jit_functions(
 ) -> JittedFunctions:
 
 
-    oracle_optimizer = optax.adamw(learning_rate=train_params.lr * 4)
+    oracle_optimizer = optax.adamw(learning_rate=train_params.lr * 3)
     _apply_delegators_agg = jax.jit(partial(
         apply_delegators_agg,
         delegators=delegators,
@@ -263,12 +265,13 @@ def train_oracle(
     inout_valid_predictions: InOutData,
     train_params: TrainParams,
     jit_funcs: JittedFunctions,
-    epochs_p: float = 0.25,
+    selected_delegator_params: dict,
+    epochs_p: float = (1/3),
     n_seeds: int = 5,
 ):
     gpu = jax.devices("gpu")[0]
 
-    k_init, k_loader = jax.random.split(key)
+    k_init, k_perturb, k_loader = jax.random.split(key, 3)
 
 
     # print("Finding unrestricted optimal weights")
@@ -311,6 +314,14 @@ def train_oracle(
     optimizer = jit_funcs.oracle_optimizer
     delegators = jit_funcs.oracle_delegators
 
+
+    def perturb_params(params, key, sigma=0.05):
+        flatten, reverse_fn = ravel_pytree(params)
+        perturbed_params = flatten + jax.random.normal(key, shape=flatten.shape) * sigma
+        perturbed_params = reverse_fn(perturbed_params)
+        opt_state = optimizer.init(perturbed_params)
+        return perturbed_params, opt_state
+    
     def init_one_seed(init_key: jax.Array):
         params = delegators.init(
             init_key,
@@ -321,11 +332,16 @@ def train_oracle(
 
         return params, opt_state
 
-    init_keys = jax.random.split(k_init, n_seeds)
 
+    init_keys = jax.random.split(k_init, n_seeds)
     delegator_params, opt_states = jax.vmap(
         init_one_seed,
     )(init_keys)
+
+    # perturb_keys = jax.random.split(k_perturb, n_seeds)
+    # delegator_params, opt_states = jax.vmap(
+    #     perturb_params, in_axes=(None, 0)
+    # )(selected_delegator_params, perturb_keys)
 
     best_delegator_params = delegator_params
     best_valid_losses = jnp.full((n_seeds,), jnp.inf,)
@@ -436,6 +452,8 @@ def get_evaluation_metrics(
 
     all_metrics = []
 
+
+    start = time.perf_counter()
     for use_seed in tqdm.tqdm(range(n_seeds), position=0, desc="Seeds", disable=True):
         metrics = one_get_evaluation_metrics(
             key=key,
@@ -450,8 +468,10 @@ def get_evaluation_metrics(
             use_seed=use_seed
         )
         all_metrics.append(metrics)
-
     all_metrics = jax.tree.map(lambda *values: jnp.stack(values), *all_metrics)
+    end = time.perf_counter()
+
+    print(f"Eval took {(end - start):.3f} seconds")
     
     # for k, v in all_metrics.items():
     #     print(k, v.shape)
@@ -520,7 +540,8 @@ def one_get_evaluation_metrics(
         inout_train_predictions=inout_train_predictions,
         inout_valid_predictions=inout_valid_predictions,
         train_params=train_params,
-        jit_funcs=jit_funcs
+        jit_funcs=jit_funcs,
+        selected_delegator_params=selected_delegator_params
     )
 
     valid_oracle_agg_delegations, valid_oracle_delegations = jit_funcs.apply_oracle_delegators_agg(oracle_delegator_params, inout_valid_predictions.x)

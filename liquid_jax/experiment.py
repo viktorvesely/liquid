@@ -65,17 +65,27 @@ class TaskProfile:
 TASKS: tuple[TaskType, ...] = Cifar10, Svhn, Bikes, Energy
 TASK_BY_NAME = {task.__name__: task for task in TASKS}
 
+img_task_profile = TaskProfile(
+    batch_size=128,
+    preload_batches_to_gpu=25,
+    valid_batches=20,
+    epochs=100,
+    architecture=three_layer_mlp,
+)
+
+tab_task_profile  = TaskProfile(
+    batch_size=256,
+    preload_batches_to_gpu=50,
+    valid_batches=10,
+    epochs=2_000,
+    architecture=two_layer_mlp,
+),
+
 TASK_PROFILES: dict[TaskType, TaskProfile] = {
-    Cifar10: TaskProfile(
-        batch_size=64,
-        preload_batches_to_gpu=25,
-        valid_batches=20,
-        epochs=100,
-        architecture=big_cnn,
-    ),
-    Svhn: TaskProfile(64, 20, 20, 50, small_cnn),
-    Bikes: TaskProfile(256, 50, 7, 1_000, two_layer_mlp),
-    Energy: TaskProfile(256, 50, 7, 2_000, three_layer_mlp),
+    Cifar10: img_task_profile,
+    Svhn: img_task_profile,
+    Bikes: tab_task_profile,
+    Energy: tab_task_profile
 }
 
 N_PREDICTORS = 2, 4, 8, 16, 32, 64
@@ -84,7 +94,6 @@ CNN_WIDTHS = 1, 4, 8
 MLP_WIDTHS = 4, 8, 16
 MIXING: tuple[Mixing, ...] = "sum", "product"
 AMBIGUITY_GRADIENTS: tuple[AmbiguityGradient, ...] = "both", "delegators", "none"
-
 
 @dataclass(frozen=True, slots=True)
 class ExperimentCase:
