@@ -266,7 +266,7 @@ def train_oracle(
     train_params: TrainParams,
     jit_funcs: JittedFunctions,
     selected_delegator_params: dict,
-    epochs_p: float = (1/3),
+    epochs_p: float = (1/4),
     n_seeds: int = 5,
 ):
     gpu = jax.devices("gpu")[0]

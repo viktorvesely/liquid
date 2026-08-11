@@ -18,7 +18,7 @@ from task_base import Task
 from train import finish_run, make_train_folder, train
 
 
-type Mode = Literal["grid", "random"]
+type Mode = Literal["grid", "random", "paired"]
 type Mixing = Literal["sum", "product"]
 type AmbiguityGradient = Literal["both", "delegators", "none"]
 type TaskType = type[Task]
@@ -36,6 +36,10 @@ class Pool[T]:
     @classmethod
     def random(cls, *values: T) -> "Pool[T]":
         return cls(values, "random")
+
+    @classmethod
+    def paired(cls, *values: T) -> "Pool[T]":
+        return cls(values, "paired")
     
     @classmethod
     def constant(cls, value: T) -> "Pool[T]":
@@ -51,6 +55,9 @@ class Pool[T]:
 
     def sample(self, rng: Random) -> T:
         return rng.choice(self.values)
+
+    def __len__(self):
+        return len(self.values)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,8 +95,8 @@ TASK_PROFILES: dict[TaskType, TaskProfile] = {
     Energy: tab_task_profile
 }
 
-N_PREDICTORS = 2, 4, 8, 16, 32, 64
-N_DELEGATORS = 0, 1, 2, 4, 8, 16, 32, 64
+N_PREDICTORS = 2, 4, 8, 16, 32
+N_DELEGATORS = 0, 1, 2, 4, 8, 16, 32
 CNN_WIDTHS = 1, 4, 8
 MLP_WIDTHS = 4, 8, 16
 MIXING: tuple[Mixing, ...] = "sum", "product"
@@ -98,7 +105,6 @@ AMBIGUITY_GRADIENTS: tuple[AmbiguityGradient, ...] = "both", "delegators", "none
 @dataclass(frozen=True, slots=True)
 class ExperimentCase:
     run_id: int
-    task: TaskType
     n_predictors: int
     n_delegators: int
     width_predictors: int
@@ -110,7 +116,6 @@ class ExperimentCase:
     def name(self) -> str:
         return (
             f"run_{self.run_id:05d}"
-            f"_task_{self.task.__name__}"
             f"_predictors_{self.n_predictors}"
             f"_delegators_{self.n_delegators}"
             f"_pwidth_{self.width_predictors}"
@@ -123,7 +128,7 @@ class ExperimentCase:
 @dataclass(frozen=True, slots=True)
 class Experiment:
     name: str
-    task: Pool[TaskType]
+    task: type[Task]
     n_predictors: Pool[int]
     n_delegators: Pool[int]
     width_predictors: Pool[int]
@@ -136,7 +141,6 @@ class Experiment:
     @property
     def pools(self) -> dict[str, Pool]:
         return {
-            "task": self.task,
             "n_predictors": self.n_predictors,
             "n_delegators": self.n_delegators,
             "width_predictors": self.width_predictors,
@@ -149,11 +153,44 @@ class Experiment:
         rng = Random(self.seed)
         grid = {name: pool for name, pool in self.pools.items() if pool.mode == "grid"}
         random = {name: pool for name, pool in self.pools.items() if pool.mode == "random"}
+        paired = {name: pool for name, pool in self.pools.items() if pool.mode == "paired"}
 
-        if not grid:
+
+
+        if len(paired) > 0:
+            assert len(paired) < 2, f"Don't you wanna use grid or split it to multiple experiments? {paired}"
+            paired_name = tuple(paired.keys())[0]
+            paired_pool = tuple(paired.values())[0]
+            pool_size = len(paired_pool)
+
+            assert len(grid) == 0, "Don't know what to do both with grid and paired"
+
             if self.max_iterations is None:
                 raise ValueError("max_iterations is required for a fully random experiment")
 
+            assert (self.max_iterations % pool_size) == 0, "Max iterations needs to be divisible by the #unique values"
+
+            # Largest one for all uniques
+            values = [
+                ({name: pool.largest() for name, pool in random} | {paired_name: pool_value}) for pool_value in paired_pool.values 
+            ]
+            # Rest
+            for i_iteration in range((self.max_iterations - pool_size) // pool_size):
+
+                same_across = {
+                    name: pool.sample(rng)
+                    for name, pool in random.items()
+                }
+
+                for pool_value in paired_pool.values:
+                    value = same_across | {paired_name: pool_value}
+                    values.append(value)
+
+        elif len(grid) == 0:
+            if self.max_iterations is None:
+                raise ValueError("max_iterations is required for a fully random experiment")
+
+    
             values = [
                 {name: pool.largest() for name, pool in self.pools.items()},
                 *(
@@ -189,7 +226,7 @@ class Experiment:
         grid = [pool for pool in self.pools.values() if pool.mode == "grid"]
         return prod(len(pool.values) for pool in grid) if grid else self.max_iterations or 0
 
-    def params(self, case: ExperimentCase) -> TrainParams:
+    def params(self, case: ExperimentCase, task: Task) -> TrainParams:
         profile = TASK_PROFILES[case.task]
 
         return TrainParams(
@@ -198,8 +235,7 @@ class Experiment:
             valid_batches=profile.valid_batches,
             epochs=profile.epochs,
             lr=1e-3,
-            optimizer="adam",
-            task=case.task,
+            task=task,
             n_predictors=case.n_predictors,
             n_delegators=case.n_delegators,
             delegators_mixing=case.delegators_mixing,
@@ -207,14 +243,14 @@ class Experiment:
             architecture=profile.architecture.determine_size(
                 predictor_base=case.width_predictors,
                 delegator_base=case.width_delegators,
-                out_dim=case.task.out_dim(),
+                out_dim=task.out_dim(),
                 n_predictors=case.n_predictors,
             ),
-            learner=LeLearner,
         )
 
     def run(self) -> None:
-        folder = make_train_folder(self.name)
+
+        folder = make_train_folder(f"{self.name}_{self.task.__name__}")
         key = jax.random.key(self.seed)
         cases = self.cases()
 
@@ -231,8 +267,38 @@ class Experiment:
 
 experiment_aggregation_method = Experiment(
     name="exp_aggregation",
-    task=Pool.random(Cifar10, Svhn, Bikes, Energy),
     n_predictors=Pool.random(*N_PREDICTORS),
     n_delegators=Pool.random(*N_DELEGATORS),
-    width_predictors=Pool.random()
+    width_predictors=Pool.random(*MLP_WIDTHS),
+    width_delegators=Pool.random(*MLP_WIDTHS),
+    delegators_mixing=Pool.paired(*MIXING),
+    ambiguity_gradient=Pool.constant("none"),
+    max_iterations=200
 )
+
+experiment_aggregation_method = Experiment(
+    name="exp_ambiguity_gradient",
+    n_predictors=Pool.random(*N_PREDICTORS),
+    n_delegators=Pool.random(*N_DELEGATORS),
+    width_predictors=Pool.random(*MLP_WIDTHS),
+    width_delegators=Pool.random(*MLP_WIDTHS),
+    delegators_mixing=Pool.random(*MIXING),
+    ambiguity_gradient=Pool.paired(*AMBIGUITY_GRADIENTS),
+    max_iterations=300
+)
+
+experiment_scaling = Experiment(
+    name="exp_scaling",
+    n_predictors=Pool.grid(*N_PREDICTORS),
+    n_delegators=Pool.grid(*N_DELEGATORS),
+    width_predictors=Pool.grid(*MLP_WIDTHS),
+    width_delegators=Pool.grid(*MLP_WIDTHS),
+    delegators_mixing=Pool.constant({}["implement which one"]),
+    ambiguity_gradient=Pool.constant({}["implement which one"])
+)
+
+# TODO Implement arparse with a given task
+# TODO Check the validity of this file 
+# TODO check your parallel launch scripts 
+# TODO run the first 2 experiments, start writing paper
+

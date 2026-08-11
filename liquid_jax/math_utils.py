@@ -242,6 +242,8 @@ def loss(
     perfomance_loss_per_model: jax.Array = None # (BS, n_predictors)
     ambiguity_per_model: jax.Array = None # (BS, n_predictors)
  
+    assert ambiguity_gradient in {"both", "delegators", "none"}
+
     forward_args = ForwardArgs(x)
     forward_return = ensemble_model.apply({"params": ensemble_params}, forward_args)
     predictions = forward_return.predictions # (BS, n_predictors, out)

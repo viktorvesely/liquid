@@ -35,8 +35,8 @@ from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 PROFILER = False
 
 CurrentTask = Cifar10
-n_delegators = 64
-n_predictors = 64
+n_delegators = 10
+n_predictors = 2
 
 g_params = TrainParams(
     batch_size=128,
