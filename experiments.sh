@@ -187,7 +187,8 @@ for ((i = 0; i < NUM_TASKS; i++)); do
 done
 
 
-mkdir -p logs
+LOG_ROOT="$(pwd)/logs"
+mkdir -p "$LOG_ROOT"
 
 # ---------------------------------------------------------------------------
 # 8. Launch one tmux session per task
@@ -203,13 +204,13 @@ for ((i = 0; i < NUM_TASKS; i++)); do
     UUID="${SELECTED_UUIDS[$i]}"
 
     SESSION_NAME="${EXPERIMENT_NAME}_${TASK}"
-    SESSION_LOG_PATH="./logs/${EXPERIMENT}_${TASK}"
-    STDOUT_FILE="${LOG_DIR}/${TASK}.out"
-    STDERR_FILE="${LOG_DIR}/${TASK}.err"
 
-    mkdir -p '$SESSION_NAME'
+    SESSION_LOG_PATH="${LOG_ROOT}/${EXPERIMENT_NAME}_${TASK}"
+    STDOUT_FILE="${SESSION_LOG_PATH}/log.out"
+    STDERR_FILE="${SESSION_LOG_PATH}/log.err"
 
-    # Refuse to accidentally create a duplicate tmux session
+    mkdir -p "$SESSION_LOG_PATH"
+
     if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
         echo "Error: tmux session '$SESSION_NAME' already exists."
         exit 1
@@ -219,13 +220,16 @@ for ((i = 0; i < NUM_TASKS; i++)); do
         "export CUDA_VISIBLE_DEVICES='$UUID'; \
          source .venv/bin/activate; \
          cd liquid_jax; \
-         python experiment.py '$EXPERIMENT_NAME' '$TASK' \
-          > '$STDOUT_FILE' \
-         2> '$STDERR_FILE'"
+         python -u experiment.py '$EXPERIMENT_NAME' '$TASK' \
+             > '$STDOUT_FILE' \
+             2> '$STDERR_FILE'"
 
     echo
     echo "Task       : $TASK"
     echo "Experiment : $EXPERIMENT_NAME"
     echo "tmux       : $SESSION_NAME"
     echo "MIG        : ${SELECTED_LABELS[$i]}"
+    echo "stdout     : $STDOUT_FILE"
+    echo "stderr     : $STDERR_FILE"
+
 done

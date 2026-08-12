@@ -11,7 +11,6 @@ from atomic_networks import Architecture, big_cnn, three_layer_mlp, two_layer_ml
 from bikes import Bikes
 from cifar10 import Cifar10
 from energy import Energy
-from learner_le import LeLearner
 from structs import TrainParams
 from svhn import Svhn
 from task_base import Task
