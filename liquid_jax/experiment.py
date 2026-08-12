@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from itertools import product
 from math import prod
 from random import Random
+import secrets
 from typing import Literal
 
 import jax
@@ -124,6 +125,9 @@ class ExperimentCase:
         )
 
 
+def random_hex(n: int) -> str:
+    return secrets.token_hex((n + 1) // 2)[:n]
+
 @dataclass(frozen=True, slots=True)
 class Experiment:
     name: str
@@ -134,7 +138,13 @@ class Experiment:
     delegators_mixing: Pool[Mixing]
     ambiguity_gradient: Pool[AmbiguityGradient]
     max_iterations: int | None = None
+    launch_id: int | None = None
     seed: int = 123
+
+    def __post_init__(self):
+        assert self.launch_id is None, "This is taken care of automatically"
+        self.launch_id = random_hex(n=10)
+        
 
     @property
     def pools(self) -> dict[str, Pool]:
@@ -248,7 +258,7 @@ class Experiment:
 
     def run(self, task: type[Task]) -> None:
 
-        folder = make_train_folder(f"{self.name}_{task.__name__}")
+        folder = make_train_folder(f"{self.name}_{self.launch_id}_{task.__name__}")
         key = jax.random.key(self.seed)
         cases = self.cases()
 
