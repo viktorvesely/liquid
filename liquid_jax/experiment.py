@@ -86,7 +86,7 @@ tab_task_profile  = TaskProfile(
     valid_batches=10,
     epochs=2_000,
     architecture=two_layer_mlp,
-),
+)
 
 TASK_PROFILES: dict[TaskType, TaskProfile] = {
     Cifar10: img_task_profile,
@@ -128,7 +128,6 @@ class ExperimentCase:
 @dataclass(frozen=True, slots=True)
 class Experiment:
     name: str
-    task: type[Task]
     n_predictors: Pool[int]
     n_delegators: Pool[int]
     width_predictors: Pool[int]
@@ -172,7 +171,7 @@ class Experiment:
 
             # Largest one for all uniques
             values = [
-                ({name: pool.largest() for name, pool in random} | {paired_name: pool_value}) for pool_value in paired_pool.values 
+                ({name: pool.largest() for name, pool in random.items()} | {paired_name: pool_value}) for pool_value in paired_pool.values 
             ]
             # Rest
             for i_iteration in range((self.max_iterations - pool_size) // pool_size):
@@ -226,8 +225,8 @@ class Experiment:
         grid = [pool for pool in self.pools.values() if pool.mode == "grid"]
         return prod(len(pool.values) for pool in grid) if grid else self.max_iterations or 0
 
-    def params(self, case: ExperimentCase, task: Task) -> TrainParams:
-        profile = TASK_PROFILES[case.task]
+    def params(self, case: ExperimentCase, task: type[Task]) -> TrainParams:
+        profile = TASK_PROFILES[task]
 
         return TrainParams(
             batch_size=profile.batch_size,
@@ -248,9 +247,9 @@ class Experiment:
             ),
         )
 
-    def run(self) -> None:
+    def run(self, task: type[Task]) -> None:
 
-        folder = make_train_folder(f"{self.name}_{self.task.__name__}")
+        folder = make_train_folder(f"{self.name}_{task.__name__}")
         key = jax.random.key(self.seed)
         cases = self.cases()
 
@@ -260,7 +259,7 @@ class Experiment:
             key, run_key = jax.random.split(key)
 
             print(case.name)
-            metrics = train(run_key, self.params(case))
+            metrics = train(run_key, self.params(case, task))
             finish_run(metrics, folder, prefix=case.name)
             print(f"{index} / {len(cases)}")
 
@@ -276,7 +275,7 @@ experiment_aggregation_method = Experiment(
     max_iterations=200
 )
 
-experiment_aggregation_method = Experiment(
+exp_ambiguity_gradient = Experiment(
     name="exp_ambiguity_gradient",
     n_predictors=Pool.random(*N_PREDICTORS),
     n_delegators=Pool.random(*N_DELEGATORS),
@@ -293,12 +292,35 @@ experiment_scaling = Experiment(
     n_delegators=Pool.grid(*N_DELEGATORS),
     width_predictors=Pool.grid(*MLP_WIDTHS),
     width_delegators=Pool.grid(*MLP_WIDTHS),
-    delegators_mixing=Pool.constant({}["implement which one"]),
-    ambiguity_gradient=Pool.constant({}["implement which one"])
+    delegators_mixing=Pool.constant(...), # Comes from the previous experiments
+    ambiguity_gradient=Pool.constant(...) # Comes from the previous experiments
 )
 
-# TODO Implement arparse with a given task
-# TODO Check the validity of this file 
-# TODO check your parallel launch scripts 
+if __name__ ==  "__main__":
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "experiment",
+        choices=("agg", "gradient", "scaling"),
+    )
+    parser.add_argument(
+        "task",
+        choices=list(TASK_BY_NAME.keys()),
+    )
+    args = parser.parse_args()
+
+    experiments = {
+        "agg": experiment_aggregation_method,
+        "gradient": exp_ambiguity_gradient,
+        "scaling": experiment_scaling,
+    }
+
+    this_experiment = experiments[args.experiment]
+    this_task = TASK_BY_NAME[args.task]
+
+    this_experiment.run(this_task)
+
 # TODO run the first 2 experiments, start writing paper
 
