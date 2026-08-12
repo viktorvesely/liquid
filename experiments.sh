@@ -187,6 +187,8 @@ for ((i = 0; i < NUM_TASKS; i++)); do
 done
 
 
+mkdir -p logs
+
 # ---------------------------------------------------------------------------
 # 8. Launch one tmux session per task
 # ---------------------------------------------------------------------------
@@ -201,6 +203,11 @@ for ((i = 0; i < NUM_TASKS; i++)); do
     UUID="${SELECTED_UUIDS[$i]}"
 
     SESSION_NAME="${EXPERIMENT_NAME}_${TASK}"
+    SESSION_LOG_PATH="./logs/${EXPERIMENT}_${TASK}"
+    STDOUT_FILE="${LOG_DIR}/${TASK}.out"
+    STDERR_FILE="${LOG_DIR}/${TASK}.err"
+
+    mkdir -p '$SESSION_NAME'
 
     # Refuse to accidentally create a duplicate tmux session
     if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
@@ -212,7 +219,9 @@ for ((i = 0; i < NUM_TASKS; i++)); do
         "export CUDA_VISIBLE_DEVICES='$UUID'; \
          source .venv/bin/activate; \
          cd liquid_jax; \
-         python experiment.py '$EXPERIMENT_NAME' '$TASK'"
+         python experiment.py '$EXPERIMENT_NAME' '$TASK' \
+          > '$STDOUT_FILE' \
+         2> '$STDERR_FILE'"
 
     echo
     echo "Task       : $TASK"
