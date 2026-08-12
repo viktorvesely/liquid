@@ -152,7 +152,7 @@ def split_seed_keys(keys: jax.Array) -> tuple[jax.Array, jax.Array]:
 def train(
         key: jax.Array,
         train_params: TrainParams,
-        profile_dir: Path,
+        profile_dir: Path = None,
         profile_batches: int = 5,
         n_seeds: int = 5,
     ):

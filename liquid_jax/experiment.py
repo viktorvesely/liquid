@@ -255,10 +255,12 @@ class Experiment:
         for index, case in enumerate(cases, start=1):
             jax.clear_caches()
             plt.close("all")
-            key, run_key = jax.random.split(key)
 
             print(case.name)
-            metrics = train(run_key, self.params(case, task))
+            metrics = train(
+                key=key,
+                train_params=self.params(case, task)
+            )
             finish_run(metrics, folder, prefix=case.name)
             print(f"{index} / {len(cases)}")
 
