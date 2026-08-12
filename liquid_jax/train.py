@@ -296,19 +296,22 @@ def train(
         for name, values in metrics.items()
     }
     
+    if train_params.n_delegators < 1:
 
-    (predictors, predictors_params), (delegators, delegators_params) = split_ensemble(ensemble, ensemble_params)
+        (predictors, predictors_params), (delegators, delegators_params) = split_ensemble(ensemble, ensemble_params)
 
-    eval_metrics = get_evaluation_metrics(
-        key=k_eval,
-        delegators=delegators,
-        delegators_params=delegators_params,
-        predictors=predictors,
-        predictors_params=predictors_params,
-        inout_train_predictions=inout_train,
-        inout_valid_predictions=inout_valid,
-        train_params=train_params
-    )
+        eval_metrics = get_evaluation_metrics(
+            key=k_eval,
+            delegators=delegators,
+            delegators_params=delegators_params,
+            predictors=predictors,
+            predictors_params=predictors_params,
+            inout_train_predictions=inout_train,
+            inout_valid_predictions=inout_valid,
+            train_params=train_params
+        )
+    else:
+        eval_metrics = dict()
 
     return metrics, eval_metrics
 
