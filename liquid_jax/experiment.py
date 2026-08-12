@@ -257,11 +257,12 @@ class Experiment:
             plt.close("all")
 
             print(case.name)
-            metrics = train(
+            metrics, eval_metrics = train(
                 key=key,
                 train_params=self.params(case, task)
             )
-            finish_run(metrics, folder, prefix=case.name)
+            
+            finish_run(metrics, eval_metrics, folder, prefix=case.name)
             print(f"{index} / {len(cases)}")
 
 
