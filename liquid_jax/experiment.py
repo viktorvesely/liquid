@@ -138,12 +138,7 @@ class Experiment:
     delegators_mixing: Pool[Mixing]
     ambiguity_gradient: Pool[AmbiguityGradient]
     max_iterations: int | None = None
-    launch_id: int | None = None
     seed: int = 123
-
-    def __post_init__(self):
-        assert self.launch_id is None, "This is taken care of automatically"
-        self.launch_id = random_hex(n=10)
         
 
     @property
@@ -258,7 +253,9 @@ class Experiment:
 
     def run(self, task: type[Task]) -> None:
 
-        folder = make_train_folder(f"{self.name}_{self.launch_id}_{task.__name__}")
+        run_id = random_hex(n=10)
+
+        folder = make_train_folder(f"{self.name}_{run_id}_{task.__name__}")
         key = jax.random.key(self.seed)
         cases = self.cases()
 
