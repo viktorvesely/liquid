@@ -212,7 +212,7 @@ for ((i = 0; i < NUM_TASKS; i++)); do
         "export CUDA_VISIBLE_DEVICES='$UUID'; \
          source .venv/bin/activate; \
          cd liquid_jax; \
-         python grid.py '$EXPERIMENT_NAME' '$TASK'"
+         python experiment.py '$EXPERIMENT_NAME' '$TASK'"
 
     echo
     echo "Task       : $TASK"
