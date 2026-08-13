@@ -296,7 +296,7 @@ def train(
         for name, values in metrics.items()
     }
     
-    if train_params.n_delegators < 1:
+    if train_params.n_delegators > 0:
 
         (predictors, predictors_params), (delegators, delegators_params) = split_ensemble(ensemble, ensemble_params)
 
