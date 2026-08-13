@@ -35,14 +35,14 @@ from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 PROFILER = False
 
 CurrentTask = Cifar10
-n_delegators = 10
-n_predictors = 2
+n_delegators = 5
+n_predictors = 10
 
 g_params = TrainParams(
     batch_size=128,
     preload_batches_to_gpu=25,
     valid_batches=20,
-    epochs=100,
+    epochs=50,
     lr=1e-3,
     task=CurrentTask,
     n_predictors=n_predictors,
@@ -50,8 +50,8 @@ g_params = TrainParams(
     delegators_mixing="sum",
     ambiguity_gradient="delegators",
     architecture=three_layer_mlp.determine_size(
-        predictor_base=16,
-        delegator_base=16,
+        predictor_base=8,
+        delegator_base=8,
         out_dim=CurrentTask.out_dim(),
         n_predictors=n_predictors
     )
@@ -167,14 +167,16 @@ def train(
     inout_data = InOutData(
         x=x, y=y
     )
-    gpu_batch = train_params.batch_size * train_params.preload_batches_to_gpu
-    n_data = x.shape[0]
-    n_batches = math.ceil(n_data / gpu_batch)
 
     # Train, Valid split
     n_valid = train_params.batch_size * train_params.valid_batches
     inout_valid: InOutData = jax.tree.map(lambda x: jax.device_put(x[:n_valid, ...], device=gpu), inout_data)
     inout_train: InOutData = jax.tree.map(lambda x: x[n_valid:, ...], inout_data)
+
+
+    gpu_batch = train_params.batch_size * train_params.preload_batches_to_gpu
+    n_data = inout_train.x.shape[0]
+    n_batches = math.ceil(n_data / gpu_batch)
 
     # Model
     dummy_input = ForwardArgs(x=x[[0], ...])
@@ -296,7 +298,7 @@ def train(
         for name, values in metrics.items()
     }
     
-    if train_params.n_delegators > 0:
+    if (not train_params.skip_eval) and (train_params.n_delegators > 0):
 
         (predictors, predictors_params), (delegators, delegators_params) = split_ensemble(ensemble, ensemble_params)
 
@@ -511,7 +513,7 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 if __name__ == "__main__":
 
 
-    folder = make_train_folder("profile_single_seed")
+    folder = make_train_folder("load_balancing_check")
     key = jax.random.key(123)
     metrics, eval_metrics = train(
         key=key,

@@ -280,7 +280,7 @@ def loss(
         metrics["r2_metric"] = regression_r2(agg_prediction, y)
     
     # Load balancing loss
-    batch_agg_delegation = agg_delegation.mean(axis=-1)
+    batch_agg_delegation = agg_delegation.mean(axis=0)
     batch_agg_delegation = batch_agg_delegation / batch_agg_delegation.sum() # Shouldn't be needed
     model_usage_uniformity = gini_impurity(batch_agg_delegation) # 0 - fully pure; 1 - fully uniform 
     load_balancing_loss = train_params.load_balancing_lambda * (1 - model_usage_uniformity)

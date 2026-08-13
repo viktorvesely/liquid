@@ -30,7 +30,7 @@ class Energy(Task[EnergyData]):
 
         df = df.sample(len(df), random_state=123)
 
-        categorize_features = ("Source", "Day_Name", "Day_Name", "Month_Name", "Season")
+        categorize_features = ("Source", "Day_Name", "Month_Name", "Season")
         for cf in categorize_features:
             df[cf] = df[cf].astype("category").cat.codes
 

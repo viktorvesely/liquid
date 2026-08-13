@@ -4,12 +4,12 @@
 /cifar10_data
 /experiments
 /liquid.egg-info
-/data
 protein_test.csv
 protein_train.csv
 CASP.csv
 liquid/notebooks/
 obsolete/
+data/
 /liquid_jax/runs/
 /liquid_jax/grids/
 /liquid_jax/synthetic_runs/

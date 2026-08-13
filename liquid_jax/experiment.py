@@ -82,7 +82,7 @@ img_task_profile = TaskProfile(
 
 tab_task_profile  = TaskProfile(
     batch_size=256,
-    preload_batches_to_gpu=50,
+    preload_batches_to_gpu=13,
     valid_batches=10,
     epochs=2_000,
     architecture=two_layer_mlp,
@@ -111,6 +111,7 @@ class ExperimentCase:
     width_delegators: int
     delegators_mixing: Mixing
     ambiguity_gradient: AmbiguityGradient
+    key: jax.Array
 
     @property
     def name(self) -> str:
@@ -152,7 +153,8 @@ class Experiment:
             "ambiguity_gradient": self.ambiguity_gradient,
         }
 
-    def cases(self) -> list[ExperimentCase]:
+
+    def cases(self, key: jax.Array) -> list[ExperimentCase]:
         rng = Random(self.seed)
         grid = {name: pool for name, pool in self.pools.items() if pool.mode == "grid"}
         random = {name: pool for name, pool in self.pools.items() if pool.mode == "random"}
@@ -177,6 +179,7 @@ class Experiment:
             values = [
                 ({name: pool.largest() for name, pool in random.items()} | {paired_name: pool_value}) for pool_value in paired_pool.values 
             ]
+
             # Rest
             for i_iteration in range((self.max_iterations - pool_size) // pool_size):
 
@@ -185,11 +188,14 @@ class Experiment:
                     for name, pool in random.items()
                 }
 
+                same_across["key"] = jax.random.fold_in(key, i_iteration)
+
                 for pool_value in paired_pool.values:
                     value = same_across | {paired_name: pool_value}
                     values.append(value)
 
         elif len(grid) == 0:
+            assert False, "Not supported anymore"
             if self.max_iterations is None:
                 raise ValueError("max_iterations is required for a fully random experiment")
 
@@ -211,6 +217,7 @@ class Experiment:
 
             for run_id, combination in enumerate(combinations):
                 case = dict(zip(names, combination, strict=True))
+                case["key"] = key
                 case.update(
                     {
                         name: pool.largest() if run_id == 0 else pool.sample(rng)
@@ -251,21 +258,31 @@ class Experiment:
             ),
         )
 
+
+    def is_paired(self) -> bool:
+        return len({name: pool for name, pool in self.pools.items() if pool.mode == "paired"}) > 0
+
+    def is_grid(self) -> bool:
+        return len({name: pool for name, pool in self.pools.items() if pool.mode == "grid"}) > 0
+
     def run(self, task: type[Task]) -> None:
 
         run_id = random_hex(n=10)
 
         folder = make_train_folder(f"{self.name}_{run_id}_{task.__name__}")
         key = jax.random.key(self.seed)
-        cases = self.cases()
+        cases = self.cases(key)
+
+
 
         for index, case in enumerate(cases, start=1):
             jax.clear_caches()
             plt.close("all")
 
+
             print(case.name)
             metrics, eval_metrics = train(
-                key=key,
+                key=case.key,
                 train_params=self.params(case, task)
             )
             

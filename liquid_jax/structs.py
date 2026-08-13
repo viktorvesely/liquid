@@ -23,6 +23,7 @@ class TrainParams:
     ambiguity_gradient: Literal["both", "delegators", "none"]
     architecture: Architecture
     load_balancing_lambda: float = 0.2
+    skip_eval: bool = False
     
 type Predictions = jax.Array  # (BS, n_predictors, n_output)
 type Delegations = jax.Array  # (BS, n_delegators, n_predictor)
