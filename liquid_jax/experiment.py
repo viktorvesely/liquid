@@ -109,7 +109,6 @@ AMBIGUITY_GRADIENTS: tuple[AmbiguityGradient, ...] = "both", "delegators", "none
 @dataclass(frozen=True, slots=True)
 class ExperimentCase:
     run_id: int
-    pair_id: int
     n_predictors: int
     n_delegators: int
     width_predictors: int

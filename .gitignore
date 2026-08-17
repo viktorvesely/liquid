@@ -13,3 +13,4 @@ data/
 /liquid_jax/runs/
 /liquid_jax/grids/
 /liquid_jax/synthetic_runs/
+/logs
