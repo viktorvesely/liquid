@@ -326,8 +326,7 @@ def aggregate_delegators(
     if delegators_mixing == "product":
         # Mix logprobs
         agg_delegation = jnp.mean(delegations_logprobs, axis=-2)
-        agg_delegation = jnp.exp(agg_delegation)
-        agg_delegation = agg_delegation / jnp.sum(agg_delegation, axis=-1, keepdims=True)  
+        agg_delegation = jax.nn.softmax(agg_delegation, axis=-1) 
     elif delegators_mixing == "sum":
         # Mix probs
         agg_delegation = jnp.mean(delegations_probs, axis=-2)

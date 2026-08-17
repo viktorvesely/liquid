@@ -105,6 +105,7 @@ AMBIGUITY_GRADIENTS: tuple[AmbiguityGradient, ...] = "both", "delegators", "none
 @dataclass(frozen=True, slots=True)
 class ExperimentCase:
     run_id: int
+    pair_id: int
     n_predictors: int
     n_delegators: int
     width_predictors: int
@@ -267,9 +268,9 @@ class Experiment:
 
     def run(self, task: type[Task]) -> None:
 
-        run_id = random_hex(n=10)
+        launch_id = random_hex(n=10)
 
-        folder = make_train_folder(f"{self.name}_{run_id}_{task.__name__}")
+        folder = make_train_folder(f"{self.name}_{launch_id}_{task.__name__}")
         key = jax.random.key(self.seed)
         cases = self.cases(key)
 
