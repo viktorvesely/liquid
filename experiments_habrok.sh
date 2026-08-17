@@ -4,7 +4,7 @@ set -e
 
 TIME_LIMIT="${TIME_LIMIT:-12:00:00}"
 MEM="${MEM:-20GB}"
-CPUS="${CPUS:-8}"
+CPUS="${CPUS:-1}"
 GPUS="${GPUS:-1}"
 PARTITION="${PARTITION:-gpu}"
 CUDA_MODULE="${CUDA_MODULE:-CUDA/13.2.0}"
@@ -25,7 +25,7 @@ Usage: experiments_habrok.sh [options] <experiment_name> <task1> [task2 ...]
 Options:
   -t, --time       Wall clock limit per job      (default 12:00:00)
   -m, --mem        Host RAM per job              (default 20GB)
-  -c, --cpus       CPU cores per job             (default 8)
+  -c, --cpus       CPU cores per job             (default 1)
   -g, --gpus       GPUs per job, any type        (default 1)
   -p, --partition  Slurm partition               (default gpu)
       --dry-run    Print the sbatch scripts instead of submitting
