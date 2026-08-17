@@ -34,24 +34,24 @@ from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
 PROFILER = False
 
-CurrentTask = Cifar10
+CurrentTask = Bikes
 n_delegators = 5
-n_predictors = 10
+n_predictors = 16
 
 g_params = TrainParams(
-    batch_size=128,
-    preload_batches_to_gpu=25,
+    batch_size=256,
+    preload_batches_to_gpu=13,
     valid_batches=20,
-    epochs=50,
+    epochs=2_000,
     lr=1e-3,
     task=CurrentTask,
     n_predictors=n_predictors,
     n_delegators=n_delegators,
-    delegators_mixing="sum",
+    delegators_mixing="product",
     ambiguity_gradient="delegators",
     architecture=three_layer_mlp.determine_size(
         predictor_base=8,
-        delegator_base=8,
+        delegator_base=16,
         out_dim=CurrentTask.out_dim(),
         n_predictors=n_predictors
     )

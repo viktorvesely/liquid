@@ -95,8 +95,12 @@ TASK_PROFILES: dict[TaskType, TaskProfile] = {
     Energy: tab_task_profile
 }
 
+
 N_PREDICTORS = 2, 4, 8, 16, 32
-N_DELEGATORS = 0, 1, 2, 4, 8, 16, 32
+N_DELEGATORS_ENSEMBLE = 2, 4, 8, 16, 32
+N_DELEGATORS_VALID = (1,) + N_DELEGATORS_ENSEMBLE
+N_DELEGATORS = (0,) + N_DELEGATORS_VALID
+N_DELEGATORS_MULTIPLE = 2, 4, 8, 16, 32
 CNN_WIDTHS = 1, 4, 8
 MLP_WIDTHS = 4, 8, 16
 MIXING: tuple[Mixing, ...] = "sum", "product"
@@ -294,7 +298,7 @@ class Experiment:
 experiment_aggregation_method = Experiment(
     name="exp_aggregation",
     n_predictors=Pool.random(*N_PREDICTORS),
-    n_delegators=Pool.random(*N_DELEGATORS),
+    n_delegators=Pool.random(*N_DELEGATORS_ENSEMBLE),
     width_predictors=Pool.random(*MLP_WIDTHS),
     width_delegators=Pool.random(*MLP_WIDTHS),
     delegators_mixing=Pool.paired(*MIXING),
@@ -305,7 +309,7 @@ experiment_aggregation_method = Experiment(
 exp_ambiguity_gradient = Experiment(
     name="exp_ambiguity_gradient",
     n_predictors=Pool.random(*N_PREDICTORS),
-    n_delegators=Pool.random(*N_DELEGATORS),
+    n_delegators=Pool.random(*N_DELEGATORS_VALID),
     width_predictors=Pool.random(*MLP_WIDTHS),
     width_delegators=Pool.random(*MLP_WIDTHS),
     delegators_mixing=Pool.random(*MIXING),
