@@ -180,8 +180,10 @@ class Experiment:
             assert (self.max_iterations % pool_size) == 0, "Max iterations needs to be divisible by the #unique values"
 
             # Largest one for all uniques
+
+            first_key = jax.random.fold_in(key, self.max_iterations + 1)
             values = [
-                ({name: pool.largest() for name, pool in random.items()} | {paired_name: pool_value}) for pool_value in paired_pool.values 
+                ({name: pool.largest() for name, pool in random.items()} | {paired_name: pool_value, "key": first_key}) for pool_value in paired_pool.values 
             ]
 
             # Rest
