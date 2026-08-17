@@ -20,10 +20,10 @@ from architectures import Ensemble, get_modules
 
 USE_THREE_LAYER_DELEGATOR = False
 THREE_LAYER_DELEGATOR_BASE = 8
-RESTRICTED_ORACLE_REGRESSOR = "random_features"
-RANDOM_FEATURE_ORACLE_FEATURES = 128
-RANDOM_FEATURE_ORACLE_STEPS = 250
-RANDOM_FEATURE_ORACLE_REGULARIZATIONS = (0.0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2)
+RESTRICTED_ORACLE_REGRESSOR = "neural"
+RANDOM_FEATURE_ORACLE_FEATURES = 256
+RANDOM_FEATURE_ORACLE_STEPS = 100
+RANDOM_FEATURE_ORACLE_REGULARIZATIONS = (0.0, 1e-7, 1e-5, 1e-2, 1e-0)
 
 @struct.dataclass
 class InOutDataOracle:
@@ -270,7 +270,7 @@ def train_oracle(
     train_params: TrainParams,
     jit_funcs: JittedFunctions,
     selected_delegator_params: dict,
-    epochs_p: float = (1/4),
+    epochs_p: float = (1/3),
     n_seeds: int = 5,
 ):
     gpu = jax.devices("gpu")[0]
@@ -436,7 +436,8 @@ def random_feature_oracle_loss(
     regularization: jax.Array,
     train_params: TrainParams,
 ):
-    weights = features @ coefficients
+    weights = jnp.einsum("dbf,dfp->dbp", features, coefficients)
+    weights = jnp.mean(weights, axis=0)
     loss = jnp.mean(eval_loss(weights, predictions, y, train_params))
     uniform = 1 / coefficients.shape[-1]
     return loss + regularization * jnp.mean((coefficients - uniform) ** 2)
@@ -446,36 +447,54 @@ def fit_random_feature_oracles(
     features: jax.Array,
     predictions: jax.Array,
     y: jax.Array,
+    valid_features: jax.Array,
+    valid_predictions: jax.Array,
+    valid_y: jax.Array,
     regularizations: jax.Array,
     train_params: TrainParams,
     steps: int,
 ):
+    n_delegators = features.shape[0]
     n_features = features.shape[-1]
     n_predictors = predictions.shape[1]
     coefficients = jnp.full(
-        (regularizations.shape[0], n_features, n_predictors),
+        (regularizations.shape[0], n_delegators, n_features, n_predictors),
         1 / n_predictors,
     )
 
     if train_params.task.task_type() == "regression":
         base_lipschitz = 2 * jnp.sum(
-            jnp.sum(features ** 2, axis=-1) * jnp.sum(predictions ** 2, axis=(1, 2))
-        ) / (features.shape[0] * predictions.shape[-1])
+            jnp.sum(features ** 2, axis=-1) * jnp.sum(predictions ** 2, axis=(1, 2))[None, :],
+            axis=-1,
+        ) / (features.shape[1] * predictions.shape[-1])
     else:
         log_predictions = jax.nn.log_softmax(predictions, axis=-1)
         base_lipschitz = 0.5 * jnp.sum(
-            jnp.sum(features ** 2, axis=-1) * jnp.sum(log_predictions ** 2, axis=(1, 2))
-        ) / features.shape[0]
+            jnp.sum(features ** 2, axis=-1) * jnp.sum(log_predictions ** 2, axis=(1, 2))[None, :],
+            axis=-1,
+        ) / features.shape[1]
 
-    regularization_lipschitz = 2 * regularizations / (n_features * n_predictors)
+    base_lipschitz = jnp.sum(base_lipschitz) / n_delegators ** 2
+    regularization_lipschitz = 2 * regularizations / (n_delegators * n_features * n_predictors)
     learning_rates = 0.9 / jnp.maximum(base_lipschitz + regularization_lipschitz, 1e-8)
     loss_and_grad = jax.vmap(
         jax.value_and_grad(random_feature_oracle_loss),
         in_axes=(0, None, None, None, 0, None),
     )
 
-    def optimize(carry, _):
-        coefficients, accelerated, momentum = carry
+    def validation_losses(coefficients):
+        weights = jnp.einsum("dbf,rdfp->rdbp", valid_features, coefficients)
+        delegations = jnp.swapaxes(jnp.log(jnp.maximum(weights, 1e-30)), 1, 2)
+        weights = jax.vmap(aggregate_delegators, in_axes=(None, 0))(
+            train_params,
+            delegations,
+        )
+        return jax.vmap(
+            lambda one_weights: jnp.mean(eval_loss(one_weights, valid_predictions, valid_y, train_params))
+        )(weights)
+
+    def optimize(carry, step):
+        coefficients, accelerated, momentum, best_coefficients, best_valid_losses = carry
         _, gradients = loss_and_grad(
             accelerated,
             features,
@@ -484,16 +503,35 @@ def fit_random_feature_oracles(
             regularizations,
             train_params,
         )
-        updated = accelerated - learning_rates[:, None, None] * gradients
-        updated = jax.vmap(jax.vmap(optax.projections.projection_simplex))(updated)
+        updated = accelerated - learning_rates[:, None, None, None] * gradients
+        updated = jax.vmap(jax.vmap(jax.vmap(optax.projections.projection_simplex)))(updated)
         next_momentum = (1 + jnp.sqrt(1 + 4 * momentum ** 2)) / 2
-        acceleration = ((momentum - 1) / next_momentum)[:, None, None]
+        acceleration = ((momentum - 1) / next_momentum)[:, None, None, None]
         accelerated = updated + acceleration * (updated - coefficients)
-        return (updated, accelerated, next_momentum), None
 
-    initial_state = (coefficients, coefficients, jnp.ones((regularizations.shape[0],)))
-    (coefficients, _, _), _ = jax.lax.scan(optimize, initial_state, None, length=steps)
-    return coefficients
+        def validate(_):
+            valid_losses = validation_losses(updated)
+            improved = valid_losses < best_valid_losses
+            selected = jnp.where(improved[:, None, None, None], updated, best_coefficients)
+            return selected, jnp.where(improved, valid_losses, best_valid_losses)
+
+        best_coefficients, best_valid_losses = jax.lax.cond(
+            ((step + 1) % 10) == 0,
+            validate,
+            lambda _: (best_coefficients, best_valid_losses),
+            operand=None,
+        )
+        return (updated, accelerated, next_momentum, best_coefficients, best_valid_losses), None
+
+    initial_state = (
+        coefficients,
+        coefficients,
+        jnp.ones((regularizations.shape[0],)),
+        coefficients,
+        validation_losses(coefficients),
+    )
+    (_, _, _, best_coefficients, _), _ = jax.lax.scan(optimize, initial_state, jnp.arange(steps))
+    return best_coefficients
 
 def train_random_feature_oracle(
     key: jax.Array,
@@ -506,26 +544,37 @@ def train_random_feature_oracle(
     x_train = inout_train_predictions.x.reshape((inout_train_predictions.x.shape[0], -1))
     x_mean = jnp.mean(x_train, axis=0)
     x_scale = jnp.maximum(jnp.std(x_train, axis=0), 1e-6)
+    n_delegators = max(1, train_params.n_delegators)
+    features_per_delegator = max(1, RANDOM_FEATURE_ORACLE_FEATURES // n_delegators)
     projection_key, bias_key = jax.random.split(key)
     projection = jax.random.normal(
         projection_key,
-        (x_train.shape[-1], RANDOM_FEATURE_ORACLE_FEATURES),
+        (n_delegators, x_train.shape[-1], features_per_delegator),
     ) / jnp.sqrt(x_train.shape[-1])
-    bias = jax.random.normal(bias_key, (RANDOM_FEATURE_ORACLE_FEATURES,))
+    bias = jax.random.normal(bias_key, (n_delegators, features_per_delegator))
 
-    train_features = random_features(x_train, x_mean, x_scale, projection, bias)
-    valid_features = random_features(inout_valid_predictions.x, x_mean, x_scale, projection, bias)
+    make_features = jax.vmap(random_features, in_axes=(None, None, None, 0, 0))
+    train_features = make_features(x_train, x_mean, x_scale, projection, bias)
+    valid_features = make_features(inout_valid_predictions.x, x_mean, x_scale, projection, bias)
     regularizations = jnp.asarray(RANDOM_FEATURE_ORACLE_REGULARIZATIONS)
     coefficients = fit_random_feature_oracles(
         train_features,
         train_predictions,
         inout_train_predictions.y,
+        valid_features,
+        valid_predictions,
+        inout_valid_predictions.y,
         regularizations,
         train_params,
         RANDOM_FEATURE_ORACLE_STEPS,
     )
 
-    valid_weights = jnp.einsum("bf,rfp->rbp", valid_features, coefficients)
+    valid_weights = jnp.einsum("dbf,rdfp->rdbp", valid_features, coefficients)
+    valid_delegations = jnp.swapaxes(jnp.log(jnp.maximum(valid_weights, 1e-30)), 1, 2)
+    valid_weights = jax.vmap(aggregate_delegators, in_axes=(None, 0))(
+        train_params,
+        valid_delegations,
+    )
     valid_losses = jax.vmap(
         lambda weights: jnp.mean(eval_loss(weights, valid_predictions, inout_valid_predictions.y, train_params))
     )(valid_weights)
@@ -543,23 +592,20 @@ def train_random_feature_oracle(
 def apply_random_feature_oracle(
     params: dict,
     x: jax.Array,
-    n_delegators: int,
+    train_params: TrainParams,
 ):
-    features = random_features(
+    features = jax.vmap(random_features, in_axes=(None, None, None, 0, 0))(
         x,
         params["x_mean"],
         params["x_scale"],
         params["projection"],
         params["bias"],
     )
-    weights = features @ params["coefficients"]
-    weights = jnp.maximum(weights, 0)
+    weights = jnp.einsum("dbf,dfp->dbp", features, params["coefficients"])
     weights = weights / jnp.sum(weights, axis=-1, keepdims=True)
-    delegations = jnp.broadcast_to(
-        jnp.log(jnp.maximum(weights, 1e-30))[:, None, :],
-        (weights.shape[0], max(1, n_delegators), weights.shape[-1]),
-    )
-    return weights, delegations
+    delegations = jnp.swapaxes(jnp.log(jnp.maximum(weights, 1e-30)), 0, 1)
+    agg_delegations = aggregate_delegators(train_params, delegations)
+    return agg_delegations, delegations
 
 
 def apply_delegators_agg(
@@ -707,7 +753,7 @@ def one_get_evaluation_metrics(
         valid_oracle_agg_delegations, valid_oracle_delegations = apply_random_feature_oracle(
             oracle_delegator_params,
             inout_valid_predictions.x,
-            train_params.n_delegators,
+            train_params,
         )
         print(f"Oracle regularization = {oracle_regularization}")
     else:

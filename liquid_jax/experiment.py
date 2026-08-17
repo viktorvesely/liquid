@@ -348,5 +348,4 @@ if __name__ ==  "__main__":
 
     this_experiment.run(this_task)
 
-# TODO run the first 2 experiments, start writing paper
 
