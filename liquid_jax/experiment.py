@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from itertools import product
 from math import prod
+from pathlib import Path
 from random import Random
 import secrets
 from typing import Literal
@@ -116,6 +117,17 @@ class ExperimentCase:
     delegators_mixing: Mixing
     ambiguity_gradient: AmbiguityGradient
     key: jax.Array
+
+    @classmethod
+    def func_same(cls, a: "ExperimentCase", b: "ExperimentCase") -> bool:
+        return (
+            a.n_predictors == b.n_predictors and
+            a.n_delegators == b.n_delegators and
+            a.width_predictors == b.width_predictors and
+            a.width_delegators == b.width_delegators and
+            a.delegators_mixing == b.delegators_mixing and
+            a.ambiguity_gradient == b.ambiguity_gradient
+        )
 
     @property
     def name(self) -> str:
@@ -271,20 +283,78 @@ class Experiment:
     def is_grid(self) -> bool:
         return len({name: pool for name, pool in self.pools.items() if pool.mode == "grid"}) > 0
 
-    def run(self, task: type[Task]) -> None:
+    def get_finished_cases(self, resume_folder: Path) -> list[ExperimentCase]:
 
-        launch_id = random_hex(n=10)
+        cases = []
 
-        folder = make_train_folder(f"{self.name}_{launch_id}_{task.__name__}")
+        name_mapper = {
+            "run": "run_id",
+            "delegators": "n_delegators",
+            "predictors": "n_predictors",
+            "dwidth": "width_delegators",
+            "pwidth": "width_predictors",
+            "mixing": "delegators_mixing",
+            "ambiguity": "ambiguity_gradient",
+        }
+
+        for mf in resume_folder.glob("*_metrics.json"):
+
+            info = mf.stem.removesuffix("_metrics").split("_")
+            case_dict = {}
+
+            for name, str_value in zip(info[::2], info[1::2], strict=True):
+
+                name = name_mapper[name]
+
+                try:
+                    value = int(str_value)
+                except ValueError:
+                    value = str_value
+
+                case_dict[name] = value
+
+            case_dict["key"] = None
+
+            cases.append(ExperimentCase(**case_dict))
+
+        cases = sorted(cases, key=lambda case: case.run_id)
+        return cases
+            
+
+    def run(self, task: type[Task], resume_folder: Path | None = None) -> None:
+
+
+        new = resume_folder is None
+
+        if new:
+            launch_id = random_hex(n=10)
+            folder = make_train_folder(f"{self.name}_{launch_id}_{task.__name__}")
+        else:
+            folder = resume_folder
+            launch_id = resume_folder.name.split("_")[2]
+
         key = jax.random.key(self.seed)
         cases = self.cases(key)
 
+        n_finished_cases = 0
+        n_all_cases = len(cases) 
 
+        if not new:
+            finished_cases = self.get_finished_cases(resume_folder)
+            n_finished_cases = len(finished_cases)
 
-        for index, case in enumerate(cases, start=1):
+            for proposed_case, finished_case in zip(cases, finished_cases, strict=False):
+
+                if not ExperimentCase.func_same(proposed_case, finished_case):
+                    print(proposed_case)
+                    print(finished_cases)
+                    raise ValueError(f"Not equal cases")
+
+            cases = cases[len(finished_cases):]
+
+        for visual_index, case in enumerate(cases, start=(1 + n_finished_cases)):
             jax.clear_caches()
             plt.close("all")
-
 
             print(case.name)
             metrics, eval_metrics = train(
@@ -293,7 +363,7 @@ class Experiment:
             )
             
             finish_run(metrics, eval_metrics, folder, prefix=case.name)
-            print(f"{index} / {len(cases)}")
+            print(f"{visual_index} / {n_all_cases}")
 
 
 experiment_aggregation_method = Experiment(
@@ -324,7 +394,7 @@ experiment_scaling = Experiment(
     n_delegators=Pool.grid(*N_DELEGATORS),
     width_predictors=Pool.grid(*MLP_WIDTHS),
     width_delegators=Pool.grid(*MLP_WIDTHS),
-    delegators_mixing=Pool.constant(...), # Comes from the previous experiments
+    delegators_mixing=Pool.constant("sum"), 
     ambiguity_gradient=Pool.constant(...) # Comes from the previous experiments
 )
 
@@ -341,6 +411,12 @@ if __name__ ==  "__main__":
         "task",
         choices=list(TASK_BY_NAME.keys()),
     )
+    parser.add_argument(
+        "--resume",
+        type=Path,
+        default=None,
+    )
+
     args = parser.parse_args()
 
     experiments = {
@@ -352,6 +428,6 @@ if __name__ ==  "__main__":
     this_experiment = experiments[args.experiment]
     this_task = TASK_BY_NAME[args.task]
 
-    this_experiment.run(this_task)
+    this_experiment.run(this_task, resume_folder=args.resume)
 
 

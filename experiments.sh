@@ -10,18 +10,16 @@ MIN_FREE_PERCENT=99
 # ---------------------------------------------------------------------------
 # 1. Arguments
 # ---------------------------------------------------------------------------
-
 if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 <experiment_name> <task1> [task2 ...]"
+    echo "Usage: $0 <experiment_name> <task[=resume_dir]> [task[=resume_dir] ...]"
     exit 1
 fi
 
 EXPERIMENT_NAME="$1"
 shift
 
-TASKS=("$@")
-NUM_TASKS=${#TASKS[@]}
-
+TASK_ARGS=("$@")
+NUM_TASKS=${#TASK_ARGS[@]}
 
 # ---------------------------------------------------------------------------
 # 2. Kerberos revive session
@@ -200,7 +198,18 @@ echo "-------------------------------------"
 
 for ((i = 0; i < NUM_TASKS; i++)); do
 
-    TASK="${TASKS[$i]}"
+    
+    TASK_ARG="${TASK_ARGS[$i]}"
+
+    if [[ "$TASK_ARG" == *=* ]]; then
+        TASK="${TASK_ARG%%=*}"
+        RESUME_DIR="${TASK_ARG#*=}"
+        RESUME_ARG="--resume '$RESUME_DIR'"
+    else
+        TASK="$TASK_ARG"
+        RESUME_ARG=""
+    fi
+
     UUID="${SELECTED_UUIDS[$i]}"
 
     SESSION_NAME="${EXPERIMENT_NAME}_${TASK}"
@@ -218,11 +227,17 @@ for ((i = 0; i < NUM_TASKS; i++)); do
 
     tmux new-session -d -s "$SESSION_NAME" \
         "export CUDA_VISIBLE_DEVICES='$UUID'; \
-         source .venv/bin/activate; \
-         cd liquid_jax; \
-         python -u experiment.py '$EXPERIMENT_NAME' '$TASK' \
-             > '$STDOUT_FILE' \
-             2> '$STDERR_FILE'"
+        source .venv/bin/activate; \
+        cd liquid_jax; \
+        python -u experiment.py '$EXPERIMENT_NAME' '$TASK' $RESUME_ARG \
+            > '$STDOUT_FILE' \
+            2> '$STDERR_FILE'; \
+        rc=\$?; \
+        echo \$rc > '$EXIT_CODE_FILE'; \
+        exit \$rc"
+
+    tmux set-option -t "$SESSION_NAME" remain-on-exit on
+
 
     echo
     echo "Task       : $TASK"
