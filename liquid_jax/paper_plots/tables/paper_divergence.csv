@@ -1,0 +1,5 @@
+,Experiment,Task,Runs,no ambiguity gradient NaN rate,delegators only NaN rate,delegators + predictors NaN rate,median failure epoch frac
+0,Ambiguity gradient,CIFAR-10,172,0.0,0.0,0.0,
+1,Ambiguity gradient,SVHN,108,0.0,0.0,0.0,
+2,Ambiguity gradient,Bike Sharing,300,0.0,0.0,0.0,
+3,Ambiguity gradient,Energy,120,0.0,0.0,0.0,
