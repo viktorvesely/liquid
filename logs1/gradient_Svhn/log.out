@@ -1,0 +1,2752 @@
+Job 30895397 started on a100gpu4 at Fri Aug 28 07:37:53 CEST 2026
+GPU 0: NVIDIA A100-PCIE-40GB (UUID: GPU-8404161c-748d-06da-e7ce-e8e440e22c60)
+Architecture(predictor=(24, 16, 8, 1), delegator=(48, 32, 16, 16), cnn=0)
+run_00108_predictors_4_delegators_8_pwidth_16_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 28
+Metric = 0.668 Metric oracle 0.704
+From epoch = 30
+Metric = 0.696 Metric oracle 0.713
+From epoch = 29
+Metric = 0.717 Metric oracle 0.726
+From epoch = 31
+Metric = 0.711 Metric oracle 0.731
+From epoch = 20
+Metric = 0.741 Metric oracle 0.761
+Eval took 222.853 seconds
+108 / 300
+run_00109_predictors_16_delegators_32_pwidth_16_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 27
+Metric = 0.812 Metric oracle 0.810
+From epoch = 30
+Metric = 0.816 Metric oracle 0.811
+From epoch = 25
+Metric = 0.821 Metric oracle 0.811
+From epoch = 29
+Metric = 0.808 Metric oracle 0.812
+From epoch = 31
+Metric = 0.809 Metric oracle 0.804
+Eval took 325.594 seconds
+109 / 300
+run_00110_predictors_16_delegators_32_pwidth_16_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 30
+Metric = 0.764 Metric oracle 0.768
+From epoch = 25
+Metric = 0.753 Metric oracle 0.748
+From epoch = 28
+Metric = 0.764 Metric oracle 0.773
+From epoch = 25
+Metric = 0.765 Metric oracle 0.762
+From epoch = 32
+Metric = 0.763 Metric oracle 0.759
+Eval took 316.907 seconds
+110 / 300
+run_00111_predictors_16_delegators_32_pwidth_16_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 26
+Metric = 0.689 Metric oracle 0.713
+From epoch = 30
+Metric = 0.694 Metric oracle 0.707
+From epoch = 27
+Metric = 0.715 Metric oracle 0.735
+From epoch = 22
+Metric = 0.721 Metric oracle 0.746
+From epoch = 28
+Metric = 0.679 Metric oracle 0.694
+Eval took 316.950 seconds
+111 / 300
+run_00112_predictors_8_delegators_8_pwidth_4_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 30
+Metric = 0.596 Metric oracle 0.642
+From epoch = 31
+Metric = 0.713 Metric oracle 0.728
+From epoch = 28
+Metric = 0.659 Metric oracle 0.671
+From epoch = 32
+Metric = 0.667 Metric oracle 0.686
+From epoch = 32
+Metric = 0.656 Metric oracle 0.709
+Eval took 218.189 seconds
+112 / 300
+run_00113_predictors_8_delegators_8_pwidth_4_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 30
+Metric = 0.491 Metric oracle 0.516
+From epoch = 32
+Metric = 0.580 Metric oracle 0.594
+From epoch = 32
+Metric = 0.551 Metric oracle 0.560
+From epoch = 32
+Metric = 0.580 Metric oracle 0.584
+From epoch = 29
+Metric = 0.504 Metric oracle 0.510
+Eval took 215.329 seconds
+113 / 300
+run_00114_predictors_8_delegators_8_pwidth_4_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 32
+Metric = 0.588 Metric oracle 0.629
+From epoch = 30
+Metric = 0.492 Metric oracle 0.566
+From epoch = 32
+Metric = 0.456 Metric oracle 0.503
+From epoch = 30
+Metric = 0.526 Metric oracle 0.598
+From epoch = 29
+Metric = 0.504 Metric oracle 0.508
+Eval took 214.958 seconds
+114 / 300
+run_00115_predictors_32_delegators_16_pwidth_16_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 23
+Metric = 0.826 Metric oracle 0.830
+From epoch = 18
+Metric = 0.832 Metric oracle 0.833
+From epoch = 30
+Metric = 0.834 Metric oracle 0.836
+From epoch = 22
+Metric = 0.831 Metric oracle 0.832
+From epoch = 16
+Metric = 0.835 Metric oracle 0.839
+Eval took 228.581 seconds
+115 / 300
+run_00116_predictors_32_delegators_16_pwidth_16_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 32
+Metric = 0.771 Metric oracle 0.772
+From epoch = 31
+Metric = 0.765 Metric oracle 0.763
+From epoch = 28
+Metric = 0.755 Metric oracle 0.765
+From epoch = 17
+Metric = 0.771 Metric oracle 0.771
+From epoch = 31
+Metric = 0.768 Metric oracle 0.771
+Eval took 223.447 seconds
+116 / 300
+run_00117_predictors_32_delegators_16_pwidth_16_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 24
+Metric = 0.736 Metric oracle 0.759
+From epoch = 31
+Metric = 0.733 Metric oracle 0.754
+From epoch = 31
+Metric = 0.709 Metric oracle 0.723
+From epoch = 30
+Metric = 0.727 Metric oracle 0.742
+From epoch = 31
+Metric = 0.735 Metric oracle 0.759
+Eval took 223.076 seconds
+117 / 300
+run_00118_predictors_32_delegators_1_pwidth_16_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 32
+Metric = 0.824 Metric oracle 0.823
+From epoch = 21
+Metric = 0.821 Metric oracle 0.827
+From epoch = 21
+Metric = 0.806 Metric oracle 0.812
+From epoch = 22
+Metric = 0.826 Metric oracle 0.827
+From epoch = 18
+Metric = 0.818 Metric oracle 0.823
+Eval took 215.247 seconds
+118 / 300
+run_00119_predictors_32_delegators_1_pwidth_16_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 23
+Metric = 0.780 Metric oracle 0.788
+From epoch = 30
+Metric = 0.746 Metric oracle 0.753
+From epoch = 25
+Metric = 0.757 Metric oracle 0.754
+From epoch = 29
+Metric = 0.765 Metric oracle 0.761
+From epoch = 29
+Metric = 0.750 Metric oracle 0.748
+Eval took 194.502 seconds
+119 / 300
+run_00120_predictors_32_delegators_1_pwidth_16_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 27
+Metric = 0.750 Metric oracle 0.762
+From epoch = 30
+Metric = 0.713 Metric oracle 0.731
+From epoch = 16
+Metric = 0.738 Metric oracle 0.763
+From epoch = 22
+Metric = 0.733 Metric oracle 0.753
+From epoch = 28
+Metric = 0.713 Metric oracle 0.749
+Eval took 192.803 seconds
+120 / 300
+run_00121_predictors_4_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 32
+Metric = 0.730 Metric oracle 0.720
+From epoch = 23
+Metric = 0.716 Metric oracle 0.726
+From epoch = 32
+Metric = 0.768 Metric oracle 0.760
+From epoch = 28
+Metric = 0.738 Metric oracle 0.750
+From epoch = 32
+Metric = 0.748 Metric oracle 0.754
+Eval took 201.923 seconds
+121 / 300
+run_00122_predictors_4_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 32
+Metric = 0.626 Metric oracle 0.637
+From epoch = 26
+Metric = 0.583 Metric oracle 0.587
+From epoch = 30
+Metric = 0.728 Metric oracle 0.730
+From epoch = 32
+Metric = 0.660 Metric oracle 0.664
+From epoch = 28
+Metric = 0.708 Metric oracle 0.705
+Eval took 197.924 seconds
+122 / 300
+run_00123_predictors_4_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 27
+Metric = 0.655 Metric oracle 0.676
+From epoch = 31
+Metric = 0.613 Metric oracle 0.630
+From epoch = 23
+Metric = 0.633 Metric oracle 0.648
+From epoch = 31
+Metric = 0.661 Metric oracle 0.680
+From epoch = 29
+Metric = 0.648 Metric oracle 0.661
+Eval took 196.591 seconds
+123 / 300
+run_00124_predictors_32_delegators_2_pwidth_4_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 31
+Metric = 0.750 Metric oracle 0.753
+From epoch = 29
+Metric = 0.732 Metric oracle 0.744
+From epoch = 31
+Metric = 0.751 Metric oracle 0.774
+From epoch = 31
+Metric = 0.744 Metric oracle 0.745
+From epoch = 29
+Metric = 0.758 Metric oracle 0.762
+Eval took 198.689 seconds
+124 / 300
+run_00125_predictors_32_delegators_2_pwidth_4_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 32
+Metric = 0.662 Metric oracle 0.649
+From epoch = 30
+Metric = 0.639 Metric oracle 0.657
+From epoch = 28
+Metric = 0.688 Metric oracle 0.692
+From epoch = 27
+Metric = 0.623 Metric oracle 0.639
+From epoch = 32
+Metric = 0.695 Metric oracle 0.692
+Eval took 211.850 seconds
+125 / 300
+run_00126_predictors_32_delegators_2_pwidth_4_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 31
+Metric = 0.578 Metric oracle 0.645
+From epoch = 31
+Metric = 0.598 Metric oracle 0.632
+From epoch = 32
+Metric = 0.596 Metric oracle 0.630
+From epoch = 32
+Metric = 0.531 Metric oracle 0.562
+From epoch = 30
+Metric = 0.600 Metric oracle 0.647
+Eval took 211.410 seconds
+126 / 300
+run_00127_predictors_16_delegators_1_pwidth_16_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 32
+Metric = 0.821 Metric oracle 0.825
+From epoch = 30
+Metric = 0.805 Metric oracle 0.808
+From epoch = 30
+Metric = 0.819 Metric oracle 0.822
+From epoch = 24
+Metric = 0.821 Metric oracle 0.824
+From epoch = 17
+Metric = 0.812 Metric oracle 0.809
+Eval took 204.448 seconds
+127 / 300
+run_00128_predictors_16_delegators_1_pwidth_16_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 30
+Metric = 0.751 Metric oracle 0.755
+From epoch = 31
+Metric = 0.730 Metric oracle 0.734
+From epoch = 24
+Metric = 0.733 Metric oracle 0.741
+From epoch = 1
+Metric = 0.759 Metric oracle 0.761
+From epoch = 27
+Metric = 0.744 Metric oracle 0.756
+Eval took 187.113 seconds
+128 / 300
+run_00129_predictors_16_delegators_1_pwidth_16_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 28
+Metric = 0.753 Metric oracle 0.757
+From epoch = 26
+Metric = 0.740 Metric oracle 0.742
+From epoch = 17
+Metric = 0.791 Metric oracle 0.792
+From epoch = 28
+Metric = 0.773 Metric oracle 0.773
+From epoch = 24
+Metric = 0.725 Metric oracle 0.724
+Eval took 188.362 seconds
+129 / 300
+run_00130_predictors_32_delegators_2_pwidth_4_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 30
+Metric = 0.729 Metric oracle 0.732
+From epoch = 31
+Metric = 0.711 Metric oracle 0.728
+From epoch = 29
+Metric = 0.766 Metric oracle 0.776
+From epoch = 32
+Metric = 0.746 Metric oracle 0.746
+From epoch = 21
+Metric = 0.775 Metric oracle 0.777
+Eval took 194.746 seconds
+130 / 300
+run_00131_predictors_32_delegators_2_pwidth_4_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 31
+Metric = 0.554 Metric oracle 0.568
+From epoch = 27
+Metric = 0.537 Metric oracle 0.549
+From epoch = 32
+Metric = 0.569 Metric oracle 0.595
+From epoch = 32
+Metric = 0.618 Metric oracle 0.633
+From epoch = 22
+Metric = 0.575 Metric oracle 0.609
+Eval took 192.125 seconds
+131 / 300
+run_00132_predictors_32_delegators_2_pwidth_4_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 25
+Metric = 0.463 Metric oracle 0.489
+From epoch = 31
+Metric = 0.578 Metric oracle 0.609
+From epoch = 32
+Metric = 0.515 Metric oracle 0.520
+From epoch = 27
+Metric = 0.528 Metric oracle 0.532
+From epoch = 31
+Metric = 0.447 Metric oracle 0.468
+Eval took 191.690 seconds
+132 / 300
+run_00133_predictors_32_delegators_2_pwidth_4_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 24
+Metric = 0.751 Metric oracle 0.761
+From epoch = 31
+Metric = 0.754 Metric oracle 0.764
+From epoch = 27
+Metric = 0.757 Metric oracle 0.755
+From epoch = 25
+Metric = 0.737 Metric oracle 0.762
+From epoch = 30
+Metric = 0.741 Metric oracle 0.764
+Eval took 200.590 seconds
+133 / 300
+run_00134_predictors_32_delegators_2_pwidth_4_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 26
+Metric = 0.700 Metric oracle 0.720
+From epoch = 31
+Metric = 0.676 Metric oracle 0.649
+From epoch = 25
+Metric = 0.629 Metric oracle 0.656
+From epoch = 30
+Metric = 0.659 Metric oracle 0.677
+From epoch = 31
+Metric = 0.694 Metric oracle 0.704
+Eval took 198.837 seconds
+134 / 300
+run_00135_predictors_32_delegators_2_pwidth_4_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 30
+Metric = 0.641 Metric oracle 0.689
+From epoch = 27
+Metric = 0.683 Metric oracle 0.745
+From epoch = 32
+Metric = 0.557 Metric oracle 0.594
+From epoch = 31
+Metric = 0.656 Metric oracle 0.704
+From epoch = 28
+Metric = 0.661 Metric oracle 0.687
+Eval took 198.289 seconds
+135 / 300
+run_00136_predictors_2_delegators_4_pwidth_16_dwidth_16_mixing_sum_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 2), cnn=0)
+From epoch = 16
+Metric = 0.750 Metric oracle 0.753
+From epoch = 31
+Metric = 0.716 Metric oracle 0.713
+From epoch = 28
+Metric = 0.727 Metric oracle 0.729
+From epoch = 32
+Metric = 0.773 Metric oracle 0.760
+From epoch = 30
+Metric = 0.729 Metric oracle 0.722
+Eval took 206.348 seconds
+136 / 300
+run_00137_predictors_2_delegators_4_pwidth_16_dwidth_16_mixing_sum_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 2), cnn=0)
+From epoch = 30
+Metric = 0.625 Metric oracle 0.628
+From epoch = 29
+Metric = 0.711 Metric oracle 0.713
+From epoch = 18
+Metric = 0.682 Metric oracle 0.678
+From epoch = 8
+Metric = 0.717 Metric oracle 0.714
+From epoch = 6
+Metric = 0.717 Metric oracle 0.713
+Eval took 201.452 seconds
+137 / 300
+run_00138_predictors_2_delegators_4_pwidth_16_dwidth_16_mixing_sum_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 2), cnn=0)
+From epoch = 0
+Metric = 0.692 Metric oracle 0.696
+From epoch = 32
+Metric = 0.670 Metric oracle 0.679
+From epoch = 23
+Metric = 0.664 Metric oracle 0.669
+From epoch = 28
+Metric = 0.626 Metric oracle 0.616
+From epoch = 7
+Metric = 0.763 Metric oracle 0.762
+Eval took 201.824 seconds
+138 / 300
+run_00139_predictors_32_delegators_2_pwidth_8_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 25
+Metric = 0.796 Metric oracle 0.791
+From epoch = 30
+Metric = 0.795 Metric oracle 0.798
+From epoch = 30
+Metric = 0.782 Metric oracle 0.787
+From epoch = 31
+Metric = 0.798 Metric oracle 0.796
+From epoch = 27
+Metric = 0.800 Metric oracle 0.802
+Eval took 196.851 seconds
+139 / 300
+run_00140_predictors_32_delegators_2_pwidth_8_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 32
+Metric = 0.697 Metric oracle 0.704
+From epoch = 28
+Metric = 0.701 Metric oracle 0.702
+From epoch = 29
+Metric = 0.733 Metric oracle 0.739
+From epoch = 32
+Metric = 0.716 Metric oracle 0.725
+From epoch = 28
+Metric = 0.745 Metric oracle 0.726
+Eval took 191.975 seconds
+140 / 300
+run_00141_predictors_32_delegators_2_pwidth_8_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 29
+Metric = 0.677 Metric oracle 0.700
+From epoch = 29
+Metric = 0.675 Metric oracle 0.688
+From epoch = 30
+Metric = 0.701 Metric oracle 0.714
+From epoch = 27
+Metric = 0.641 Metric oracle 0.692
+From epoch = 22
+Metric = 0.664 Metric oracle 0.698
+Eval took 194.715 seconds
+141 / 300
+run_00142_predictors_2_delegators_4_pwidth_16_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 2), cnn=0)
+From epoch = 30
+Metric = 0.761 Metric oracle 0.762
+From epoch = 24
+Metric = 0.722 Metric oracle 0.723
+From epoch = 29
+Metric = 0.714 Metric oracle 0.716
+From epoch = 0
+Metric = 0.761 Metric oracle 0.760
+From epoch = 21
+Metric = 0.791 Metric oracle 0.790
+Eval took 199.626 seconds
+142 / 300
+run_00143_predictors_2_delegators_4_pwidth_16_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 2), cnn=0)
+From epoch = 27
+Metric = 0.736 Metric oracle 0.722
+From epoch = 2
+Metric = 0.722 Metric oracle 0.724
+From epoch = 25
+Metric = 0.713 Metric oracle 0.711
+From epoch = 31
+Metric = 0.772 Metric oracle 0.765
+From epoch = 20
+Metric = 0.748 Metric oracle 0.743
+Eval took 199.479 seconds
+143 / 300
+run_00144_predictors_2_delegators_4_pwidth_16_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 2), cnn=0)
+From epoch = 28
+Metric = 0.705 Metric oracle 0.716
+From epoch = 26
+Metric = 0.705 Metric oracle 0.721
+From epoch = 32
+Metric = 0.653 Metric oracle 0.662
+From epoch = 26
+Metric = 0.705 Metric oracle 0.720
+From epoch = 31
+Metric = 0.714 Metric oracle 0.721
+Eval took 201.095 seconds
+144 / 300
+run_00145_predictors_8_delegators_8_pwidth_4_dwidth_16_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 27
+Metric = 0.751 Metric oracle 0.714
+From epoch = 32
+Metric = 0.735 Metric oracle 0.737
+From epoch = 29
+Metric = 0.738 Metric oracle 0.711
+From epoch = 26
+Metric = 0.726 Metric oracle 0.733
+From epoch = 30
+Metric = 0.769 Metric oracle 0.721
+Eval took 232.556 seconds
+145 / 300
+run_00146_predictors_8_delegators_8_pwidth_4_dwidth_16_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 32
+Metric = 0.567 Metric oracle 0.461
+From epoch = 28
+Metric = 0.602 Metric oracle 0.519
+From epoch = 32
+Metric = 0.585 Metric oracle 0.488
+From epoch = 23
+Metric = 0.534 Metric oracle 0.432
+From epoch = 27
+Metric = 0.533 Metric oracle 0.423
+Eval took 229.893 seconds
+146 / 300
+run_00147_predictors_8_delegators_8_pwidth_4_dwidth_16_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 32
+Metric = 0.446 Metric oracle 0.423
+From epoch = 1
+Metric = 0.527 Metric oracle 0.505
+From epoch = 20
+Metric = 0.567 Metric oracle 0.552
+From epoch = 32
+Metric = 0.525 Metric oracle 0.489
+From epoch = 25
+Metric = 0.514 Metric oracle 0.421
+Eval took 228.314 seconds
+147 / 300
+run_00148_predictors_32_delegators_32_pwidth_4_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 32
+Metric = 0.809 Metric oracle 0.794
+From epoch = 32
+Metric = 0.804 Metric oracle 0.810
+From epoch = 28
+Metric = 0.814 Metric oracle 0.799
+From epoch = 32
+Metric = 0.821 Metric oracle 0.811
+From epoch = 30
+Metric = 0.805 Metric oracle 0.800
+Eval took 306.749 seconds
+148 / 300
+run_00149_predictors_32_delegators_32_pwidth_4_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 32
+Metric = 0.726 Metric oracle 0.716
+From epoch = 32
+Metric = 0.736 Metric oracle 0.729
+From epoch = 31
+Metric = 0.732 Metric oracle 0.753
+From epoch = 32
+Metric = 0.723 Metric oracle 0.687
+From epoch = 31
+Metric = 0.702 Metric oracle 0.700
+Eval took 306.174 seconds
+149 / 300
+run_00150_predictors_32_delegators_32_pwidth_4_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 32
+Metric = 0.693 Metric oracle 0.766
+From epoch = 32
+Metric = 0.668 Metric oracle 0.727
+From epoch = 32
+Metric = 0.692 Metric oracle 0.725
+From epoch = 32
+Metric = 0.723 Metric oracle 0.789
+From epoch = 29
+Metric = 0.688 Metric oracle 0.708
+Eval took 306.210 seconds
+150 / 300
+run_00151_predictors_8_delegators_32_pwidth_16_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 28
+Metric = 0.810 Metric oracle 0.814
+From epoch = 31
+Metric = 0.827 Metric oracle 0.828
+From epoch = 31
+Metric = 0.813 Metric oracle 0.814
+From epoch = 30
+Metric = 0.831 Metric oracle 0.831
+From epoch = 29
+Metric = 0.839 Metric oracle 0.837
+Eval took 247.719 seconds
+151 / 300
+run_00152_predictors_8_delegators_32_pwidth_16_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 27
+Metric = 0.765 Metric oracle 0.766
+From epoch = 18
+Metric = 0.733 Metric oracle 0.739
+From epoch = 24
+Metric = 0.743 Metric oracle 0.752
+From epoch = 27
+Metric = 0.754 Metric oracle 0.760
+From epoch = 31
+Metric = 0.788 Metric oracle 0.788
+Eval took 243.665 seconds
+152 / 300
+run_00153_predictors_8_delegators_32_pwidth_16_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 26
+Metric = 0.733 Metric oracle 0.732
+From epoch = 32
+Metric = 0.749 Metric oracle 0.747
+From epoch = 18
+Metric = 0.754 Metric oracle 0.752
+From epoch = 31
+Metric = 0.734 Metric oracle 0.732
+From epoch = 4
+Metric = 0.793 Metric oracle 0.793
+Eval took 245.191 seconds
+153 / 300
+run_00154_predictors_8_delegators_8_pwidth_8_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 31
+Metric = 0.754 Metric oracle 0.778
+From epoch = 32
+Metric = 0.773 Metric oracle 0.778
+From epoch = 25
+Metric = 0.763 Metric oracle 0.755
+From epoch = 30
+Metric = 0.739 Metric oracle 0.752
+From epoch = 32
+Metric = 0.765 Metric oracle 0.768
+Eval took 228.976 seconds
+154 / 300
+run_00155_predictors_8_delegators_8_pwidth_8_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 31
+Metric = 0.683 Metric oracle 0.682
+From epoch = 30
+Metric = 0.711 Metric oracle 0.708
+From epoch = 32
+Metric = 0.686 Metric oracle 0.682
+From epoch = 32
+Metric = 0.710 Metric oracle 0.722
+From epoch = 31
+Metric = 0.691 Metric oracle 0.672
+Eval took 236.958 seconds
+155 / 300
+run_00156_predictors_8_delegators_8_pwidth_8_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 28
+Metric = 0.649 Metric oracle 0.678
+From epoch = 24
+Metric = 0.623 Metric oracle 0.660
+From epoch = 32
+Metric = 0.647 Metric oracle 0.689
+From epoch = 32
+Metric = 0.685 Metric oracle 0.719
+From epoch = 31
+Metric = 0.590 Metric oracle 0.635
+Eval took 226.925 seconds
+156 / 300
+run_00157_predictors_8_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 30
+Metric = 0.739 Metric oracle 0.743
+From epoch = 29
+Metric = 0.625 Metric oracle 0.684
+From epoch = 27
+Metric = 0.702 Metric oracle 0.709
+From epoch = 24
+Metric = 0.690 Metric oracle 0.719
+From epoch = 31
+Metric = 0.698 Metric oracle 0.708
+Eval took 193.274 seconds
+157 / 300
+run_00158_predictors_8_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 23
+Metric = 0.568 Metric oracle 0.564
+From epoch = 32
+Metric = 0.453 Metric oracle 0.504
+From epoch = 32
+Metric = 0.605 Metric oracle 0.609
+From epoch = 32
+Metric = 0.558 Metric oracle 0.576
+From epoch = 30
+Metric = 0.629 Metric oracle 0.641
+Eval took 190.671 seconds
+158 / 300
+run_00159_predictors_8_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 31
+Metric = 0.575 Metric oracle 0.604
+From epoch = 31
+Metric = 0.516 Metric oracle 0.598
+From epoch = 30
+Metric = 0.632 Metric oracle 0.671
+From epoch = 30
+Metric = 0.476 Metric oracle 0.578
+From epoch = 23
+Metric = 0.591 Metric oracle 0.646
+Eval took 191.562 seconds
+159 / 300
+run_00160_predictors_4_delegators_2_pwidth_8_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 15
+Metric = 0.625 Metric oracle 0.621
+From epoch = 0
+Metric = 0.688 Metric oracle 0.686
+From epoch = 31
+Metric = 0.705 Metric oracle 0.701
+From epoch = 20
+Metric = 0.630 Metric oracle 0.630
+From epoch = 0
+Metric = 0.706 Metric oracle 0.707
+Eval took 184.303 seconds
+160 / 300
+run_00161_predictors_4_delegators_2_pwidth_8_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 2
+Metric = 0.602 Metric oracle 0.606
+From epoch = 31
+Metric = 0.634 Metric oracle 0.643
+From epoch = 20
+Metric = 0.662 Metric oracle 0.660
+From epoch = 23
+Metric = 0.613 Metric oracle 0.626
+From epoch = 3
+Metric = 0.650 Metric oracle 0.639
+Eval took 184.630 seconds
+161 / 300
+run_00162_predictors_4_delegators_2_pwidth_8_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 28
+Metric = 0.463 Metric oracle 0.500
+From epoch = 31
+Metric = 0.630 Metric oracle 0.629
+From epoch = 32
+Metric = 0.630 Metric oracle 0.633
+From epoch = 16
+Metric = 0.561 Metric oracle 0.564
+From epoch = 20
+Metric = 0.552 Metric oracle 0.554
+Eval took 184.280 seconds
+162 / 300
+run_00163_predictors_16_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 32
+Metric = 0.776 Metric oracle 0.785
+From epoch = 25
+Metric = 0.781 Metric oracle 0.783
+From epoch = 24
+Metric = 0.762 Metric oracle 0.768
+From epoch = 26
+Metric = 0.774 Metric oracle 0.783
+From epoch = 25
+Metric = 0.784 Metric oracle 0.785
+Eval took 203.642 seconds
+163 / 300
+run_00164_predictors_16_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 25
+Metric = 0.707 Metric oracle 0.710
+From epoch = 32
+Metric = 0.719 Metric oracle 0.716
+From epoch = 29
+Metric = 0.717 Metric oracle 0.715
+From epoch = 32
+Metric = 0.701 Metric oracle 0.695
+From epoch = 30
+Metric = 0.720 Metric oracle 0.716
+Eval took 202.411 seconds
+164 / 300
+run_00165_predictors_16_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 30
+Metric = 0.680 Metric oracle 0.702
+From epoch = 32
+Metric = 0.659 Metric oracle 0.684
+From epoch = 30
+Metric = 0.685 Metric oracle 0.714
+From epoch = 32
+Metric = 0.696 Metric oracle 0.712
+From epoch = 31
+Metric = 0.651 Metric oracle 0.675
+Eval took 201.595 seconds
+165 / 300
+run_00166_predictors_8_delegators_1_pwidth_8_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 29
+Metric = 0.748 Metric oracle 0.746
+From epoch = 1
+Metric = 0.754 Metric oracle 0.754
+From epoch = 8
+Metric = 0.781 Metric oracle 0.782
+From epoch = 2
+Metric = 0.777 Metric oracle 0.778
+From epoch = 18
+Metric = 0.752 Metric oracle 0.750
+Eval took 184.829 seconds
+166 / 300
+run_00167_predictors_8_delegators_1_pwidth_8_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 31
+Metric = 0.566 Metric oracle 0.564
+From epoch = 32
+Metric = 0.609 Metric oracle 0.621
+From epoch = 32
+Metric = 0.643 Metric oracle 0.636
+From epoch = 25
+Metric = 0.657 Metric oracle 0.661
+From epoch = 28
+Metric = 0.638 Metric oracle 0.643
+Eval took 183.064 seconds
+167 / 300
+run_00168_predictors_8_delegators_1_pwidth_8_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 18
+Metric = 0.620 Metric oracle 0.618
+From epoch = 25
+Metric = 0.633 Metric oracle 0.646
+From epoch = 27
+Metric = 0.622 Metric oracle 0.632
+From epoch = 31
+Metric = 0.673 Metric oracle 0.700
+From epoch = 28
+Metric = 0.632 Metric oracle 0.633
+Eval took 184.098 seconds
+168 / 300
+run_00169_predictors_32_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 28
+Metric = 0.800 Metric oracle 0.807
+From epoch = 22
+Metric = 0.803 Metric oracle 0.802
+From epoch = 27
+Metric = 0.786 Metric oracle 0.800
+From epoch = 27
+Metric = 0.782 Metric oracle 0.787
+From epoch = 30
+Metric = 0.772 Metric oracle 0.789
+Eval took 206.223 seconds
+169 / 300
+run_00170_predictors_32_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 20
+Metric = 0.738 Metric oracle 0.742
+From epoch = 27
+Metric = 0.729 Metric oracle 0.734
+From epoch = 32
+Metric = 0.713 Metric oracle 0.698
+From epoch = 31
+Metric = 0.708 Metric oracle 0.711
+From epoch = 31
+Metric = 0.686 Metric oracle 0.697
+Eval took 203.268 seconds
+170 / 300
+run_00171_predictors_32_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 32), cnn=0)
+From epoch = 31
+Metric = 0.673 Metric oracle 0.699
+From epoch = 30
+Metric = 0.685 Metric oracle 0.709
+From epoch = 31
+Metric = 0.661 Metric oracle 0.686
+From epoch = 31
+Metric = 0.648 Metric oracle 0.671
+From epoch = 32
+Metric = 0.671 Metric oracle 0.694
+Eval took 206.004 seconds
+171 / 300
+run_00172_predictors_2_delegators_16_pwidth_8_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 29
+Metric = 0.701 Metric oracle 0.684
+From epoch = 27
+Metric = 0.709 Metric oracle 0.707
+From epoch = 17
+Metric = 0.697 Metric oracle 0.685
+From epoch = 29
+Metric = 0.700 Metric oracle 0.708
+From epoch = 31
+Metric = 0.677 Metric oracle 0.672
+Eval took 220.821 seconds
+172 / 300
+run_00173_predictors_2_delegators_16_pwidth_8_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 20
+Metric = 0.647 Metric oracle 0.648
+From epoch = 3
+Metric = 0.697 Metric oracle 0.696
+From epoch = 9
+Metric = 0.272 Metric oracle 0.263
+From epoch = 10
+Metric = 0.584 Metric oracle 0.581
+From epoch = 32
+Metric = 0.577 Metric oracle 0.572
+Eval took 220.889 seconds
+173 / 300
+run_00174_predictors_2_delegators_16_pwidth_8_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 13
+Metric = 0.627 Metric oracle 0.635
+From epoch = 26
+Metric = 0.691 Metric oracle 0.693
+From epoch = 14
+Metric = 0.291 Metric oracle 0.261
+From epoch = 1
+Metric = 0.530 Metric oracle 0.530
+From epoch = 5
+Metric = 0.543 Metric oracle 0.532
+Eval took 227.886 seconds
+174 / 300
+run_00175_predictors_16_delegators_16_pwidth_16_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 22
+Metric = 0.836 Metric oracle 0.839
+From epoch = 32
+Metric = 0.835 Metric oracle 0.843
+From epoch = 27
+Metric = 0.833 Metric oracle 0.834
+From epoch = 25
+Metric = 0.827 Metric oracle 0.828
+From epoch = 21
+Metric = 0.827 Metric oracle 0.828
+Eval took 227.382 seconds
+175 / 300
+run_00176_predictors_16_delegators_16_pwidth_16_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 9
+Metric = 0.767 Metric oracle 0.772
+From epoch = 13
+Metric = 0.774 Metric oracle 0.774
+From epoch = 6
+Metric = 0.779 Metric oracle 0.787
+From epoch = 23
+Metric = 0.746 Metric oracle 0.753
+From epoch = 7
+Metric = 0.781 Metric oracle 0.789
+Eval took 224.405 seconds
+176 / 300
+run_00177_predictors_16_delegators_16_pwidth_16_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 25
+Metric = 0.767 Metric oracle 0.765
+From epoch = 23
+Metric = 0.784 Metric oracle 0.792
+From epoch = 1
+Metric = 0.743 Metric oracle 0.743
+From epoch = 31
+Metric = 0.743 Metric oracle 0.749
+From epoch = 22
+Metric = 0.747 Metric oracle 0.749
+Eval took 225.020 seconds
+177 / 300
+run_00178_predictors_16_delegators_4_pwidth_8_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 27
+Metric = 0.788 Metric oracle 0.776
+From epoch = 27
+Metric = 0.768 Metric oracle 0.779
+From epoch = 30
+Metric = 0.784 Metric oracle 0.786
+From epoch = 30
+Metric = 0.784 Metric oracle 0.788
+From epoch = 24
+Metric = 0.765 Metric oracle 0.775
+Eval took 220.828 seconds
+178 / 300
+run_00179_predictors_16_delegators_4_pwidth_8_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 31
+Metric = 0.696 Metric oracle 0.707
+From epoch = 32
+Metric = 0.691 Metric oracle 0.691
+From epoch = 31
+Metric = 0.730 Metric oracle 0.736
+From epoch = 31
+Metric = 0.702 Metric oracle 0.694
+From epoch = 32
+Metric = 0.729 Metric oracle 0.725
+Eval took 211.436 seconds
+179 / 300
+run_00180_predictors_16_delegators_4_pwidth_8_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 32
+Metric = 0.663 Metric oracle 0.692
+From epoch = 30
+Metric = 0.648 Metric oracle 0.674
+From epoch = 29
+Metric = 0.694 Metric oracle 0.719
+From epoch = 30
+Metric = 0.670 Metric oracle 0.697
+From epoch = 25
+Metric = 0.632 Metric oracle 0.667
+Eval took 212.182 seconds
+180 / 300
+run_00181_predictors_4_delegators_32_pwidth_8_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 30
+Metric = 0.774 Metric oracle 0.752
+From epoch = 32
+Metric = 0.755 Metric oracle 0.752
+From epoch = 28
+Metric = 0.781 Metric oracle 0.769
+From epoch = 32
+Metric = 0.774 Metric oracle 0.757
+From epoch = 32
+Metric = 0.776 Metric oracle 0.746
+Eval took 303.745 seconds
+181 / 300
+run_00182_predictors_4_delegators_32_pwidth_8_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 29
+Metric = 0.563 Metric oracle 0.548
+From epoch = 28
+Metric = 0.543 Metric oracle 0.540
+From epoch = 32
+Metric = 0.694 Metric oracle 0.689
+From epoch = 32
+Metric = 0.711 Metric oracle 0.702
+From epoch = 29
+Metric = 0.631 Metric oracle 0.627
+Eval took 305.251 seconds
+182 / 300
+run_00183_predictors_4_delegators_32_pwidth_8_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 32
+Metric = 0.532 Metric oracle 0.557
+From epoch = 28
+Metric = 0.668 Metric oracle 0.684
+From epoch = 32
+Metric = 0.707 Metric oracle 0.725
+From epoch = 30
+Metric = 0.628 Metric oracle 0.655
+From epoch = 32
+Metric = 0.648 Metric oracle 0.665
+Eval took 306.922 seconds
+183 / 300
+run_00184_predictors_8_delegators_1_pwidth_4_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 31
+Metric = 0.715 Metric oracle 0.718
+From epoch = 31
+Metric = 0.690 Metric oracle 0.696
+From epoch = 32
+Metric = 0.639 Metric oracle 0.637
+From epoch = 27
+Metric = 0.662 Metric oracle 0.661
+From epoch = 32
+Metric = 0.686 Metric oracle 0.694
+Eval took 191.225 seconds
+184 / 300
+run_00185_predictors_8_delegators_1_pwidth_4_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 27
+Metric = 0.496 Metric oracle 0.499
+From epoch = 32
+Metric = 0.409 Metric oracle 0.417
+From epoch = 24
+Metric = 0.444 Metric oracle 0.463
+From epoch = 17
+Metric = 0.192 Metric oracle 0.192
+From epoch = 31
+Metric = 0.514 Metric oracle 0.522
+Eval took 187.037 seconds
+185 / 300
+run_00186_predictors_8_delegators_1_pwidth_4_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 1
+Metric = 0.373 Metric oracle 0.370
+From epoch = 24
+Metric = 0.482 Metric oracle 0.493
+From epoch = 30
+Metric = 0.469 Metric oracle 0.514
+From epoch = 0
+Metric = 0.257 Metric oracle 0.258
+From epoch = 22
+Metric = 0.502 Metric oracle 0.516
+Eval took 189.868 seconds
+186 / 300
+run_00187_predictors_16_delegators_32_pwidth_8_dwidth_16_mixing_sum_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 16
+Metric = 0.786 Metric oracle 0.787
+From epoch = 27
+Metric = 0.803 Metric oracle 0.799
+From epoch = 29
+Metric = 0.787 Metric oracle 0.778
+From epoch = 12
+Metric = 0.785 Metric oracle 0.782
+From epoch = 1
+Metric = 0.789 Metric oracle 0.786
+Eval took 305.198 seconds
+187 / 300
+run_00188_predictors_16_delegators_32_pwidth_8_dwidth_16_mixing_sum_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 1
+Metric = 0.651 Metric oracle 0.657
+From epoch = 2
+Metric = 0.702 Metric oracle 0.703
+From epoch = 14
+Metric = 0.681 Metric oracle 0.680
+From epoch = 2
+Metric = 0.680 Metric oracle 0.657
+From epoch = 0
+Metric = 0.664 Metric oracle 0.669
+Eval took 306.397 seconds
+188 / 300
+run_00189_predictors_16_delegators_32_pwidth_8_dwidth_16_mixing_sum_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 24
+Metric = 0.712 Metric oracle 0.701
+From epoch = 2
+Metric = 0.663 Metric oracle 0.667
+From epoch = 0
+Metric = 0.693 Metric oracle 0.680
+From epoch = 3
+Metric = 0.664 Metric oracle 0.657
+From epoch = 5
+Metric = 0.668 Metric oracle 0.666
+Eval took 303.389 seconds
+189 / 300
+run_00190_predictors_16_delegators_16_pwidth_4_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 31
+Metric = 0.729 Metric oracle 0.725
+From epoch = 28
+Metric = 0.741 Metric oracle 0.711
+From epoch = 31
+Metric = 0.765 Metric oracle 0.747
+From epoch = 31
+Metric = 0.745 Metric oracle 0.748
+From epoch = 27
+Metric = 0.698 Metric oracle 0.696
+Eval took 229.327 seconds
+190 / 300
+run_00191_predictors_16_delegators_16_pwidth_4_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 20
+Metric = 0.539 Metric oracle 0.509
+From epoch = 14
+Metric = 0.600 Metric oracle 0.552
+From epoch = 20
+Metric = 0.503 Metric oracle 0.482
+From epoch = 12
+Metric = 0.613 Metric oracle 0.589
+From epoch = 32
+Metric = 0.609 Metric oracle 0.589
+Eval took 227.113 seconds
+191 / 300
+run_00192_predictors_16_delegators_16_pwidth_4_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 17
+Metric = 0.511 Metric oracle 0.466
+From epoch = 22
+Metric = 0.602 Metric oracle 0.583
+From epoch = 31
+Metric = 0.531 Metric oracle 0.512
+From epoch = 14
+Metric = 0.637 Metric oracle 0.624
+From epoch = 23
+Metric = 0.624 Metric oracle 0.608
+Eval took 227.076 seconds
+192 / 300
+run_00193_predictors_8_delegators_4_pwidth_4_dwidth_16_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 28
+Metric = 0.707 Metric oracle 0.724
+From epoch = 21
+Metric = 0.739 Metric oracle 0.727
+From epoch = 32
+Metric = 0.750 Metric oracle 0.759
+From epoch = 30
+Metric = 0.748 Metric oracle 0.743
+From epoch = 30
+Metric = 0.723 Metric oracle 0.736
+Eval took 217.722 seconds
+193 / 300
+run_00194_predictors_8_delegators_4_pwidth_4_dwidth_16_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 32
+Metric = 0.530 Metric oracle 0.507
+From epoch = 27
+Metric = 0.565 Metric oracle 0.450
+From epoch = 28
+Metric = 0.605 Metric oracle 0.595
+From epoch = 19
+Metric = 0.631 Metric oracle 0.525
+From epoch = 25
+Metric = 0.587 Metric oracle 0.572
+Eval took 210.086 seconds
+194 / 300
+run_00195_predictors_8_delegators_4_pwidth_4_dwidth_16_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 8), cnn=0)
+From epoch = 31
+Metric = 0.487 Metric oracle 0.502
+From epoch = 28
+Metric = 0.531 Metric oracle 0.544
+From epoch = 29
+Metric = 0.596 Metric oracle 0.607
+From epoch = 31
+Metric = 0.565 Metric oracle 0.526
+From epoch = 21
+Metric = 0.571 Metric oracle 0.573
+Eval took 209.000 seconds
+195 / 300
+run_00196_predictors_16_delegators_16_pwidth_16_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 21
+Metric = 0.824 Metric oracle 0.829
+From epoch = 32
+Metric = 0.834 Metric oracle 0.834
+From epoch = 17
+Metric = 0.822 Metric oracle 0.825
+From epoch = 19
+Metric = 0.830 Metric oracle 0.829
+From epoch = 29
+Metric = 0.836 Metric oracle 0.841
+Eval took 229.033 seconds
+196 / 300
+run_00197_predictors_16_delegators_16_pwidth_16_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 31
+Metric = 0.766 Metric oracle 0.766
+From epoch = 25
+Metric = 0.787 Metric oracle 0.783
+From epoch = 2
+Metric = 0.782 Metric oracle 0.780
+From epoch = 1
+Metric = 0.780 Metric oracle 0.789
+From epoch = 31
+Metric = 0.743 Metric oracle 0.746
+Eval took 225.774 seconds
+197 / 300
+run_00198_predictors_16_delegators_16_pwidth_16_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 2
+Metric = 0.791 Metric oracle 0.789
+From epoch = 30
+Metric = 0.790 Metric oracle 0.790
+From epoch = 23
+Metric = 0.798 Metric oracle 0.798
+From epoch = 23
+Metric = 0.766 Metric oracle 0.765
+From epoch = 0
+Metric = 0.751 Metric oracle 0.752
+Eval took 228.650 seconds
+198 / 300
+run_00199_predictors_8_delegators_32_pwidth_8_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 32
+Metric = 0.764 Metric oracle 0.773
+From epoch = 23
+Metric = 0.746 Metric oracle 0.746
+From epoch = 32
+Metric = 0.802 Metric oracle 0.809
+From epoch = 28
+Metric = 0.759 Metric oracle 0.760
+From epoch = 30
+Metric = 0.756 Metric oracle 0.760
+Eval took 248.614 seconds
+199 / 300
+run_00200_predictors_8_delegators_32_pwidth_8_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 28
+Metric = 0.638 Metric oracle 0.643
+From epoch = 31
+Metric = 0.612 Metric oracle 0.614
+From epoch = 24
+Metric = 0.653 Metric oracle 0.645
+From epoch = 16
+Metric = 0.659 Metric oracle 0.661
+From epoch = 18
+Metric = 0.663 Metric oracle 0.667
+Eval took 249.134 seconds
+200 / 300
+run_00201_predictors_8_delegators_32_pwidth_8_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 28
+Metric = 0.637 Metric oracle 0.648
+From epoch = 10
+Metric = 0.634 Metric oracle 0.634
+From epoch = 19
+Metric = 0.608 Metric oracle 0.607
+From epoch = 19
+Metric = 0.643 Metric oracle 0.643
+From epoch = 30
+Metric = 0.629 Metric oracle 0.628
+Eval took 250.755 seconds
+201 / 300
+run_00202_predictors_8_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 32
+Metric = 0.681 Metric oracle 0.710
+From epoch = 25
+Metric = 0.676 Metric oracle 0.690
+From epoch = 26
+Metric = 0.704 Metric oracle 0.713
+From epoch = 32
+Metric = 0.655 Metric oracle 0.678
+From epoch = 30
+Metric = 0.717 Metric oracle 0.728
+Eval took 199.064 seconds
+202 / 300
+run_00203_predictors_8_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 31
+Metric = 0.546 Metric oracle 0.564
+From epoch = 30
+Metric = 0.492 Metric oracle 0.536
+From epoch = 31
+Metric = 0.557 Metric oracle 0.567
+From epoch = 31
+Metric = 0.537 Metric oracle 0.538
+From epoch = 31
+Metric = 0.586 Metric oracle 0.612
+Eval took 202.964 seconds
+203 / 300
+run_00204_predictors_8_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 32
+Metric = 0.545 Metric oracle 0.575
+From epoch = 32
+Metric = 0.570 Metric oracle 0.613
+From epoch = 30
+Metric = 0.536 Metric oracle 0.580
+From epoch = 25
+Metric = 0.553 Metric oracle 0.603
+From epoch = 32
+Metric = 0.538 Metric oracle 0.626
+Eval took 198.937 seconds
+204 / 300
+run_00205_predictors_16_delegators_1_pwidth_16_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 26
+Metric = 0.843 Metric oracle 0.843
+From epoch = 27
+Metric = 0.837 Metric oracle 0.839
+From epoch = 28
+Metric = 0.838 Metric oracle 0.838
+From epoch = 14
+Metric = 0.834 Metric oracle 0.836
+From epoch = 9
+Metric = 0.847 Metric oracle 0.847
+Eval took 194.072 seconds
+205 / 300
+run_00206_predictors_16_delegators_1_pwidth_16_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 20
+Metric = 0.752 Metric oracle 0.759
+From epoch = 11
+Metric = 0.777 Metric oracle 0.779
+From epoch = 14
+Metric = 0.753 Metric oracle 0.761
+From epoch = 28
+Metric = 0.745 Metric oracle 0.753
+From epoch = 32
+Metric = 0.783 Metric oracle 0.786
+Eval took 192.135 seconds
+206 / 300
+run_00207_predictors_16_delegators_1_pwidth_16_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 30
+Metric = 0.713 Metric oracle 0.740
+From epoch = 5
+Metric = 0.741 Metric oracle 0.768
+From epoch = 29
+Metric = 0.789 Metric oracle 0.787
+From epoch = 31
+Metric = 0.723 Metric oracle 0.755
+From epoch = 29
+Metric = 0.736 Metric oracle 0.738
+Eval took 191.714 seconds
+207 / 300
+run_00208_predictors_4_delegators_2_pwidth_4_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 32
+Metric = 0.589 Metric oracle 0.624
+From epoch = 28
+Metric = 0.607 Metric oracle 0.643
+From epoch = 24
+Metric = 0.607 Metric oracle 0.622
+From epoch = 28
+Metric = 0.612 Metric oracle 0.632
+From epoch = 32
+Metric = 0.645 Metric oracle 0.650
+Eval took 190.397 seconds
+208 / 300
+run_00209_predictors_4_delegators_2_pwidth_4_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 22
+Metric = 0.560 Metric oracle 0.534
+From epoch = 23
+Metric = 0.341 Metric oracle 0.343
+From epoch = 20
+Metric = 0.532 Metric oracle 0.541
+From epoch = 28
+Metric = 0.457 Metric oracle 0.473
+From epoch = 32
+Metric = 0.431 Metric oracle 0.380
+Eval took 188.570 seconds
+209 / 300
+run_00210_predictors_4_delegators_2_pwidth_4_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 30
+Metric = 0.535 Metric oracle 0.557
+From epoch = 28
+Metric = 0.336 Metric oracle 0.365
+From epoch = 0
+Metric = 0.423 Metric oracle 0.378
+From epoch = 5
+Metric = 0.440 Metric oracle 0.400
+From epoch = 32
+Metric = 0.423 Metric oracle 0.429
+Eval took 190.747 seconds
+210 / 300
+run_00211_predictors_32_delegators_2_pwidth_8_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 19
+Metric = 0.800 Metric oracle 0.804
+From epoch = 29
+Metric = 0.795 Metric oracle 0.794
+From epoch = 32
+Metric = 0.770 Metric oracle 0.782
+From epoch = 20
+Metric = 0.782 Metric oracle 0.785
+From epoch = 26
+Metric = 0.804 Metric oracle 0.807
+Eval took 199.782 seconds
+211 / 300
+run_00212_predictors_32_delegators_2_pwidth_8_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 30
+Metric = 0.728 Metric oracle 0.734
+From epoch = 26
+Metric = 0.736 Metric oracle 0.736
+From epoch = 30
+Metric = 0.713 Metric oracle 0.724
+From epoch = 27
+Metric = 0.681 Metric oracle 0.682
+From epoch = 32
+Metric = 0.712 Metric oracle 0.720
+Eval took 199.151 seconds
+212 / 300
+run_00213_predictors_32_delegators_2_pwidth_8_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 32
+Metric = 0.671 Metric oracle 0.689
+From epoch = 27
+Metric = 0.652 Metric oracle 0.677
+From epoch = 23
+Metric = 0.625 Metric oracle 0.645
+From epoch = 28
+Metric = 0.661 Metric oracle 0.670
+From epoch = 29
+Metric = 0.672 Metric oracle 0.697
+Eval took 196.897 seconds
+213 / 300
+run_00214_predictors_4_delegators_4_pwidth_16_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 25
+Metric = 0.784 Metric oracle 0.783
+From epoch = 32
+Metric = 0.780 Metric oracle 0.777
+From epoch = 31
+Metric = 0.801 Metric oracle 0.800
+From epoch = 32
+Metric = 0.802 Metric oracle 0.805
+From epoch = 20
+Metric = 0.783 Metric oracle 0.783
+Eval took 191.154 seconds
+214 / 300
+run_00215_predictors_4_delegators_4_pwidth_16_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 31
+Metric = 0.690 Metric oracle 0.692
+From epoch = 25
+Metric = 0.713 Metric oracle 0.718
+From epoch = 31
+Metric = 0.744 Metric oracle 0.747
+From epoch = 17
+Metric = 0.732 Metric oracle 0.733
+From epoch = 18
+Metric = 0.681 Metric oracle 0.688
+Eval took 193.255 seconds
+215 / 300
+run_00216_predictors_4_delegators_4_pwidth_16_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 31
+Metric = 0.721 Metric oracle 0.717
+From epoch = 0
+Metric = 0.754 Metric oracle 0.754
+From epoch = 2
+Metric = 0.768 Metric oracle 0.765
+From epoch = 23
+Metric = 0.751 Metric oracle 0.752
+From epoch = 13
+Metric = 0.699 Metric oracle 0.699
+Eval took 188.651 seconds
+216 / 300
+run_00217_predictors_16_delegators_16_pwidth_16_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 29
+Metric = 0.819 Metric oracle 0.815
+From epoch = 23
+Metric = 0.807 Metric oracle 0.807
+From epoch = 32
+Metric = 0.816 Metric oracle 0.821
+From epoch = 31
+Metric = 0.811 Metric oracle 0.809
+From epoch = 29
+Metric = 0.801 Metric oracle 0.810
+Eval took 251.415 seconds
+217 / 300
+run_00218_predictors_16_delegators_16_pwidth_16_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 30
+Metric = 0.761 Metric oracle 0.760
+From epoch = 0
+Metric = 0.779 Metric oracle 0.689
+From epoch = 23
+Metric = 0.754 Metric oracle 0.760
+From epoch = 31
+Metric = 0.748 Metric oracle 0.748
+From epoch = 30
+Metric = 0.764 Metric oracle 0.761
+Eval took 253.627 seconds
+218 / 300
+run_00219_predictors_16_delegators_16_pwidth_16_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 24
+Metric = 0.703 Metric oracle 0.721
+From epoch = 32
+Metric = 0.744 Metric oracle 0.759
+From epoch = 24
+Metric = 0.655 Metric oracle 0.708
+From epoch = 26
+Metric = 0.658 Metric oracle 0.691
+From epoch = 29
+Metric = 0.721 Metric oracle 0.730
+Eval took 254.538 seconds
+219 / 300
+run_00220_predictors_4_delegators_16_pwidth_4_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 30
+Metric = 0.732 Metric oracle 0.689
+From epoch = 30
+Metric = 0.697 Metric oracle 0.698
+From epoch = 32
+Metric = 0.734 Metric oracle 0.736
+From epoch = 27
+Metric = 0.715 Metric oracle 0.681
+From epoch = 32
+Metric = 0.690 Metric oracle 0.702
+Eval took 257.012 seconds
+220 / 300
+run_00221_predictors_4_delegators_16_pwidth_4_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 32
+Metric = 0.475 Metric oracle 0.455
+From epoch = 32
+Metric = 0.516 Metric oracle 0.504
+From epoch = 32
+Metric = 0.547 Metric oracle 0.537
+From epoch = 32
+Metric = 0.445 Metric oracle 0.438
+From epoch = 29
+Metric = 0.491 Metric oracle 0.488
+Eval took 253.359 seconds
+221 / 300
+run_00222_predictors_4_delegators_16_pwidth_4_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 30
+Metric = 0.442 Metric oracle 0.477
+From epoch = 28
+Metric = 0.474 Metric oracle 0.496
+From epoch = 28
+Metric = 0.541 Metric oracle 0.567
+From epoch = 31
+Metric = 0.446 Metric oracle 0.471
+From epoch = 29
+Metric = 0.461 Metric oracle 0.478
+Eval took 261.138 seconds
+222 / 300
+run_00223_predictors_16_delegators_8_pwidth_4_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 28
+Metric = 0.732 Metric oracle 0.739
+From epoch = 30
+Metric = 0.728 Metric oracle 0.736
+From epoch = 31
+Metric = 0.731 Metric oracle 0.732
+From epoch = 31
+Metric = 0.722 Metric oracle 0.737
+From epoch = 30
+Metric = 0.739 Metric oracle 0.747
+Eval took 210.756 seconds
+223 / 300
+run_00224_predictors_16_delegators_8_pwidth_4_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 29
+Metric = 0.643 Metric oracle 0.649
+From epoch = 2
+Metric = 0.463 Metric oracle 0.476
+From epoch = 31
+Metric = 0.587 Metric oracle 0.595
+From epoch = 30
+Metric = 0.659 Metric oracle 0.662
+From epoch = 32
+Metric = 0.600 Metric oracle 0.626
+Eval took 203.916 seconds
+224 / 300
+run_00225_predictors_16_delegators_8_pwidth_4_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 30
+Metric = 0.554 Metric oracle 0.585
+From epoch = 31
+Metric = 0.457 Metric oracle 0.527
+From epoch = 27
+Metric = 0.572 Metric oracle 0.626
+From epoch = 30
+Metric = 0.657 Metric oracle 0.684
+From epoch = 30
+Metric = 0.623 Metric oracle 0.656
+Eval took 205.078 seconds
+225 / 300
+run_00226_predictors_16_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 26
+Metric = 0.773 Metric oracle 0.779
+From epoch = 32
+Metric = 0.775 Metric oracle 0.781
+From epoch = 30
+Metric = 0.767 Metric oracle 0.776
+From epoch = 32
+Metric = 0.772 Metric oracle 0.773
+From epoch = 30
+Metric = 0.766 Metric oracle 0.774
+Eval took 209.160 seconds
+226 / 300
+run_00227_predictors_16_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 30
+Metric = 0.685 Metric oracle 0.689
+From epoch = 28
+Metric = 0.718 Metric oracle 0.713
+From epoch = 30
+Metric = 0.722 Metric oracle 0.722
+From epoch = 32
+Metric = 0.718 Metric oracle 0.713
+From epoch = 31
+Metric = 0.718 Metric oracle 0.712
+Eval took 202.508 seconds
+227 / 300
+run_00228_predictors_16_delegators_16_pwidth_8_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 32
+Metric = 0.646 Metric oracle 0.667
+From epoch = 31
+Metric = 0.677 Metric oracle 0.693
+From epoch = 32
+Metric = 0.681 Metric oracle 0.695
+From epoch = 32
+Metric = 0.695 Metric oracle 0.717
+From epoch = 31
+Metric = 0.677 Metric oracle 0.693
+Eval took 202.835 seconds
+228 / 300
+run_00229_predictors_4_delegators_2_pwidth_4_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 31
+Metric = 0.574 Metric oracle 0.603
+From epoch = 29
+Metric = 0.470 Metric oracle 0.517
+From epoch = 29
+Metric = 0.436 Metric oracle 0.511
+From epoch = 26
+Metric = 0.255 Metric oracle 0.263
+From epoch = 23
+Metric = 0.659 Metric oracle 0.670
+Eval took 188.771 seconds
+229 / 300
+run_00230_predictors_4_delegators_2_pwidth_4_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 32
+Metric = 0.250 Metric oracle 0.259
+From epoch = 28
+Metric = 0.290 Metric oracle 0.293
+From epoch = 28
+Metric = 0.336 Metric oracle 0.314
+From epoch = 5
+Metric = 0.259 Metric oracle 0.260
+From epoch = 13
+Metric = 0.216 Metric oracle 0.266
+Eval took 189.507 seconds
+230 / 300
+run_00231_predictors_4_delegators_2_pwidth_4_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 28
+Metric = 0.192 Metric oracle 0.256
+From epoch = 13
+Metric = 0.380 Metric oracle 0.382
+From epoch = 26
+Metric = 0.409 Metric oracle 0.401
+From epoch = 3
+Metric = 0.403 Metric oracle 0.404
+From epoch = 21
+Metric = 0.210 Metric oracle 0.225
+Eval took 184.543 seconds
+231 / 300
+run_00232_predictors_4_delegators_2_pwidth_4_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 30
+Metric = 0.660 Metric oracle 0.663
+From epoch = 32
+Metric = 0.661 Metric oracle 0.673
+From epoch = 30
+Metric = 0.612 Metric oracle 0.672
+From epoch = 30
+Metric = 0.551 Metric oracle 0.608
+From epoch = 29
+Metric = 0.633 Metric oracle 0.652
+Eval took 189.099 seconds
+232 / 300
+run_00233_predictors_4_delegators_2_pwidth_4_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 29
+Metric = 0.450 Metric oracle 0.452
+From epoch = 30
+Metric = 0.604 Metric oracle 0.597
+From epoch = 32
+Metric = 0.388 Metric oracle 0.375
+From epoch = 31
+Metric = 0.375 Metric oracle 0.374
+From epoch = 22
+Metric = 0.432 Metric oracle 0.375
+Eval took 192.226 seconds
+233 / 300
+run_00234_predictors_4_delegators_2_pwidth_4_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 28
+Metric = 0.349 Metric oracle 0.379
+From epoch = 30
+Metric = 0.389 Metric oracle 0.436
+From epoch = 26
+Metric = 0.348 Metric oracle 0.343
+From epoch = 30
+Metric = 0.396 Metric oracle 0.429
+From epoch = 32
+Metric = 0.383 Metric oracle 0.396
+Eval took 186.054 seconds
+234 / 300
+run_00235_predictors_2_delegators_8_pwidth_16_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 23
+Metric = 0.776 Metric oracle 0.769
+From epoch = 13
+Metric = 0.692 Metric oracle 0.686
+From epoch = 30
+Metric = 0.738 Metric oracle 0.739
+From epoch = 26
+Metric = 0.686 Metric oracle 0.693
+From epoch = 31
+Metric = 0.717 Metric oracle 0.721
+Eval took 202.195 seconds
+235 / 300
+run_00236_predictors_2_delegators_8_pwidth_16_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 15
+Metric = 0.746 Metric oracle 0.748
+From epoch = 25
+Metric = 0.624 Metric oracle 0.620
+From epoch = 26
+Metric = 0.737 Metric oracle 0.743
+From epoch = 21
+Metric = 0.672 Metric oracle 0.677
+From epoch = 25
+Metric = 0.647 Metric oracle 0.643
+Eval took 199.505 seconds
+236 / 300
+run_00237_predictors_2_delegators_8_pwidth_16_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 17
+Metric = 0.769 Metric oracle 0.773
+From epoch = 27
+Metric = 0.627 Metric oracle 0.629
+From epoch = 20
+Metric = 0.625 Metric oracle 0.625
+From epoch = 32
+Metric = 0.626 Metric oracle 0.620
+From epoch = 31
+Metric = 0.655 Metric oracle 0.655
+Eval took 198.213 seconds
+237 / 300
+run_00238_predictors_2_delegators_2_pwidth_16_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 30
+Metric = 0.607 Metric oracle 0.625
+From epoch = 26
+Metric = 0.788 Metric oracle 0.786
+From epoch = 28
+Metric = 0.752 Metric oracle 0.757
+From epoch = 26
+Metric = 0.703 Metric oracle 0.701
+From epoch = 4
+Metric = 0.727 Metric oracle 0.728
+Eval took 188.982 seconds
+238 / 300
+run_00239_predictors_2_delegators_2_pwidth_16_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 28
+Metric = 0.641 Metric oracle 0.646
+From epoch = 22
+Metric = 0.756 Metric oracle 0.754
+From epoch = 11
+Metric = 0.747 Metric oracle 0.745
+From epoch = 0
+Metric = 0.707 Metric oracle 0.707
+From epoch = 31
+Metric = 0.621 Metric oracle 0.621
+Eval took 191.262 seconds
+239 / 300
+run_00240_predictors_2_delegators_2_pwidth_16_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 2), cnn=0)
+From epoch = 23
+Metric = 0.670 Metric oracle 0.674
+From epoch = 32
+Metric = 0.693 Metric oracle 0.707
+From epoch = 16
+Metric = 0.723 Metric oracle 0.738
+From epoch = 30
+Metric = 0.736 Metric oracle 0.750
+From epoch = 29
+Metric = 0.658 Metric oracle 0.667
+Eval took 191.750 seconds
+240 / 300
+run_00241_predictors_4_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 27
+Metric = 0.654 Metric oracle 0.670
+From epoch = 31
+Metric = 0.563 Metric oracle 0.596
+From epoch = 23
+Metric = 0.597 Metric oracle 0.640
+From epoch = 32
+Metric = 0.673 Metric oracle 0.703
+From epoch = 30
+Metric = 0.592 Metric oracle 0.609
+Eval took 192.977 seconds
+241 / 300
+run_00242_predictors_4_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 32
+Metric = 0.435 Metric oracle 0.444
+From epoch = 32
+Metric = 0.522 Metric oracle 0.499
+From epoch = 31
+Metric = 0.459 Metric oracle 0.458
+From epoch = 27
+Metric = 0.528 Metric oracle 0.539
+From epoch = 31
+Metric = 0.470 Metric oracle 0.464
+Eval took 194.587 seconds
+242 / 300
+run_00243_predictors_4_delegators_4_pwidth_4_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 31
+Metric = 0.413 Metric oracle 0.427
+From epoch = 32
+Metric = 0.390 Metric oracle 0.409
+From epoch = 32
+Metric = 0.391 Metric oracle 0.426
+From epoch = 30
+Metric = 0.469 Metric oracle 0.498
+From epoch = 30
+Metric = 0.424 Metric oracle 0.450
+Eval took 194.675 seconds
+243 / 300
+run_00244_predictors_4_delegators_16_pwidth_4_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 32
+Metric = 0.679 Metric oracle 0.664
+From epoch = 30
+Metric = 0.747 Metric oracle 0.731
+From epoch = 31
+Metric = 0.739 Metric oracle 0.723
+From epoch = 32
+Metric = 0.751 Metric oracle 0.727
+From epoch = 28
+Metric = 0.705 Metric oracle 0.714
+Eval took 252.606 seconds
+244 / 300
+run_00245_predictors_4_delegators_16_pwidth_4_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 32
+Metric = 0.406 Metric oracle 0.393
+From epoch = 30
+Metric = 0.470 Metric oracle 0.470
+From epoch = 31
+Metric = 0.554 Metric oracle 0.553
+From epoch = 28
+Metric = 0.489 Metric oracle 0.488
+From epoch = 31
+Metric = 0.551 Metric oracle 0.561
+Eval took 254.051 seconds
+245 / 300
+run_00246_predictors_4_delegators_16_pwidth_4_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 31
+Metric = 0.420 Metric oracle 0.433
+From epoch = 22
+Metric = 0.468 Metric oracle 0.480
+From epoch = 30
+Metric = 0.480 Metric oracle 0.514
+From epoch = 31
+Metric = 0.474 Metric oracle 0.502
+From epoch = 29
+Metric = 0.432 Metric oracle 0.458
+Eval took 259.246 seconds
+246 / 300
+run_00247_predictors_4_delegators_8_pwidth_4_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 23
+Metric = 0.674 Metric oracle 0.680
+From epoch = 32
+Metric = 0.657 Metric oracle 0.646
+From epoch = 32
+Metric = 0.671 Metric oracle 0.668
+From epoch = 31
+Metric = 0.634 Metric oracle 0.621
+From epoch = 29
+Metric = 0.663 Metric oracle 0.645
+Eval took 198.943 seconds
+247 / 300
+run_00248_predictors_4_delegators_8_pwidth_4_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 1
+Metric = 0.456 Metric oracle 0.453
+From epoch = 17
+Metric = 0.398 Metric oracle 0.379
+From epoch = 20
+Metric = 0.461 Metric oracle 0.425
+From epoch = 28
+Metric = 0.477 Metric oracle 0.477
+From epoch = 31
+Metric = 0.417 Metric oracle 0.402
+Eval took 203.974 seconds
+248 / 300
+run_00249_predictors_4_delegators_8_pwidth_4_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 16
+Metric = 0.526 Metric oracle 0.529
+From epoch = 17
+Metric = 0.373 Metric oracle 0.384
+From epoch = 20
+Metric = 0.565 Metric oracle 0.564
+From epoch = 28
+Metric = 0.448 Metric oracle 0.448
+From epoch = 31
+Metric = 0.454 Metric oracle 0.418
+Eval took 203.731 seconds
+249 / 300
+run_00250_predictors_32_delegators_32_pwidth_8_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 31
+Metric = 0.802 Metric oracle 0.801
+From epoch = 27
+Metric = 0.811 Metric oracle 0.818
+From epoch = 32
+Metric = 0.827 Metric oracle 0.823
+From epoch = 30
+Metric = 0.816 Metric oracle 0.814
+From epoch = 22
+Metric = 0.812 Metric oracle 0.811
+Eval took 252.097 seconds
+250 / 300
+run_00251_predictors_32_delegators_32_pwidth_8_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 8
+Metric = 0.678 Metric oracle 0.688
+From epoch = 22
+Metric = 0.637 Metric oracle 0.630
+From epoch = 22
+Metric = 0.681 Metric oracle 0.671
+From epoch = 20
+Metric = 0.674 Metric oracle 0.677
+From epoch = 23
+Metric = 0.640 Metric oracle 0.637
+Eval took 248.271 seconds
+251 / 300
+run_00252_predictors_32_delegators_32_pwidth_8_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 32), cnn=0)
+From epoch = 31
+Metric = 0.646 Metric oracle 0.657
+From epoch = 23
+Metric = 0.633 Metric oracle 0.647
+From epoch = 2
+Metric = 0.672 Metric oracle 0.677
+From epoch = 27
+Metric = 0.650 Metric oracle 0.654
+From epoch = 4
+Metric = 0.653 Metric oracle 0.654
+Eval took 257.154 seconds
+252 / 300
+run_00253_predictors_16_delegators_1_pwidth_8_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 8
+Metric = 0.788 Metric oracle 0.784
+From epoch = 30
+Metric = 0.790 Metric oracle 0.789
+From epoch = 30
+Metric = 0.785 Metric oracle 0.788
+From epoch = 21
+Metric = 0.802 Metric oracle 0.802
+From epoch = 21
+Metric = 0.777 Metric oracle 0.780
+Eval took 194.793 seconds
+253 / 300
+run_00254_predictors_16_delegators_1_pwidth_8_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 29
+Metric = 0.630 Metric oracle 0.632
+From epoch = 32
+Metric = 0.670 Metric oracle 0.669
+From epoch = 14
+Metric = 0.698 Metric oracle 0.705
+From epoch = 18
+Metric = 0.703 Metric oracle 0.708
+From epoch = 29
+Metric = 0.628 Metric oracle 0.629
+Eval took 189.439 seconds
+254 / 300
+run_00255_predictors_16_delegators_1_pwidth_8_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 28
+Metric = 0.643 Metric oracle 0.652
+From epoch = 24
+Metric = 0.637 Metric oracle 0.664
+From epoch = 32
+Metric = 0.689 Metric oracle 0.695
+From epoch = 20
+Metric = 0.689 Metric oracle 0.696
+From epoch = 32
+Metric = 0.632 Metric oracle 0.636
+Eval took 192.069 seconds
+255 / 300
+run_00256_predictors_4_delegators_8_pwidth_16_dwidth_16_mixing_sum_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 20
+Metric = 0.779 Metric oracle 0.770
+From epoch = 30
+Metric = 0.782 Metric oracle 0.781
+From epoch = 30
+Metric = 0.795 Metric oracle 0.793
+From epoch = 31
+Metric = 0.755 Metric oracle 0.754
+From epoch = 26
+Metric = 0.754 Metric oracle 0.751
+Eval took 233.422 seconds
+256 / 300
+run_00257_predictors_4_delegators_8_pwidth_16_dwidth_16_mixing_sum_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 7
+Metric = 0.679 Metric oracle 0.677
+From epoch = 15
+Metric = 0.725 Metric oracle 0.724
+From epoch = 9
+Metric = 0.723 Metric oracle 0.730
+From epoch = 29
+Metric = 0.721 Metric oracle 0.727
+From epoch = 6
+Metric = 0.752 Metric oracle 0.759
+Eval took 230.778 seconds
+257 / 300
+run_00258_predictors_4_delegators_8_pwidth_16_dwidth_16_mixing_sum_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 11
+Metric = 0.688 Metric oracle 0.674
+From epoch = 27
+Metric = 0.729 Metric oracle 0.727
+From epoch = 21
+Metric = 0.724 Metric oracle 0.726
+From epoch = 11
+Metric = 0.691 Metric oracle 0.698
+From epoch = 0
+Metric = 0.753 Metric oracle 0.748
+Eval took 229.705 seconds
+258 / 300
+run_00259_predictors_4_delegators_1_pwidth_8_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 29
+Metric = 0.660 Metric oracle 0.660
+From epoch = 29
+Metric = 0.665 Metric oracle 0.677
+From epoch = 30
+Metric = 0.697 Metric oracle 0.712
+From epoch = 32
+Metric = 0.683 Metric oracle 0.691
+From epoch = 22
+Metric = 0.675 Metric oracle 0.663
+Eval took 194.305 seconds
+259 / 300
+run_00260_predictors_4_delegators_1_pwidth_8_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 32
+Metric = 0.497 Metric oracle 0.508
+From epoch = 30
+Metric = 0.600 Metric oracle 0.605
+From epoch = 30
+Metric = 0.655 Metric oracle 0.659
+From epoch = 26
+Metric = 0.649 Metric oracle 0.646
+From epoch = 31
+Metric = 0.602 Metric oracle 0.603
+Eval took 188.317 seconds
+260 / 300
+run_00261_predictors_4_delegators_1_pwidth_8_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 24
+Metric = 0.488 Metric oracle 0.532
+From epoch = 25
+Metric = 0.603 Metric oracle 0.629
+From epoch = 24
+Metric = 0.600 Metric oracle 0.637
+From epoch = 3
+Metric = 0.410 Metric oracle 0.396
+From epoch = 23
+Metric = 0.609 Metric oracle 0.630
+Eval took 189.200 seconds
+261 / 300
+run_00262_predictors_16_delegators_16_pwidth_8_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 30
+Metric = 0.801 Metric oracle 0.807
+From epoch = 30
+Metric = 0.764 Metric oracle 0.771
+From epoch = 29
+Metric = 0.773 Metric oracle 0.788
+From epoch = 31
+Metric = 0.757 Metric oracle 0.770
+From epoch = 28
+Metric = 0.780 Metric oracle 0.779
+Eval took 228.354 seconds
+262 / 300
+run_00263_predictors_16_delegators_16_pwidth_8_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 29
+Metric = 0.727 Metric oracle 0.728
+From epoch = 31
+Metric = 0.691 Metric oracle 0.688
+From epoch = 28
+Metric = 0.726 Metric oracle 0.717
+From epoch = 29
+Metric = 0.741 Metric oracle 0.753
+From epoch = 29
+Metric = 0.737 Metric oracle 0.733
+Eval took 226.139 seconds
+263 / 300
+run_00264_predictors_16_delegators_16_pwidth_8_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(24, 16, 8, 16), cnn=0)
+From epoch = 29
+Metric = 0.677 Metric oracle 0.699
+From epoch = 29
+Metric = 0.675 Metric oracle 0.697
+From epoch = 32
+Metric = 0.677 Metric oracle 0.700
+From epoch = 28
+Metric = 0.661 Metric oracle 0.681
+From epoch = 32
+Metric = 0.686 Metric oracle 0.710
+Eval took 223.823 seconds
+264 / 300
+run_00265_predictors_4_delegators_8_pwidth_4_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 30
+Metric = 0.632 Metric oracle 0.643
+From epoch = 25
+Metric = 0.621 Metric oracle 0.605
+From epoch = 31
+Metric = 0.442 Metric oracle 0.444
+From epoch = 31
+Metric = 0.456 Metric oracle 0.482
+From epoch = 30
+Metric = 0.500 Metric oracle 0.543
+Eval took 198.774 seconds
+265 / 300
+run_00266_predictors_4_delegators_8_pwidth_4_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 19
+Metric = 0.398 Metric oracle 0.350
+From epoch = 9
+Metric = 0.406 Metric oracle 0.396
+From epoch = 2
+Metric = 0.506 Metric oracle 0.507
+From epoch = 32
+Metric = 0.392 Metric oracle 0.386
+From epoch = 20
+Metric = 0.237 Metric oracle 0.213
+Eval took 200.399 seconds
+266 / 300
+run_00267_predictors_4_delegators_8_pwidth_4_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 4), cnn=0)
+From epoch = 30
+Metric = 0.341 Metric oracle 0.348
+From epoch = 15
+Metric = 0.327 Metric oracle 0.330
+From epoch = 30
+Metric = 0.389 Metric oracle 0.393
+From epoch = 24
+Metric = 0.428 Metric oracle 0.405
+From epoch = 31
+Metric = 0.230 Metric oracle 0.238
+Eval took 200.567 seconds
+267 / 300
+run_00268_predictors_32_delegators_32_pwidth_8_dwidth_16_mixing_sum_ambiguity_both
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 7
+Metric = 0.784 Metric oracle 0.785
+From epoch = 26
+Metric = 0.792 Metric oracle 0.784
+From epoch = 17
+Metric = 0.810 Metric oracle 0.808
+From epoch = 19
+Metric = 0.784 Metric oracle 0.779
+From epoch = 31
+Metric = 0.800 Metric oracle 0.802
+Eval took 319.431 seconds
+268 / 300
+run_00269_predictors_32_delegators_32_pwidth_8_dwidth_16_mixing_sum_ambiguity_delegators
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 2
+Metric = 0.637 Metric oracle 0.643
+From epoch = 20
+Metric = 0.671 Metric oracle 0.676
+From epoch = 2
+Metric = 0.682 Metric oracle 0.678
+From epoch = 0
+Metric = 0.621 Metric oracle 0.608
+From epoch = 2
+Metric = 0.663 Metric oracle 0.662
+Eval took 307.882 seconds
+269 / 300
+run_00270_predictors_32_delegators_32_pwidth_8_dwidth_16_mixing_sum_ambiguity_none
+Architecture(predictor=(24, 16, 8, 10), delegator=(48, 32, 16, 32), cnn=0)
+From epoch = 0
+Metric = 0.659 Metric oracle 0.664
+From epoch = 17
+Metric = 0.665 Metric oracle 0.677
+From epoch = 12
+Metric = 0.654 Metric oracle 0.657
+From epoch = 14
+Metric = 0.664 Metric oracle 0.670
+From epoch = 5
+Metric = 0.669 Metric oracle 0.669
+Eval took 309.201 seconds
+270 / 300
+run_00271_predictors_4_delegators_8_pwidth_4_dwidth_8_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 21
+Metric = 0.630 Metric oracle 0.637
+From epoch = 27
+Metric = 0.637 Metric oracle 0.650
+From epoch = 28
+Metric = 0.650 Metric oracle 0.642
+From epoch = 17
+Metric = 0.709 Metric oracle 0.667
+From epoch = 30
+Metric = 0.650 Metric oracle 0.612
+Eval took 203.156 seconds
+271 / 300
+run_00272_predictors_4_delegators_8_pwidth_4_dwidth_8_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 22
+Metric = 0.467 Metric oracle 0.439
+From epoch = 24
+Metric = 0.495 Metric oracle 0.482
+From epoch = 28
+Metric = 0.402 Metric oracle 0.380
+From epoch = 28
+Metric = 0.359 Metric oracle 0.265
+From epoch = 22
+Metric = 0.506 Metric oracle 0.492
+Eval took 201.922 seconds
+272 / 300
+run_00273_predictors_4_delegators_8_pwidth_4_dwidth_8_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(24, 16, 8, 4), cnn=0)
+From epoch = 24
+Metric = 0.438 Metric oracle 0.451
+From epoch = 23
+Metric = 0.539 Metric oracle 0.540
+From epoch = 29
+Metric = 0.343 Metric oracle 0.333
+From epoch = 22
+Metric = 0.332 Metric oracle 0.279
+From epoch = 27
+Metric = 0.584 Metric oracle 0.565
+Eval took 203.242 seconds
+273 / 300
+run_00274_predictors_16_delegators_2_pwidth_4_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 25
+Metric = 0.752 Metric oracle 0.755
+From epoch = 22
+Metric = 0.701 Metric oracle 0.714
+From epoch = 28
+Metric = 0.746 Metric oracle 0.732
+From epoch = 23
+Metric = 0.719 Metric oracle 0.719
+From epoch = 32
+Metric = 0.739 Metric oracle 0.740
+Eval took 193.667 seconds
+274 / 300
+run_00275_predictors_16_delegators_2_pwidth_4_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 28
+Metric = 0.559 Metric oracle 0.563
+From epoch = 29
+Metric = 0.554 Metric oracle 0.559
+From epoch = 30
+Metric = 0.546 Metric oracle 0.548
+From epoch = 27
+Metric = 0.481 Metric oracle 0.509
+From epoch = 17
+Metric = 0.581 Metric oracle 0.579
+Eval took 187.940 seconds
+275 / 300
+run_00276_predictors_16_delegators_2_pwidth_4_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 7
+Metric = 0.510 Metric oracle 0.510
+From epoch = 30
+Metric = 0.598 Metric oracle 0.610
+From epoch = 24
+Metric = 0.533 Metric oracle 0.535
+From epoch = 24
+Metric = 0.448 Metric oracle 0.486
+From epoch = 28
+Metric = 0.580 Metric oracle 0.590
+Eval took 192.241 seconds
+276 / 300
+run_00277_predictors_8_delegators_1_pwidth_4_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 29
+Metric = 0.664 Metric oracle 0.664
+From epoch = 31
+Metric = 0.687 Metric oracle 0.687
+From epoch = 25
+Metric = 0.652 Metric oracle 0.648
+From epoch = 30
+Metric = 0.643 Metric oracle 0.654
+From epoch = 22
+Metric = 0.675 Metric oracle 0.679
+Eval took 187.171 seconds
+277 / 300
+run_00278_predictors_8_delegators_1_pwidth_4_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 31
+Metric = 0.531 Metric oracle 0.528
+From epoch = 25
+Metric = 0.441 Metric oracle 0.442
+From epoch = 4
+Metric = 0.389 Metric oracle 0.398
+From epoch = 28
+Metric = 0.206 Metric oracle 0.266
+From epoch = 32
+Metric = 0.468 Metric oracle 0.475
+Eval took 186.744 seconds
+278 / 300
+run_00279_predictors_8_delegators_1_pwidth_4_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 32
+Metric = 0.516 Metric oracle 0.528
+From epoch = 24
+Metric = 0.370 Metric oracle 0.385
+From epoch = 16
+Metric = 0.475 Metric oracle 0.475
+From epoch = 17
+Metric = 0.192 Metric oracle 0.191
+From epoch = 21
+Metric = 0.518 Metric oracle 0.553
+Eval took 185.926 seconds
+279 / 300
+run_00280_predictors_16_delegators_8_pwidth_4_dwidth_16_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 31
+Metric = 0.768 Metric oracle 0.776
+From epoch = 31
+Metric = 0.781 Metric oracle 0.786
+From epoch = 32
+Metric = 0.773 Metric oracle 0.777
+From epoch = 30
+Metric = 0.791 Metric oracle 0.787
+From epoch = 25
+Metric = 0.756 Metric oracle 0.770
+Eval took 234.240 seconds
+280 / 300
+run_00281_predictors_16_delegators_8_pwidth_4_dwidth_16_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 32
+Metric = 0.676 Metric oracle 0.706
+From epoch = 23
+Metric = 0.679 Metric oracle 0.665
+From epoch = 28
+Metric = 0.712 Metric oracle 0.709
+From epoch = 32
+Metric = 0.704 Metric oracle 0.699
+From epoch = 30
+Metric = 0.662 Metric oracle 0.688
+Eval took 234.644 seconds
+281 / 300
+run_00282_predictors_16_delegators_8_pwidth_4_dwidth_16_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 16), cnn=0)
+From epoch = 31
+Metric = 0.685 Metric oracle 0.729
+From epoch = 31
+Metric = 0.590 Metric oracle 0.630
+From epoch = 29
+Metric = 0.673 Metric oracle 0.713
+From epoch = 32
+Metric = 0.600 Metric oracle 0.652
+From epoch = 31
+Metric = 0.626 Metric oracle 0.674
+Eval took 239.374 seconds
+282 / 300
+run_00283_predictors_2_delegators_1_pwidth_4_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 2), cnn=0)
+From epoch = 30
+Metric = 0.255 Metric oracle 0.364
+From epoch = 11
+Metric = 0.192 Metric oracle 0.192
+From epoch = 28
+Metric = 0.257 Metric oracle 0.262
+From epoch = 11
+Metric = 0.436 Metric oracle 0.445
+From epoch = 30
+Metric = 0.317 Metric oracle 0.325
+Eval took 193.339 seconds
+283 / 300
+run_00284_predictors_2_delegators_1_pwidth_4_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 2), cnn=0)
+From epoch = 7
+Metric = 0.192 Metric oracle 0.192
+From epoch = 1
+Metric = 0.192 Metric oracle 0.192
+From epoch = 27
+Metric = 0.317 Metric oracle 0.318
+From epoch = 0
+Metric = 0.192 Metric oracle 0.191
+From epoch = 19
+Metric = 0.226 Metric oracle 0.255
+Eval took 186.131 seconds
+284 / 300
+run_00285_predictors_2_delegators_1_pwidth_4_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 2), cnn=0)
+From epoch = 22
+Metric = 0.192 Metric oracle 0.192
+From epoch = 0
+Metric = 0.192 Metric oracle 0.192
+From epoch = 9
+Metric = 0.474 Metric oracle 0.473
+From epoch = 2
+Metric = 0.189 Metric oracle 0.191
+From epoch = 23
+Metric = 0.223 Metric oracle 0.227
+Eval took 185.801 seconds
+285 / 300
+run_00286_predictors_2_delegators_2_pwidth_16_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 2), cnn=0)
+From epoch = 32
+Metric = 0.762 Metric oracle 0.764
+From epoch = 31
+Metric = 0.697 Metric oracle 0.707
+From epoch = 25
+Metric = 0.770 Metric oracle 0.773
+From epoch = 4
+Metric = 0.794 Metric oracle 0.793
+From epoch = 7
+Metric = 0.730 Metric oracle 0.730
+Eval took 189.379 seconds
+286 / 300
+run_00287_predictors_2_delegators_2_pwidth_16_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 2), cnn=0)
+From epoch = 26
+Metric = 0.686 Metric oracle 0.688
+From epoch = 8
+Metric = 0.748 Metric oracle 0.748
+From epoch = 32
+Metric = 0.797 Metric oracle 0.796
+From epoch = 14
+Metric = 0.769 Metric oracle 0.770
+From epoch = 7
+Metric = 0.772 Metric oracle 0.780
+Eval took 188.672 seconds
+287 / 300
+run_00288_predictors_2_delegators_2_pwidth_16_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(12, 8, 4, 2), cnn=0)
+From epoch = 31
+Metric = 0.678 Metric oracle 0.713
+From epoch = 22
+Metric = 0.676 Metric oracle 0.683
+From epoch = 31
+Metric = 0.741 Metric oracle 0.757
+From epoch = 26
+Metric = 0.707 Metric oracle 0.731
+From epoch = 22
+Metric = 0.739 Metric oracle 0.757
+Eval took 190.504 seconds
+288 / 300
+run_00289_predictors_16_delegators_2_pwidth_4_dwidth_4_mixing_product_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 31
+Metric = 0.725 Metric oracle 0.737
+From epoch = 29
+Metric = 0.744 Metric oracle 0.746
+From epoch = 32
+Metric = 0.711 Metric oracle 0.708
+From epoch = 26
+Metric = 0.685 Metric oracle 0.696
+From epoch = 24
+Metric = 0.704 Metric oracle 0.707
+Eval took 196.465 seconds
+289 / 300
+run_00290_predictors_16_delegators_2_pwidth_4_dwidth_4_mixing_product_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 30
+Metric = 0.411 Metric oracle 0.411
+From epoch = 32
+Metric = 0.502 Metric oracle 0.509
+From epoch = 32
+Metric = 0.586 Metric oracle 0.589
+From epoch = 29
+Metric = 0.531 Metric oracle 0.542
+From epoch = 25
+Metric = 0.491 Metric oracle 0.488
+Eval took 196.547 seconds
+290 / 300
+run_00291_predictors_16_delegators_2_pwidth_4_dwidth_4_mixing_product_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 16), cnn=0)
+From epoch = 31
+Metric = 0.481 Metric oracle 0.527
+From epoch = 29
+Metric = 0.513 Metric oracle 0.535
+From epoch = 32
+Metric = 0.516 Metric oracle 0.603
+From epoch = 25
+Metric = 0.409 Metric oracle 0.441
+From epoch = 29
+Metric = 0.499 Metric oracle 0.535
+Eval took 197.175 seconds
+291 / 300
+run_00292_predictors_8_delegators_32_pwidth_4_dwidth_4_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 28
+Metric = 0.662 Metric oracle 0.655
+From epoch = 19
+Metric = 0.634 Metric oracle 0.632
+From epoch = 31
+Metric = 0.670 Metric oracle 0.671
+From epoch = 32
+Metric = 0.652 Metric oracle 0.659
+From epoch = 16
+Metric = 0.706 Metric oracle 0.695
+Eval took 253.224 seconds
+292 / 300
+run_00293_predictors_8_delegators_32_pwidth_4_dwidth_4_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 29
+Metric = 0.511 Metric oracle 0.495
+From epoch = 15
+Metric = 0.495 Metric oracle 0.497
+From epoch = 18
+Metric = 0.496 Metric oracle 0.463
+From epoch = 32
+Metric = 0.526 Metric oracle 0.532
+From epoch = 23
+Metric = 0.279 Metric oracle 0.264
+Eval took 254.519 seconds
+293 / 300
+run_00294_predictors_8_delegators_32_pwidth_4_dwidth_4_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(12, 8, 4, 8), cnn=0)
+From epoch = 25
+Metric = 0.507 Metric oracle 0.497
+From epoch = 30
+Metric = 0.523 Metric oracle 0.516
+From epoch = 18
+Metric = 0.454 Metric oracle 0.452
+From epoch = 14
+Metric = 0.534 Metric oracle 0.523
+From epoch = 14
+Metric = 0.410 Metric oracle 0.424
+Eval took 267.043 seconds
+294 / 300
+run_00295_predictors_8_delegators_4_pwidth_16_dwidth_8_mixing_product_ambiguity_both
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 29
+Metric = 0.811 Metric oracle 0.810
+From epoch = 32
+Metric = 0.807 Metric oracle 0.812
+From epoch = 20
+Metric = 0.807 Metric oracle 0.809
+From epoch = 23
+Metric = 0.804 Metric oracle 0.809
+From epoch = 32
+Metric = 0.809 Metric oracle 0.811
+Eval took 198.920 seconds
+295 / 300
+run_00296_predictors_8_delegators_4_pwidth_16_dwidth_8_mixing_product_ambiguity_delegators
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 24
+Metric = 0.741 Metric oracle 0.742
+From epoch = 29
+Metric = 0.736 Metric oracle 0.734
+From epoch = 32
+Metric = 0.756 Metric oracle 0.755
+From epoch = 18
+Metric = 0.769 Metric oracle 0.770
+From epoch = 32
+Metric = 0.745 Metric oracle 0.743
+Eval took 199.098 seconds
+296 / 300
+run_00297_predictors_8_delegators_4_pwidth_16_dwidth_8_mixing_product_ambiguity_none
+Architecture(predictor=(48, 32, 16, 10), delegator=(24, 16, 8, 8), cnn=0)
+From epoch = 29
+Metric = 0.661 Metric oracle 0.684
+From epoch = 30
+Metric = 0.693 Metric oracle 0.721
+From epoch = 32
+Metric = 0.732 Metric oracle 0.745
+From epoch = 31
+Metric = 0.749 Metric oracle 0.772
+From epoch = 29
+Metric = 0.704 Metric oracle 0.710
+Eval took 201.381 seconds
+297 / 300
+run_00298_predictors_4_delegators_1_pwidth_4_dwidth_16_mixing_sum_ambiguity_both
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 27
+Metric = 0.666 Metric oracle 0.660
+From epoch = 31
+Metric = 0.618 Metric oracle 0.642
+From epoch = 27
+Metric = 0.618 Metric oracle 0.660
+From epoch = 27
+Metric = 0.683 Metric oracle 0.702
+From epoch = 30
+Metric = 0.680 Metric oracle 0.705
+Eval took 197.784 seconds
+298 / 300
+run_00299_predictors_4_delegators_1_pwidth_4_dwidth_16_mixing_sum_ambiguity_delegators
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 30
+Metric = 0.478 Metric oracle 0.463
+From epoch = 28
+Metric = 0.468 Metric oracle 0.458
+From epoch = 24
+Metric = 0.457 Metric oracle 0.445
+From epoch = 29
+Metric = 0.449 Metric oracle 0.475
+From epoch = 24
+Metric = 0.483 Metric oracle 0.470
+Eval took 197.037 seconds
+299 / 300
+run_00300_predictors_4_delegators_1_pwidth_4_dwidth_16_mixing_sum_ambiguity_none
+Architecture(predictor=(12, 8, 4, 10), delegator=(48, 32, 16, 4), cnn=0)
+From epoch = 28
+Metric = 0.355 Metric oracle 0.417
+From epoch = 31
+Metric = 0.371 Metric oracle 0.416
+From epoch = 31
+Metric = 0.308 Metric oracle 0.361
+From epoch = 30
+Metric = 0.414 Metric oracle 0.489
+From epoch = 32
+Metric = 0.337 Metric oracle 0.379
+Eval took 197.479 seconds
+300 / 300
+Job 30895397 finished at Sat Aug 29 04:58:05 CEST 2026
+
+###############################################################################
+Hábrók Cluster
+Job 30895397 for user s6019595
+Finished at: Sat Aug 29 04:58:09 CEST 2026
+
+Job details:
+============
+
+Job ID                         : 30895397
+Name                           : gradient_Svhn
+User                           : s6019595
+Partition                      : gpulong
+Nodes                          : a100gpu4
+Number of Nodes                : 1
+Cores                          : 12
+Number of Tasks                : 1
+State                          : COMPLETED  
+Submit                         : 2026-08-28T07:31:18
+Start                          : 2026-08-28T07:37:50
+End                            : 2026-08-29T04:58:05
+Reserved walltime              : 3-00:00:00
+Used walltime                  :   21:20:15
+Used CPU time                  :   19:06:20 (Efficiency:  7.46%)
+% User (Computation)           : 76.50%
+% System (I/O)                 : 23.50%
+Total memory reserved          : 40G
+Maximum memory used            : 5.06G
+Requested GPUs                 : a100=1
+Allocated GPUs                 : a100=1
+Max GPU utilization            : 53%
+Max GPU memory used            : 30.05G
+Hints and tips      :
+ 1) You requested much more CPU memory than your program used.
+    Please reduce the requested amount of memory.
+ *) For more information on these issues see:
+    https://wiki.hpc.rug.nl/habrok/additional_information/job_hints
+
+Acknowledgements:
+=================
+
+Please see this page for information about acknowledging Hábrók in your publications:
+
+https://wiki.hpc.rug.nl/habrok/introduction/scientific_output
+
+################################################################################
