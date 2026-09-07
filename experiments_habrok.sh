@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 TIME_LIMIT="${TIME_LIMIT:-12:00:00}"
@@ -7,6 +6,7 @@ MEM="${MEM:-20GB}"
 CPUS="${CPUS:-1}"
 GPUS="${GPUS:-1}"
 PARTITION="${PARTITION:-gpu}"
+NODELIST="${NODELIST:-}"
 CUDA_MODULE="${CUDA_MODULE:-CUDA/13.2.0}"
 DRY_RUN=0
 
@@ -38,6 +38,7 @@ Options:
   -c, --cpus       CPU cores per job             (default 1)
   -g, --gpus       GPUs per job, any type        (default 1)
   -p, --partition  Slurm partition               (default gpu)
+  -n, --nodelist   Restrict jobs to named node    (default unspecified)
       --dry-run    Print the sbatch scripts instead of submitting
   -h, --help       Show this message
 USAGE
@@ -51,6 +52,7 @@ while [[ "$#" -gt 0 ]]; do
         -c|--cpus)      CPUS="$2";       shift 2 ;;
         -g|--gpus)      GPUS="$2";       shift 2 ;;
         -p|--partition) PARTITION="$2";  shift 2 ;;
+        -n|--nodelist)  NODELIST="$2";   shift 2 ;;
         --dry-run)      DRY_RUN=1;       shift   ;;
         -h|--help)      usage; exit 0 ;;
         --) shift; break ;;
@@ -152,6 +154,7 @@ echo "Experiment  : $EXPERIMENT_NAME"
 echo "Tasks       : ${TASKS[*]} ($NUM_TASKS job(s))"
 echo "Per job     : ${GPUS} GPU(s) any type, ${CPUS} cpu(s), ${MEM} ram, ${TIME_LIMIT} wall"
 echo "Partition   : $PARTITION"
+echo "Nodelist    : ${NODELIST:-unspecified}"
 echo "Repo        : $REPO_ROOT"
 
 for ((i = 0; i < NUM_TASKS; i++)); do
@@ -174,11 +177,17 @@ for ((i = 0; i < NUM_TASKS; i++)); do
         RESUME_ARG=" --resume ${RESUME_Q}"
     fi
 
+    NODELIST_DIRECTIVE=""
+    if [ -n "$NODELIST" ]; then
+        NODELIST_DIRECTIVE="#SBATCH --nodelist=${NODELIST}"
+    fi
+
     # Unquoted delimiter bakes in the loop variables; runtime ones are escaped
     JOB_SCRIPT=$(cat <<EOD
 #!/bin/bash
 #SBATCH --job-name=${JOB_NAME}
 #SBATCH --partition=${PARTITION}
+${NODELIST_DIRECTIVE}
 #SBATCH --gpus-per-node=${GPUS}
 #SBATCH --mem=${MEM}
 #SBATCH --cpus-per-task=${CPUS}
