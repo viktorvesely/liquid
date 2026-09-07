@@ -14,3 +14,4 @@ data/
 /liquid_jax/grids/
 /liquid_jax/synthetic_runs/
 /logs
+/.venv
