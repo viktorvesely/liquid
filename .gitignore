@@ -13,5 +13,7 @@ data/
 /liquid_jax/runs/
 /liquid_jax/grids/
 /liquid_jax/synthetic_runs/
+/liquid_jax/scaling_analysis/*.csv
+/liquid_jax/scaling_analysis/figures
 /logs
 /.venv

@@ -1,0 +1,16 @@
+{
+  "python": "3.12.3",
+  "numpy": "2.4.2",
+  "pandas": "3.0.1",
+  "matplotlib": "3.10.8",
+  "source_hashes": {
+    "paper.tex": "3b86451c61d602b8cd48c0331f6b6ba0f1432209e5fb438084a48c9e1e6f59f9",
+    "experiment.py": "a8978617c6d9c5d75b57a95b1f9a7fec5e21c0f484b0dcbfa288000877eb1f19",
+    "evaluation.py": "34d139810e03d8a7273256c35cc07dd1df6014ab760828751842dc90214eaa93",
+    "math_utils.py": "0d9e067b76275d1c016d053eecd12aad05d1cb7c76d538adb538bec545d01b43",
+    "train.py": "4546ba6d22d049b2cbf33b02af804911da5a8450052647e4a857aa5e0d6af4bb",
+    "architectures.py": "21c6aed68119a101d406755087b10599872150b8deca9f0d668f8d3ccc64ce17",
+    "atomic_networks.py": "7bacc385e43f61d17865a36c872a83ef5916b57256f27e6aabf1d952f6be08af",
+    "experiment_scaling.ipynb": "46428b7f711c2443628d8b3c77a18c8b86e29074633fed00e2c78466661991bb"
+  }
+}

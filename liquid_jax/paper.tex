@@ -1,0 +1,347 @@
+\documentclass[10pt]{article} % For LaTeX2e
+\usepackage{tmlr-template/tmlr}
+% If accepted, instead use the following line for the camera-ready submission:
+%\usepackage[accepted]{tmlr}
+% To de-anonymize and remove mentions to TMLR (for example for posting to preprint servers), instead use the following:
+%\usepackage[preprint]{tmlr}
+
+\input{tmlr-template/math_commands}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+
+\usepackage{bm}
+
+\def\vTheta{{\bm{\Theta}}}
+\def\vPhi{{\bm{\Phi}}}
+\newcommand{\perloss}{\mathcal{L}_{\text{perf}}}
+
+\title{Sparse Ensembles: Do Routing Mechanisms Benefit from Ensemble Effects?}
+
+% Anonymous submission
+\author{Anonymous Author(s)}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\def\month{MM}
+\def\year{YYYY}
+\def\openreview{\url{https://openreview.net/forum?id=XXXX}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Ensemble effects among predictive models have been studied extensively and are a well-established source of improved generalization. In sparse ensembles, however, prediction is only one part of the problem: inputs must also be routed to the appropriate models. Whether this routing mechanism itself benefits from ensemble effects remains largely unexplored. We provide a systematic study of ensembling the routing mechanism, examining when increasing the number of routers improves performance, how their outputs should be combined, and whether explicitly encouraging diversity among routers is beneficial. Across classification and regression tasks, we characterize how these choices interact with the size and capacity of the underlying models and the routing ensemble.
+
+\end{abstract}
+
+\section{Introduction}
+
+Ensemble methods are a well-established class of machine learning techniques that improve generalization by aggregating the predictions of multiple models. Their effectiveness is typically attributed to two complementary factors: the performance of the individual predictors and the diversity among them. Improving individual predictors reduces bias, while diversity promotes  error de-correlation, allowing aggregation to cancel out model-specific mistakes.
+
+Classical ensemble methods induce diversity implicitly via bagging, such as random forests, where predictors are trained on different subsets of the data, whereas boosting methods, such as LightGBM, construct predictors sequentially to focus on errors made by earlier models. In deep learning, diversity can be encouraged explicitly through mechanisms such as negative-correlation learning \citep{chen_ncl_weight} or expert orthogonalization \citep{liu2024diversifying}. However, \citet{fort2019deep} showed that, in many cases, initializing experts with different random weights is sufficient to induce substantial diversity.
+
+Sparse ensembles, in which only a subset of predictors is active for a given input, have gained prominence because of their computational advantages in large-scale language modeling. In the most prominent setting, each expert, or subset of experts, is responsible for a particular region of the input domain, allowing the ensemble to approximate the capacity of a larger model while retaining the computational cost of a smaller one. Existing variants balance computation and ensemble effects in different ways: selecting the top-$k$ predictors for each input \citep{shazeer2017outrageously}, maximizing cost reduction by routing each input to a single predictor \citep{fedus2022switch}, or allocating a dynamic number of predictors per input \citep{wang2025remoe}. Routing-based methods decompose prediction into two coupled subproblems: a \textit{delegation problem}, handled by a \textit{router} or \textit{delegator}, and a \textit{prediction problem}, handled by the \textit{experts} or \textit{predictors}.
+
+While ensembles typically focus on improving the predictive capacity of the experts, the delegation mechanism itself may also benefit from ensembling. This motivates studying whether increasing the number of delegators improves the allocation of unseen samples to predictors and, consequently, the overall performance of the ensemble. Despite recent methods that combine multiple routers \citep{zhang2025mixture, ran2025router}, the effect of scaling the number of delegators remains underexplored. In particular, to our knowledge, there is no systematic analysis of this setting through the lens of ensemble theory.
+
+\paragraph{Contributions} In this work we provide a systematic study of scaling the number of delegators in image classification tasks, focusing on CIFAR10 \citep{krizhevsky2009learning} and SVHN \citep{netzer2011reading}, and tabular regression tasks, Bike sharing dataset \citep{bike_sharing_275} and Energy production dataset \citep{energydataset}. Specifically this work systematically tests scaling of number of delegators, number of predictors, delegator widths, and predictor widths. Furthermore, two aggregation methods are tested, probabilities product and probabilities sum. We find:
+
+\begin{itemize}
+    \item \textbf{(C1) When scaling number of delegators helps}: Under which scenarios
+    \item \textbf{(C2) What aggregation method is better for the delegators}: Is sum better?
+     \item \textbf{(C3) Explicitly maximizing the diversity term only for delegators is helpful}: Is it?
+    \item \textbf{(C4) Prediction/Delegation error decomposition}: We provide a simple procedure for decomposing the evaluation of the sparse ensembles to evaluation of predictors and delegators. However, it needs to be said that the this is not compared to anything, so wording of the contribtuion relaly needs to reflect that.
+   
+\end{itemize}
+
+\section{Background} \label{sec:background}
+
+We consider a supervised learning setting with a training dataset $\sD = \{\vx_n, \vy_n\}_{n=1}^{N}$ of $N$ i.i.d.\ samples, where $\vx \in \sR^{d_x}$ denotes the input and $\vy \in \sR^{d_y}$ the corresponding real valued output for regression and $\vy \in \{0, 1\}^{d_y}$ the one-hot vector over $d_y$ classes for classification.  
+
+
+We define the ensemble of $M$ predictors parametrized by $\vTheta = [\vtheta_1 : \vtheta_2 : \dots : \vtheta_M]$, where $\vtheta_m$ corresponds to the parameters of the $m$-th model. Predictors $f_{\vtheta_m}(\vx)$, responsible for estimating the output $\vy$, are aggregated as prescribed in \cite{wood2023unified} using the weighted mean $f_{\vTheta}(\vx, \va) = \textstyle\sum_{m=1}^M \va(\vx)m f{\vtheta_m}(\vx)$ for regression tasks and the weighted product $f_{\vTheta}(\vx, \va) = Z^{-1} \textstyle\prod_{m=1}^M f_{\vtheta_m}^{\va(\vx)m}(\vx)$ for classification tasks, where $\textstyle\sum_{m=1}^{M} \va(\vx)_m = 1$ are the weights and $Z^{-1}$ is the normalization constant.
+
+Analogously, parameters $\vPhi$ correspond to a delegator ensemble of size $L$. Delegators $f_{\vPhi}(\vx)$ estimate the weights $\va(\vx)$; their optimal aggregation is not prescribed by the literature and is therefore investigated in this work through multiple aggregation strategies.
+
+The entire ensemble is trained jointly on the same batches by minimizing the ensemble objective $\ell(f_{\vTheta}(x, f_{\vPhi}(\vx)), \vy)$ which has known Ambiguity Decomposition for MSE loss \citep{NIPS1994_b8c37e33}:
+\begin{equation} \label{eq:mse-train}
+\ell_{\text{MSE}}(\vx, \vy)
+=
+\underbrace{
+\sum_{m=1}^M f_{\vPhi}(\vx)_m
+\mathrm{SE}\left(f_{\vtheta_m}(x), \vy\right)
+}_{\textbf{weighted loss}}
+-
+\underbrace{
+\sum_{m=1}^M f_{\vPhi}(\vx)_m
+\mathrm{SE}\left(f_{\vTheta}(\vx, f_{\vPhi}(\vx)),  f_{\vtheta_m}(\vx)\right)
+}_{\textbf{weighted ambiguity}};
+\end{equation}
+and for Cross-Entropy loss with one-hot encoded target \cite{wood2023unified}:
+\begin{equation} \label{eq:ce-train}
+\ell_{\text{CE}}(\vx, \vy)
+=
+\underbrace{
+\sum_{m=1}^M f_{\vPhi}(\vx)_m
+\mathrm{CE}\!\left(f_{\vtheta_m}(\vx), \vy\right)
+}_{\textbf{weighted loss}}
+-
+\underbrace{
+\sum_{m=1}^M f_{\vPhi}(\vx)_m \mathrm{KL}(f_{\vTheta}(\vx, f_{\vPhi}(\vx))  \,\|\, f_{\vtheta_m}(\vx))
+}_{\textbf{weighted ambiguity}}.
+\end{equation}
+Explicit maximization of ambiguity has been shown to be potentially harmful, since it can increase the bias and variance of the individual models, leading to higher generalization error \citep{pmlr-v151-ortega22a, wood2023unified}. In contrast, prior work indicates that using different random initializations is often sufficient to induce test-time diversity among ensemble members \citep{fort2019deep, pmlr-v151-ortega22a}. The ambiguity term is usually omitted from the training loss.
+
+% \begin{equation}
+%     \mathcal{L}(\mathcal{D};\bm{\Theta}) = \mathcal{L}_{\text{per}} (\mathcal{D}; \bm{\Theta}) - \sum_{m=1}^{M} (f_{\theta_i}(\mathcal{D}) + )  +  \|\bm{\Theta}\|^2  
+% \end{equation}
+
+% \subsection{Ensemble methods}
+
+% From a bias-variance trade-off perspective, ensemble methods reduce the generalization error by aggregating de-correlated low bias estimators \cite{pmlr-v151-ortega22a} and their success has been widely studied (citations here). 
+
+% Ensemble principle explanation, theoretical framework why ensemble methods.
+
+% % Progression of ensemble methods, the difference between dynamic and static ensemble (introduce each architecture briefly and cite). Define the terminology of "predictors" and "delegators" (gates).
+
+% We need to note the difference between the dense and sparse ensembles. 
+
+% \begin{table}[h]
+% \centering
+% \caption{Taxonomy of Ensemble methods}
+% \label{tb:background}
+% \begin{tabular}{ccc}
+% \textbf{Prediction Estimators} & \textbf{Delegation Estimators} & \textbf{Method}  \\ \hline \\
+% 1                              & 0                              & Single model     \\
+% $M$                            & 0                              & Deep Ensembles \cite{NIPS2017_9ef2ed4b} \\
+% $M$                            & 1                              & Here          \\
+% $M$                            & $M$                            & And here             \\
+% \end{tabular}
+% \end{table}
+
+\subsection{Delegator error}
+
+We propose an error decomposition into delegators' regret and the predictor loss under \textit{optimal} delegation weights. For a fixed sample $(\vx$, $\vy$), predictor output $f_{\vTheta}(\vx,\va)$, and performance loss $\ell$, the optimal delegation weights are given by
+\begin{equation}
+    \va^{\star}(\vx) = \argmin_{\va}  \ell \left(f_{\vtheta_m}(\vx, \va) , y\right)
+\end{equation}
+Using the optimal weights $\va^{\star}$, the performance loss can be decomposed as
+ \begin{equation} \label{eq:delegator-decomposition}
+    \ell(f_{\vTheta} (\vx, f_{\vPhi}), \vy) = 
+    \underbrace{
+        \ell(f_{\vTheta} (\vx, \va^{\star}), \vy)
+    }
+    _{\text{Predictors' error under optimal weights}} + 
+    \underbrace{
+    \left[ 
+        \ell(f_{\vTheta} (\vx, f_{\vPhi}), \vy) - 
+        \ell(f_{\vTheta} (\vx, \va^{\star}), \vy)
+    \right]
+    }_{\text{Delegators' regret}}
+ \end{equation}
+The first term is the minimum loss attainable by any admissible delegation weights for the given predictor outputs. It therefore captures the portion of the loss that cannot be eliminated by improving the delegator alone. The second term measures the excess loss incurred by the learned delegator relative to this sample-wise optimum and is referred to as the delegators' regret.
+
+Because the delegation weights induce a convex combination of the predictor outputs, the optimal delegation loss is determined by whether the true output lies within their convex hull:
+\begin{equation}
+\ell\!\left(f_{\vTheta}(\vx,\va^\star),\vy\right)
+=
+\left\{
+\begin{array}{c@{\quad}l}
+0
+&
+\displaystyle
+\text{if }
+\vy\in\operatorname{conv}
+\left\{f_{\vtheta_m}(\vx)\right\}_{m=1}^{M-1},
+\\[2mm]
+\displaystyle
+\min_{\hat{\vy}\in\operatorname{conv}
+\left\{f_{\vtheta_m}(\vx)\right\}_{m=1}^{M-1}}
+\ell(\hat{\vy},\vy)
+&
+\text{otherwise}.
+\end{array}
+\right.
+\end{equation}
+
+The unrestricted label-dependent continuous oracle $\va^{\star}$ is often overly optimistic, as it can interpolate the target using arbitrary sample-specific weights, causing the delegators's regret to be indistinguishable from the overall ensemble loss with sufficient amount of predictors. Therefore a restricted oracle $\va^{\dagger}$ is needed. Many choices of $\va^{\dagger}$ are valid (input conditional oracle, or risk calculation oracle). 
+
+The main limitation of the unrestricted oracle is its dependence on the target label. The resulting delegator regret should instead reflect the performance attainable by the chosen delegator ensemble. To this end, we define a restricted delegator oracle \(f_{\vPhi}^{\dagger}\) with the same architecture as the learned delegator ensemble. Unlike the learned delegators, \(f_{\vPhi}^{\dagger}\) is trained independently of the ensemble objective in Equation~\ref{eq:ens-loss}, using the oracle weights \(\va^\star\) as direct supervision. The corresponding restricted oracle weights are denoted by $\va^\dagger(\vx) = f_{\vPhi}^{\dagger}(\vx)$. To prevent the restricted oracle from memorizing the sample-wise oracle weights, the decomposition is evaluated only on samples that were not used to train \(f_{\vPhi}^{\dagger}\). The corresponding data-splitting and training procedure is described in Appendix~\ref{ap:restricted-oracle}.
+
+Since \(\va^\dagger\) is not necessarily optimal with respect to the ensemble loss, the interpretation of the decomposition changes:
+\begin{equation}
+\label{eq:restricted-delegator-decomposition}
+    \ell(f_{\vTheta}(\vx, f_{\vPhi}(\vx)), \vy)
+    =
+    \underbrace{
+        \ell(f_{\vTheta}(\vx, \va^{\dagger}(\vx)), \vy)
+    }_{\text{Predictor's loss under restricted-oracle weights}}
+    +
+    \underbrace{
+        \left[
+            \ell(f_{\vTheta}(\vx, f_{\vPhi}(\vx)), \vy)
+            -
+            \ell(f_{\vTheta}(\vx, \va^{\dagger}(\vx)), \vy)
+        \right]
+    }_{\text{Difference relative to the restricted oracle}}.
+\end{equation}
+The second term may occasionally be negative, since the restricted oracle is not sample-wise optimal. Nevertheless, this reference distributes the burden of performance more evenly between the predictors and the delegator. In particular, the predictor term now captures errors arisin g from patterns that cannot be learned reliably from the input, rather than rewarding predictors that happen to match the target by chance, as the label-dependent oracle $\va^\star$ may do.
+
+
+
+% Since the predictors are trained only to be individually accurate,WS rather than to form arbitrary interpolation bases, we evaluate delegation through discrete predictor participation. The restricted oracle selects the best subset of predictors $\sS^{\dagger}$ and aggregates them uniformly, thereby measuring whether the delegator identifies a useful group of accurate predictors without exploiting finely tuned sample-specific weights:
+% \begin{equation}
+%     \sS^{\dagger}(\vx,\vy)
+%     =
+%     \argmin_{\emptyset \neq \sS \subseteq \{1,\ldots,M\}}
+%     \ell\!\left(
+%         f_{\vTheta}(\vx,\va_{\sS}),
+%         \vy
+%     \right).
+% \end{equation}
+% where $\va_{\sS}$ are uniform weights over the selected predictors. Naturally, the interpretation of the terms in Equation \ref{eq:delegator-decomposition} change meaning as the restricted oracle $\va^{\dagger}$ does not have to be optimal and thus the delegators' regret is allowed to be negative
+% \begin{equation} \label{eq:delegator-decomposition}
+%     \ell(f_{\vTheta} (\vx, f_{\vPhi}), \vy) = 
+%     \underbrace{
+%         \ell(f_{\vTheta} (\vx, \va^{\dagger}), \vy)
+%     }
+%     _{\text{Predictors' error under best selection}} + 
+%     \underbrace{
+%     \left[ 
+%         \ell(f_{\vTheta} (\vx, f_{\vPhi}), \vy) - 
+%         \ell(f_{\vTheta} (\vx, \va^{\dagger}), \vy)
+%     \right]
+%     }_{\text{Comparison of delegatrs to a strong baseline}}
+%  \end{equation}
+% however, this decomposition aims to be more informative as it distributes the burden of work more uniformly between the predictors and the delegators, creating a more interpretable separation of predictor errors and delegator errors.  
+
+\section{Experiments}
+
+Our claims are validated empirically over selection of four datasets: CIFAR10 \citep{krizhevsky2009learning}, SVHN \citep{netzer2011reading}, Bike sharing dataset \citep{bike_sharing_275}, and Energy production dataset \citep{energydataset}. For each dataset, the inputs $\vx$ and targets $\vy$ were normalized where applicable, and categorical integer-valued features were one-hot encoded. For each random seed, the data were independently partitioned into training and validation sets using an $85\%$--$15\%$ split. Each training run is repeated across 5 different seeds.
+
+For the tabular regression tasks, Bike and Energy, we use fully connected MLPs with two hidden layers, and optimize them using the mean squared error loss, $\ell_{\mathrm{MSE}}$. The hidden-layer widths decrease progressively toward the output: the two-layer architecture uses widths $(2b, b)$, where $b$ is a model-specific base width. This parameterization preserves a consistent architectural shape while allowing the capacities of the predictor and delegator networks to be varied independently through their respective base widths. Regression tasks are learned for $2000$ epochs.
+
+For the image-classification tasks, CIFAR-10 and SVHN, we use three-layer MLPs with hidden widths being $(3b, 2b, b)$, where $b$ is a model-specific base width. Classification tasks are optimized using the cross-entropy loss, $\ell_{\mathrm{CE}}$. Remaining training hyper-parameters are specified in Table \ref{tab:training-hyperparameters}. Image tasks are learned for $100$ epochs.
+
+As prescribed in \citet{shazeer2017outrageously} and \citet{fedus2022switch} load balancing loss implemented using gini-impurity maximization is used for the training of the ensemble to reduce the possibility of the delegators ignoring subset of predictors, the final training loss formulation is as follows:
+\begin{equation}
+    \mathcal{L}_{\sD}
+    =
+    \frac{1}{\lvert\sD'\rvert}
+    \sum_{(\vx,\vy)\in\sD'}
+    \ell(\vx,\vy)
+    +
+    \lambda
+    \sum_{m=1}^{M}
+    \left(
+        \frac{1}{\lvert\sD\rvert}
+        \sum_{(\vx,\vy)\in\sD}
+        \left[f_{\vPhi}(\vx)\right]_m
+    \right)^2 ,
+\end{equation}
+where $\lambda$ determines the regularization strength, which is set to $\lambda=0.2$ and is not experimented with.    
+
+The overall ensemble performance is evaluated on the validation dataset $\sD_{\mathrm{val}}$ using only the performance loss $\ell$. The performance and the ambiguity (Equations \ref{eq:mse-train}, \ref{eq:ce-train}) decomposition is tracked separately for predictors using the restricted optimal weights $\va^\dagger(\vx)$ and for delegators where the restricted optimal weights are used as the classification target  $\ell_{\text{CE}} (f_{\vPhi}(\vx), \va^\dagger(\vx))$.
+
+\subsection{Scaling the number of delegators} \label{sec:exp-scaling}
+
+We next investigate whether delegation itself benefits from an ensemble effect, and under which model-capacity regimes such benefits emerge (Contribution \textbf{(C1)}). In particular, we study whether increasing the number of delegators is most useful when the predictor ensemble is small, the predictors have limited capacity, or the individual delegators are themselves relatively small.
+
+To isolate the effect of the number of delegators, we vary $L \in \{0,1,2,4,8,16,32\}$ while exhaustively evaluating all combinations of the number of predictors $M \in \{2,4,8,16,32\}$, predictor base width $b_M \in \{4,8,16\}$, and delegator base width $b_L \in \{4,8,16\}$ across all four tasks. The case $L=0$ corresponds to fixed uniform delegation weights $\va$, whereas $L=1$ recovers a setting closely related to a standard mixture-of-experts model. Each experimental condition is evaluated over five independent random seeds, yielding $6300$ training runs.
+
+\subsection{Delegator's aggregation method} \label{sec:exp-agg}
+
+Previous work \citep{pmlr-v151-ortega22a, wood2023unified} characterizes optimal aggregation rules for predictors under a fixed set of weights $\va$. In our setting, however, predictor and delegator parameters are optimized jointly. Consequently, the aggregation rule affects not only the final combination of delegator outputs, but also the optimization dynamics through which predictors and delegators co-adapt. Results derived for fixed-weight aggregation therefore do not directly determine the appropriate aggregation rule for delegators in our model. We therefore evaluate this choice empirically, corresponding to Contribution \textbf{(C2)}.
+
+We compare two aggregation rules over the $L$ delegators: the arithmetic mean, $f_{\vPhi}(\vx) = \frac{1}{L}\sum_{l=1}^{L} f_{\vphi_l}(\vx)$, and the normalized geometric mean, $f_{\vPhi}(\vx) = Z^{-1}\prod_{l=1}^{L} f_{\vphi_l}(\vx)^{1/L}$, where $Z$ denotes the normalization constant.
+
+To isolate the effect of the aggregation rule, we construct 100 experimental configurations by sampling the remaining experimental variables from the sets reported in Table~\ref{tab:experiment-parameters}. For each configuration and each of the four tasks, we evaluate a matched pair of experiments differing only in the delegator aggregation rule: arithmetic mean or geometric mean. This yields 800 experimental conditions. Each condition is evaluated over five independent random seeds, for a total of 4,000 training runs.
+
+\subsection{Ambiguity gradient flow} \label{sec:exp-gradient}
+
+As mentioned previously (Section \ref{sec:background}), explicit maximization of ambiguity has been shown to be potentially harmful, since it can increase the bias and variance of the individual models, where the models deviate from the truth just to satisfy the ambiguity constraint. We propose to retain the explicit ambiguity term in the training objective, while stopping its gradient with respect to the predictors only:
+\begin{equation} \label{eq:ens-loss}
+\ell(\vx, \vy)
+=
+\textbf{weighted loss}
+-
+\operatorname{sg}_{\vTheta}
+\!\left[
+\textbf{weighted ambiguity}
+\right].
+\end{equation}
+This preserves ambiguity as a delegation criterion without directly optimizing the predictors to increase ambiguity. The delegator can therefore assign higher weight to predictors that are both accurate and decorrelated, while the predictors receive gradients only through their weighted individual losses. This is intended to retain the benefits of diversity-aware delegation while reducing the risk of degrading individual predictor quality through explicit predictor-level ambiguity maximization.  
+
+We compare the proposed \texttt{delegators} setting, corresponding to Contribution \textbf{(C3)}, against two baselines: \texttt{both}, in which the ambiguity term backpropagates through both predictors and delegators, and \texttt{none}, in which the ambiguity term contributes no gradient. Following the protocol of the preceding experiment, we sample 100 configurations from the parameter sets in Table~\ref{tab:experiment-parameters} and evaluate all three gradient-flow variants for each configuration and each of the four tasks, holding all other experimental factors fixed. This yields 1,200 experimental conditions. Each condition is evaluated over five independent random seeds, for a total of 6,000 training runs.
+
+
+\subsection{Analysis}
+
+\bibliography{tmlr-template/tmlr}
+\bibliographystyle{tmlr-template/tmlr}
+
+\appendix
+
+\section{Appendix}
+
+\subsection{Training specifications} \label{ap:hyperparams}
+
+
+\begin{table}[t]
+\caption{Training and initialization hyperparameters used across experiments.}
+\label{tab:training-hyperparameters}
+\begin{center}
+\begin{tabular}{ll}
+\multicolumn{1}{c}{\bf HYPERPARAMETER}
+&
+\multicolumn{1}{c}{\bf VALUE}
+\\ \hline \\
+Kernel initialization          & LeCun normal \\
+Bias initialization            & Zero \\
+Hidden-layer activation        & ReLU \\
+Optimizer                      & Adam \\
+Learning rate                  & $10^{-3}$ \\
+Weight-decay coefficient       & $10^{-4}$ \\
+Tabular-task batch size        & $256$ \\
+Image-task batch size          & $64$ \\
+Tabular-task training epochs   & $2000$ \\
+Image-task training epochs     & $50$ \\
+\end{tabular}
+\end{center}
+\end{table}
+
+
+\begin{table}[t]
+\caption{Experimental values and their permitted set.}
+\label{tab:experiment-parameters}
+\begin{center}
+\begin{tabular}{lll}
+\multicolumn{1}{c}{\bf VARIABLE}
+&
+\multicolumn{1}{c}{\bf SET}
+&
+\multicolumn{1}{c}{\bf NOTES}
+\\ \hline \\
+Number of predictors ($M$) & \{$2, 4, 8, 16, 32$\} &  \\
+Number of delegators ($L$) & \{$0, 1, 2, 4, 8, 16, 32$\} &  $L=0$: uniform weights; $L=1$: MoE. \\
+Predictors' base width ($b_M$) & \{$4, 8, 16$\} & Predictor hidden layers are either $(2b,b)$ or $(3b,2b,b)$.  \\
+Delegators' base width ($b_L$) & \{$4, 8, 16$\} & Delegator hidden layers are either $(2b,b)$ or $(3b,2b,b)$. \\
+Delegators' aggregation method & \{mean, geometric mean\} & See Section \ref{sec:exp-agg} \\
+Ambiguity gradient flow & \{none, delegators, both\} & See Section \ref{sec:exp-gradient} \\
+\end{tabular}
+\end{center}
+\end{table}
+
+
+
+\subsection{Restricted delegator oracle training procedure} \label{ap:restricted-oracle}
+
+
+\end{document}

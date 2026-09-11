@@ -1,0 +1,136 @@
+% Results excerpt. Compile from liquid_jax alongside paper.tex.
+% Main figures: overall scaling; both ambiguity decompositions; task-error attribution.
+% Full capacity curves and sensitivity analyses are supplied in supplement.md.
+
+\paragraph{Scaling exhibits distinct performance regimes.}
+We first average the five seeds within each capacity configuration and compute
+its validation-loss reduction relative to $L=1$. We then average the matched
+reductions over the 45 capacity configurations per task. Figure~\ref{fig:scaling-results}
+includes fixed uniform routing ($L=0$) and reveals three regimes: a delayed
+benefit on CIFAR-10, an intermediate optimum around 8--16 delegators on SVHN,
+and early saturation followed by deterioration on the regression tasks.
+Increasing from one to 32 delegators reduces direct validation loss by
+$4.32\%$ on CIFAR-10 and $4.77\%$ on SVHN, but increases it by $13.64\%$
+on Bikes and $4.32\%$ on Energy. The pointwise 95\% seed-block bootstrap
+intervals for these reductions are $[3.78,4.93]\%$, $[3.00,5.60]\%$,
+$[-15.32,-12.43]\%$, and $[-5.09,-3.58]\%$, respectively.
+Superiority to one learned delegator does not necessarily imply superiority
+to uniform routing: CIFAR-10 accuracy at 32 delegators remains 0.31 percentage
+points below its uniform baseline, whereas SVHN exceeds it by 3.60 points.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{scaling_analysis/figures/01_scaling.pdf}
+\caption{Final recorded validation-loss reduction relative to one delegator,
+computed as $100(E_1-E_L)/E_1$ within each configuration after averaging
+seeds, and then averaged across configurations; $E$ is recorded validation loss. Positive values favor scaling; $L=0$ is uniform
+routing. Shading gives pointwise 95\% seed-block bootstrap intervals conditional
+on the fixed grid and validation split.}
+\label{fig:scaling-results}
+\end{figure}
+
+\paragraph{Capacity moderates the entire scaling response.}
+We examine all three capacity factors across the complete scaling curve.
+For each $L\in\{2,4,8,16,32\}$, an orthogonal factorial decomposition partitions
+variation in the matched direct-loss gains across the balanced capacity grid
+into main effects and interactions. Summing squared contributions across these
+five levels shows that predictor width is the strongest individual moderator
+on SVHN (38.0\% of observed capacity variation), but not universally.
+On CIFAR-10, predictor count and delegator width contribute 26.8\% and 27.4\%,
+respectively, while the predictor-width main effect contributes only 0.7\%.
+Delegator width is the strongest single factor on Energy (33.6\%).
+Interactions account for 41--54\% of the variation across tasks, making a
+single-factor explanation insufficient. This partition describes the observed
+grid, including finite-seed variability; it is not a causal importance measure.
+
+Narrow SVHN predictors gain $11.96\%$ at eight delegators, compared with
+$1.09\%$ for wide predictors. Bikes exhibits the opposite width dependence:
+its 32-delegator penalty decreases from $18.73\%$ at predictor width four to
+$9.36\%$ at width 16. Energy's wider predictors reach their useful scaling
+limit earlier, whereas CIFAR-10's predictor-width curves largely converge
+at large $L$. Thus limited predictor capacity does not have a uniform effect
+on the value of delegator scaling.
+
+\paragraph{Both components diversify while individual performance worsens.}
+The performance--ambiguity decompositions in Figure~\ref{fig:scaling-members}
+show that scaling increases recorded ambiguity in both predictors and
+delegators, alongside increasing individual loss. Predictor error and
+ambiguity nearly cancel, particularly in regression. On Bikes, mean
+reference-weighted individual MSE rises from 16.65 to 97.00 between one and
+32 delegators, while ambiguity rises from 16.60 to 96.95. Delegators likewise
+become more diverse while their individual losses against the fitted routing
+reference rise. These results indicate increasing compensation among members,
+not improving individual correctness. As suggested by the error--diversity
+perspective~\citep{wood2023unified}, the relevant question is whether the
+resulting compensation lowers the ensemble's task loss.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{scaling_analysis/figures/03_loss_accounting.pdf}
+\caption{Changes from $L=1$ in predictor (top) and delegator (bottom)
+performance--ambiguity terms. With $\Delta X=X_L-X_1$, the top-row curves are
+$100\Delta P/P_1$, $100\Delta A/P_1$, and $100\Delta(P-A)/P_1$, where $P$
+and $A$ are the reference-weighted individual predictor loss and ambiguity.
+For the bottom row, replace $P,A$ with individual routing loss $C$ and ambiguity
+$D$, using $C_1$ as the common denominator. Seeds are averaged before computing
+these percentages within each configuration; percentages are then averaged
+across configurations. Negative green values indicate a decrease in the
+loss-minus-ambiguity residual, not a negative residual.}
+\label{fig:scaling-members}
+\end{figure}
+
+\paragraph{Task-loss attribution distinguishes the failure modes.}
+We use the directly recorded identity $E=O+H$, where $O$ is predictor-ensemble
+loss under the fitted reference delegators and $H=E-O$ is the signed excess
+loss of learned delegation. All changes are normalized by the corresponding
+$L=1$ task loss. Figure~\ref{fig:scaling-attribution} separates the scaling
+effect into these two contributions.
+
+On Bikes, the predictor/reference term improves by $11.17\%$ of baseline
+loss, but the delegation term worsens by $24.81\%$, yielding a net $13.64\%$
+penalty. Energy shows the same pattern: a $6.61\%$ predictor/reference
+improvement is outweighed by a $10.93\%$ delegation penalty. Thus the
+scaling-induced regression deterioration lies in delegation relative to the
+fitted reference, despite improving predictor-ensemble capability under that
+reference. Falling training MSE alongside rising validation MSE is consistent
+with increasingly poor generalization of learned routing.
+
+SVHN's late downturn has a different source. Between eight and 32 delegators,
+predictor/reference loss increases by $2.57\%$ of the one-delegator loss,
+while improved delegation offsets $1.04\%$, leaving a $1.53\%$ deterioration.
+On CIFAR-10, the initial four-delegator penalty is almost entirely
+delegation-side; at 32 delegators, both terms improve, with delegation
+providing $3.28\%$ of the total $4.32\%$ gain.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{scaling_analysis/figures/04_fault_attribution.pdf}
+\caption{Contributions to direct task-loss reduction relative to $L=1$.
+For each configuration, the component contributions are
+$100(O_1-O_L)/E_1$ and $100(H_1-H_L)/E_1$, using the same baseline total
+task loss $E_1$; these sum to $100(E_1-E_L)/E_1$. Seed means precede
+normalization, and percentages are then averaged across configurations.
+Positive contributions improve performance; negative contributions worsen it.
+The fitted reference changes with ensemble size, so this is conditional
+error attribution rather than a controlled causal intervention.}
+\label{fig:scaling-attribution}
+\end{figure}
+
+These attributions also explain the capacity dependence. On SVHN, narrow
+predictors obtain a $9.26\%$ delegation improvement at 32 delegators, compared
+with $0.33\%$ for wide predictors. On Bikes, widening predictors reduces the
+delegation penalty from $30.51\%$ to $19.87\%$. Widening delegators improves
+the delegation contribution on CIFAR-10 but amplifies the penalty on Energy.
+The benefit therefore depends on whether learned routing generalizes well
+enough to exploit the available predictor ensemble.
+
+\paragraph{Measurement scope.}
+All results concern the recorded validation split. The all-$L$ performance
+curves use the logged objective; direct CE/MSE evaluation confirms the
+positive-$L$ conclusions and supplies the task-loss attribution. The member
+ambiguity terms use probability clipping, so their stored residuals are not
+substituted for direct task loss. Predictor member statistics use the better
+of learned and oracle weights, whereas $O$ and $H$ retain the fitted oracle
+and signed gap. The oracle is validation-selected and its capacity varies
+with $L$; the attribution is conditional on this reference. Increasing $L$
+also increases parameters and compute, rather than holding the budget fixed.

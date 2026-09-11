@@ -395,7 +395,7 @@ experiment_scaling = Experiment(
     width_predictors=Pool.grid(*MLP_WIDTHS),
     width_delegators=Pool.grid(*MLP_WIDTHS),
     delegators_mixing=Pool.constant("sum"), 
-    ambiguity_gradient=Pool.constant("both")
+    ambiguity_gradient=Pool.constant("delegators")
 )
 
 if __name__ ==  "__main__":
