@@ -13,17 +13,13 @@ from flax import linen as nn, struct
 import tqdm
 
 from structs import TrainParams, InOutData, Predictors, Delegators
-from math_utils import optimal_convex_weights, eval_predictor_delegator_decomposition, aggregate_delegators, verify_weights_improvement, eval_loss, predictor_error_ambiguity_decomposition, delegator_error_ambiguity_decomposition
+from math_utils import eval_predictor_delegator_decomposition, aggregate_delegators, predictor_error_ambiguity_decomposition, delegator_error_ambiguity_decomposition, delegator_predictor_ensemble_loss
 from utils import train_loader
 from atomic_networks import three_layer_mlp
 from architectures import Ensemble, get_modules
 
 USE_THREE_LAYER_DELEGATOR = False
 THREE_LAYER_DELEGATOR_BASE = 8
-RESTRICTED_ORACLE_REGRESSOR = "neural"
-RANDOM_FEATURE_ORACLE_FEATURES = 256
-RANDOM_FEATURE_ORACLE_STEPS = 100
-RANDOM_FEATURE_ORACLE_REGULARIZATIONS = (0.0, 1e-7, 1e-5, 1e-2, 1e-0)
 
 @struct.dataclass
 class InOutDataOracle:
@@ -55,7 +51,7 @@ def jit_functions(
         train_params=train_params
     ))
 
-    if RESTRICTED_ORACLE_REGRESSOR == "neural" and USE_THREE_LAYER_DELEGATOR:
+    if USE_THREE_LAYER_DELEGATOR:
 
         assert train_params.architecture.cnn == 0, "Implement some powerful oracle for CNNs"
 
@@ -107,26 +103,49 @@ def jit_functions(
     )
 
 def oracle_loss_fn(
-        one_seed_params,
-        inout_batch: InOutDataOracle,
-        delegators: Delegators,
-        train_params: TrainParams
-    ):
-        delegations_logits = delegators.apply(
-            {"params": one_seed_params},
-            inout_batch.x,
+    one_seed_params,
+    inout_batch: InOutDataOracle,
+    delegators: Delegators,
+    train_params: TrainParams
+):
+    delegations_logits = delegators.apply(
+        {"params": one_seed_params},
+        inout_batch.x,
+    )
+
+    if train_params.ambiguity_gradient_delegators:
+        agg_delegations = aggregate_delegators(
+            train_params,
+            delegations_logits,
         )
 
-        agg_delegations = aggregate_delegators(train_params, delegations_logits)
-        
-        losses = eval_loss(
-            weights=agg_delegations,
+        losses = delegator_predictor_ensemble_loss(
             predictions=inout_batch.predictions,
             y=inout_batch.y,
-            train_params=train_params
+            weights=agg_delegations,
+            task_type=train_params.task.task_type(),
+            ambiguity_gradient_predictors=train_params.ambiguity_gradient_predictors,
         )
 
-        return jnp.mean(losses)
+    else:
+        delegations_probs = jax.nn.softmax(
+            delegations_logits,
+            axis=-1,
+        )  # (BS, n_delegators, n_predictors)
+
+        losses = jax.vmap(
+            delegator_predictor_ensemble_loss,
+            in_axes=(None, None, 1, None, None),
+            out_axes=1,
+        )(
+            inout_batch.predictions,
+            inout_batch.y,
+            delegations_probs,
+            train_params.task.task_type(),
+            train_params.ambiguity_gradient_predictors,
+        )  # (BS, n_delegators)
+
+    return jnp.mean(losses)
 
 def train_oracle_batch(
     inout_data: InOutDataOracle,
@@ -415,198 +434,6 @@ def train_oracle(
         best_delegator_params,
     ), best_delegator_epoch[best_seed]
 
-def random_features(
-    x: jax.Array,
-    x_mean: jax.Array,
-    x_scale: jax.Array,
-    projection: jax.Array,
-    bias: jax.Array,
-):
-    x = x.reshape((x.shape[0], -1))
-    x = (x - x_mean) / x_scale
-    projected = x @ projection + bias
-    features = jnp.concatenate((jnp.ones((x.shape[0], 1)), jax.nn.relu(projected), jax.nn.relu(-projected)), axis=-1)
-    return features / jnp.sum(features, axis=-1, keepdims=True)
-
-def random_feature_oracle_loss(
-    coefficients: jax.Array,
-    features: jax.Array,
-    predictions: jax.Array,
-    y: jax.Array,
-    regularization: jax.Array,
-    train_params: TrainParams,
-):
-    weights = jnp.einsum("dbf,dfp->dbp", features, coefficients)
-    weights = jnp.mean(weights, axis=0)
-    loss = jnp.mean(eval_loss(weights, predictions, y, train_params))
-    uniform = 1 / coefficients.shape[-1]
-    return loss + regularization * jnp.mean((coefficients - uniform) ** 2)
-
-@partial(jax.jit, static_argnames=("train_params", "steps"))
-def fit_random_feature_oracles(
-    features: jax.Array,
-    predictions: jax.Array,
-    y: jax.Array,
-    valid_features: jax.Array,
-    valid_predictions: jax.Array,
-    valid_y: jax.Array,
-    regularizations: jax.Array,
-    train_params: TrainParams,
-    steps: int,
-):
-    n_delegators = features.shape[0]
-    n_features = features.shape[-1]
-    n_predictors = predictions.shape[1]
-    coefficients = jnp.full(
-        (regularizations.shape[0], n_delegators, n_features, n_predictors),
-        1 / n_predictors,
-    )
-
-    if train_params.task.task_type() == "regression":
-        base_lipschitz = 2 * jnp.sum(
-            jnp.sum(features ** 2, axis=-1) * jnp.sum(predictions ** 2, axis=(1, 2))[None, :],
-            axis=-1,
-        ) / (features.shape[1] * predictions.shape[-1])
-    else:
-        log_predictions = jax.nn.log_softmax(predictions, axis=-1)
-        base_lipschitz = 0.5 * jnp.sum(
-            jnp.sum(features ** 2, axis=-1) * jnp.sum(log_predictions ** 2, axis=(1, 2))[None, :],
-            axis=-1,
-        ) / features.shape[1]
-
-    base_lipschitz = jnp.sum(base_lipschitz) / n_delegators ** 2
-    regularization_lipschitz = 2 * regularizations / (n_delegators * n_features * n_predictors)
-    learning_rates = 0.9 / jnp.maximum(base_lipschitz + regularization_lipschitz, 1e-8)
-    loss_and_grad = jax.vmap(
-        jax.value_and_grad(random_feature_oracle_loss),
-        in_axes=(0, None, None, None, 0, None),
-    )
-
-    def validation_losses(coefficients):
-        weights = jnp.einsum("dbf,rdfp->rdbp", valid_features, coefficients)
-        delegations = jnp.swapaxes(jnp.log(jnp.maximum(weights, 1e-30)), 1, 2)
-        weights = jax.vmap(aggregate_delegators, in_axes=(None, 0))(
-            train_params,
-            delegations,
-        )
-        return jax.vmap(
-            lambda one_weights: jnp.mean(eval_loss(one_weights, valid_predictions, valid_y, train_params))
-        )(weights)
-
-    def optimize(carry, step):
-        coefficients, accelerated, momentum, best_coefficients, best_valid_losses = carry
-        _, gradients = loss_and_grad(
-            accelerated,
-            features,
-            predictions,
-            y,
-            regularizations,
-            train_params,
-        )
-        updated = accelerated - learning_rates[:, None, None, None] * gradients
-        updated = jax.vmap(jax.vmap(jax.vmap(optax.projections.projection_simplex)))(updated)
-        next_momentum = (1 + jnp.sqrt(1 + 4 * momentum ** 2)) / 2
-        acceleration = ((momentum - 1) / next_momentum)[:, None, None, None]
-        accelerated = updated + acceleration * (updated - coefficients)
-
-        def validate(_):
-            valid_losses = validation_losses(updated)
-            improved = valid_losses < best_valid_losses
-            selected = jnp.where(improved[:, None, None, None], updated, best_coefficients)
-            return selected, jnp.where(improved, valid_losses, best_valid_losses)
-
-        best_coefficients, best_valid_losses = jax.lax.cond(
-            ((step + 1) % 10) == 0,
-            validate,
-            lambda _: (best_coefficients, best_valid_losses),
-            operand=None,
-        )
-        return (updated, accelerated, next_momentum, best_coefficients, best_valid_losses), None
-
-    initial_state = (
-        coefficients,
-        coefficients,
-        jnp.ones((regularizations.shape[0],)),
-        coefficients,
-        validation_losses(coefficients),
-    )
-    (_, _, _, best_coefficients, _), _ = jax.lax.scan(optimize, initial_state, jnp.arange(steps))
-    return best_coefficients
-
-def train_random_feature_oracle(
-    key: jax.Array,
-    train_predictions: jax.Array,
-    valid_predictions: jax.Array,
-    inout_train_predictions: InOutData,
-    inout_valid_predictions: InOutData,
-    train_params: TrainParams,
-):
-    x_train = inout_train_predictions.x.reshape((inout_train_predictions.x.shape[0], -1))
-    x_mean = jnp.mean(x_train, axis=0)
-    x_scale = jnp.maximum(jnp.std(x_train, axis=0), 1e-6)
-    n_delegators = max(1, train_params.n_delegators)
-    features_per_delegator = max(1, RANDOM_FEATURE_ORACLE_FEATURES // n_delegators)
-    projection_key, bias_key = jax.random.split(key)
-    projection = jax.random.normal(
-        projection_key,
-        (n_delegators, x_train.shape[-1], features_per_delegator),
-    ) / jnp.sqrt(x_train.shape[-1])
-    bias = jax.random.normal(bias_key, (n_delegators, features_per_delegator))
-
-    make_features = jax.vmap(random_features, in_axes=(None, None, None, 0, 0))
-    train_features = make_features(x_train, x_mean, x_scale, projection, bias)
-    valid_features = make_features(inout_valid_predictions.x, x_mean, x_scale, projection, bias)
-    regularizations = jnp.asarray(RANDOM_FEATURE_ORACLE_REGULARIZATIONS)
-    coefficients = fit_random_feature_oracles(
-        train_features,
-        train_predictions,
-        inout_train_predictions.y,
-        valid_features,
-        valid_predictions,
-        inout_valid_predictions.y,
-        regularizations,
-        train_params,
-        RANDOM_FEATURE_ORACLE_STEPS,
-    )
-
-    valid_weights = jnp.einsum("dbf,rdfp->rdbp", valid_features, coefficients)
-    valid_delegations = jnp.swapaxes(jnp.log(jnp.maximum(valid_weights, 1e-30)), 1, 2)
-    valid_weights = jax.vmap(aggregate_delegators, in_axes=(None, 0))(
-        train_params,
-        valid_delegations,
-    )
-    valid_losses = jax.vmap(
-        lambda weights: jnp.mean(eval_loss(weights, valid_predictions, inout_valid_predictions.y, train_params))
-    )(valid_weights)
-    best_regressor = jnp.argmin(valid_losses)
-
-    params = dict(
-        x_mean=x_mean,
-        x_scale=x_scale,
-        projection=projection,
-        bias=bias,
-        coefficients=coefficients[best_regressor],
-    )
-    return params, jnp.array(-1), regularizations[best_regressor]
-
-def apply_random_feature_oracle(
-    params: dict,
-    x: jax.Array,
-    train_params: TrainParams,
-):
-    features = jax.vmap(random_features, in_axes=(None, None, None, 0, 0))(
-        x,
-        params["x_mean"],
-        params["x_scale"],
-        params["projection"],
-        params["bias"],
-    )
-    weights = jnp.einsum("dbf,dfp->dbp", features, params["coefficients"])
-    weights = weights / jnp.sum(weights, axis=-1, keepdims=True)
-    delegations = jnp.swapaxes(jnp.log(jnp.maximum(weights, 1e-30)), 0, 1)
-    agg_delegations = aggregate_delegators(train_params, delegations)
-    return agg_delegations, delegations
-
 
 def apply_delegators_agg(
     delegator_params: dict,
@@ -728,36 +555,19 @@ def one_get_evaluation_metrics(
     agg_delegations = jnp.concatenate(agg_delegations, axis=0)
 
     # Train oracle
-    if RESTRICTED_ORACLE_REGRESSOR == "neural":
-        oracle_delegator_params, from_epoch = train_oracle(
-            key=k_train_oracle,
-            train_predictions=train_predictions,
-            valid_predictions=valid_predictions,
-            agg_delegations=agg_delegations,
-            inout_train_predictions=inout_train_predictions,
-            inout_valid_predictions=inout_valid_predictions,
-            train_params=train_params,
-            jit_funcs=jit_funcs,
-            selected_delegator_params=selected_delegator_params
-        )
-        valid_oracle_agg_delegations, valid_oracle_delegations = jit_funcs.apply_oracle_delegators_agg(oracle_delegator_params, inout_valid_predictions.x)
-    elif RESTRICTED_ORACLE_REGRESSOR == "random_features":
-        oracle_delegator_params, from_epoch, oracle_regularization = train_random_feature_oracle(
-            key=k_train_oracle,
-            train_predictions=train_predictions,
-            valid_predictions=valid_predictions,
-            inout_train_predictions=inout_train_predictions,
-            inout_valid_predictions=inout_valid_predictions,
-            train_params=train_params,
-        )
-        valid_oracle_agg_delegations, valid_oracle_delegations = apply_random_feature_oracle(
-            oracle_delegator_params,
-            inout_valid_predictions.x,
-            train_params,
-        )
-        print(f"Oracle regularization = {oracle_regularization}")
-    else:
-        raise ValueError(f"Unknown restricted oracle regressor: {RESTRICTED_ORACLE_REGRESSOR}")
+    oracle_delegator_params, from_epoch = train_oracle(
+        key=k_train_oracle,
+        train_predictions=train_predictions,
+        valid_predictions=valid_predictions,
+        agg_delegations=agg_delegations,
+        inout_train_predictions=inout_train_predictions,
+        inout_valid_predictions=inout_valid_predictions,
+        train_params=train_params,
+        jit_funcs=jit_funcs,
+        selected_delegator_params=selected_delegator_params
+    )
+    valid_oracle_agg_delegations, valid_oracle_delegations = jit_funcs.apply_oracle_delegators_agg(oracle_delegator_params, inout_valid_predictions.x)
+ 
     
     (predictor_loss, delegator_regret_loss), (loss, loss_under_oracle) = eval_predictor_delegator_decomposition(
         predictions=valid_predictions,

@@ -267,7 +267,7 @@ class Experiment:
             n_predictors=case.n_predictors,
             n_delegators=case.n_delegators,
             delegators_mixing=case.delegators_mixing,
-            ambiguity_gradient=case.ambiguity_gradient,
+            ambiguity_gradient_predictors=case.ambiguity_gradient,
             architecture=profile.architecture.determine_size(
                 predictor_base=case.width_predictors,
                 delegator_base=case.width_delegators,

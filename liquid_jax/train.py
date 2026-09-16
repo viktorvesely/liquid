@@ -34,24 +34,25 @@ from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
 PROFILER = False
 
-CurrentTask = Bikes
-n_delegators = 5
-n_predictors = 16
+CurrentTask = Cifar10
+n_delegators = 16
+n_predictors = 8
 
 g_params = TrainParams(
-    batch_size=256,
+    batch_size=128,
     preload_batches_to_gpu=13,
-    valid_batches=20,
-    epochs=2_000,
+    valid_batches=10,
+    epochs=50,
     lr=1e-3,
     task=CurrentTask,
     n_predictors=n_predictors,
     n_delegators=n_delegators,
-    delegators_mixing="product",
-    ambiguity_gradient="delegators",
+    delegators_mixing="sum",
+    ambiguity_gradient_predictors="delegators",
+    ambiguity_gradient_delegators=False,
     architecture=three_layer_mlp.determine_size(
         predictor_base=8,
-        delegator_base=16,
+        delegator_base=8,
         out_dim=CurrentTask.out_dim(),
         n_predictors=n_predictors
     )
@@ -513,11 +514,77 @@ def plot_losses_and_metrics(metrics: dict[str, list[float]], folder: Path, prefi
 if __name__ == "__main__":
 
 
-    folder = make_train_folder("load_balancing_check")
+    folder = make_train_folder("testing_new_loss")
     key = jax.random.key(123)
     metrics, eval_metrics = train(
         key=key,
         train_params=g_params,
         profile_dir=folder
     )
-    finish_run(metrics, eval_metrics, folder, prefix="paper")
+    finish_run(metrics, eval_metrics, folder)
+
+
+    def norm_entropy(x, axis, normalize: bool = False):
+        x = jnp.asarray(x, dtype=float)
+        n = x.shape[axis]
+
+        if n == 0:
+            return jnp.full(x.sum(axis=axis).shape, jnp.nan)
+
+        assert jnp.all(jnp.isfinite(x)) and jnp.all(x >= 0)
+
+        if normalize:
+            x = x / jnp.sum(x, axis=axis, keepdims=True)
+        else:
+            assert jnp.all(jnp.isclose(x.sum(axis=axis), 1.0, atol=1e-5)), x.sum(axis=axis)
+
+        if n == 1:
+            return jnp.full(x.sum(axis=axis).shape, jnp.inf)
+
+        log_x = jnp.where(x > 0, jnp.log(x), jnp.zeros_like(x))
+
+        return -jnp.sum(x * log_x, axis=axis) / jnp.log(n)
+
+    predictors_weight_per_model = eval_metrics["predictors_weight_per_model"]
+    predictors_perfomance_per_model = eval_metrics["predictors_perfomance_per_model"]
+    predictors_ambiguity_per_model = eval_metrics["predictors_ambiguity_per_model"]
+    delegators_perfomance_per_model = eval_metrics["delegators_perfomance_per_model"]
+    delegators_ambiguity_per_model = eval_metrics["delegators_ambiguity_per_model"]
+
+    loss = eval_metrics["loss"]
+    loss_under_oracle = eval_metrics["loss_under_oracle"]
+    metric = eval_metrics["metric"]
+    metric_under_oracle = eval_metrics["metric_under_oracle"]
+
+    predictors_performance = jnp.mean(predictors_perfomance_per_model * predictors_weight_per_model, axis=1)
+    mean_predictors_performance = jnp.mean(jnp.sum(predictors_performance, axis=-1))
+    predictor_loss_entropy = jnp.mean(norm_entropy(predictors_performance, axis=-1, normalize=True))
+
+    mean_predictors_ambiguity = jnp.mean(jnp.sum(predictors_ambiguity_per_model * predictors_weight_per_model, axis=-1))
+
+    weights_entropy = jnp.mean(norm_entropy(predictors_weight_per_model, axis=-1)) 
+
+    mean_delegators_performance = jnp.mean(delegators_perfomance_per_model)
+    delegators_loss_entropy = jnp.mean(norm_entropy(jnp.mean(delegators_perfomance_per_model, axis=1), axis=-1, normalize=True))
+    mean_delegators_ambiguity = jnp.mean(delegators_ambiguity_per_model)
+
+    debugs = dict(
+        weights_entropy=weights_entropy,
+        delegators_ambiguity=mean_delegators_ambiguity,
+        delegators_performance=mean_delegators_performance,
+        predictors_ambiguity=mean_predictors_ambiguity,
+        predictors_performance=mean_predictors_performance,
+        predictor_loss_entropy=predictor_loss_entropy,
+        delegators_loss_entropy=delegators_loss_entropy,
+        final_loss=jnp.mean(loss),
+        final_loss_under_oracle=jnp.mean(loss_under_oracle),
+        final_metric=jnp.mean(metric),
+        final_metric_under_oracle=jnp.mean(metric_under_oracle),
+    )
+
+    debugs = {k: v.item() for k, v in debugs.items() }
+
+    import pprint
+    pprint.pp(debugs, indent=2)
+
+    # finish_run(metrics, eval_metrics, folder, prefix="paper")

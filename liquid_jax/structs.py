@@ -20,8 +20,9 @@ class TrainParams:
     n_predictors: int
     n_delegators: int
     delegators_mixing: Literal["sum", "product"]
-    ambiguity_gradient: Literal["both", "delegators", "none"]
+    ambiguity_gradient_predictors: Literal["both", "delegators", "none"]
     architecture: Architecture
+    ambiguity_gradient_delegators: bool = True
     load_balancing_lambda: float = 0.2
     skip_eval: bool = False
     
