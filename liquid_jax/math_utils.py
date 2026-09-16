@@ -130,58 +130,109 @@ def eval_predictor_delegator_decomposition(
 
     return (predictor_error, delegators_regret), (metric, metric_under_oracle)
 
-
-def delegator_error_ambiguity_decomposition(
-    delegations: jax.Array, # (BS, delegators, predictors) logits
-    agg_oracle_delegations: jax.Array, # (BS. predictors) logits 
-    train_params: TrainParams
-):
-    
-    agg_delegations = aggregate_delegators(train_params, delegations)
-
-    perfomance_loss_per_model = ce_loss_no_integers(delegations, agg_oracle_delegations)
-
-    if train_params.delegators_mixing == "product":
-        ambiguity_per_model = jax.vmap(kl_ambiguity, in_axes=(None, 1), out_axes=1)(
-            agg_delegations, # Already probs 
-            jax.nn.softmax(delegations)
-        )
-    elif train_params.delegators_mixing == "sum":
-        ambiguity_per_model = jax.vmap(probability_mixing_ambiguity, in_axes=(None, None, 1), out_axes=1)(
-            agg_oracle_delegations, # Already probs 
-            agg_delegations, # Already probs 
-            jax.nn.softmax(delegations)
-        )
-    
-    return perfomance_loss_per_model, ambiguity_per_model 
      
+def delegator_error_ambiguity_decomposition(
+    delegations: jax.Array,  # (BS, delegators, predictors), logits
+    predictions: jax.Array,  # (BS, predictors, out)
+    y: jax.Array,
+    train_params: TrainParams,
+    stop_delegations_ambiguity_gradient: bool = True
+):
+    predictions = jax.lax.stop_gradient(predictions)
+    
+    task_type = train_params.task.task_type()
+    weights = jax.nn.softmax(delegations, axis=-1)
+
+    predictor_performance, predictor_ambiguity = jax.vmap(
+        predictor_error_ambiguity_decomposition,
+        in_axes=(None, None, None, 1),
+        out_axes=1,
+    )(
+        predictions,
+        y,
+        task_type,
+        weights,
+    )
+
+    weighted_performance = jnp.sum(
+        weights * predictor_performance, axis=-1
+    )
+    weighted_ambiguity = jnp.sum(
+        weights * predictor_ambiguity, axis=-1
+    )
+
+    if train_params.ambiguity_gradient_predictors == "none":
+        weighted_ambiguity = jax.lax.stop_gradient(weighted_ambiguity)
+
+    performance = weighted_performance - weighted_ambiguity
+
+    mix = (
+        mix_weighted_mean
+        if task_type == "regression"
+        else mix_weighted_logits
+    )
+
+    individual_predictions = jax.vmap(
+        mix, in_axes=(None, 1), out_axes=1
+    )(predictions, weights)
+
+    agg_weights = aggregate_delegators(train_params, delegations)
+    final_prediction = mix(predictions, agg_weights)
+
+    if task_type == "regression":
+        ambiguity = jax.vmap(
+            var_ambiguity, in_axes=(None, 1), out_axes=1
+        )(final_prediction, individual_predictions)
+
+    elif task_type == "classification":
+        ambiguity = jax.vmap(
+            kl_ambiguity,
+            in_axes=(None, 1),
+            out_axes=1,
+        )(
+            final_prediction,
+            individual_predictions,
+        )
+
+    if stop_delegations_ambiguity_gradient:
+        ambiguity = jax.lax.stop_gradient(ambiguity)
+
+    return performance, ambiguity  # Both (BS, delegators)
+
 
 def predictor_error_ambiguity_decomposition(
     predictions: jax.Array,
     y: jax.Array,
     task_type: Literal["classification", "regression"],
     agg_delegation: jax.Array,
+    return_agg_prediction: bool = False,
+    stop_predictions_ambiguity_gradient: bool = False
 ):
+
+    predictions_optional_grad = jax.lax.stop_gradient(predictions) if stop_predictions_ambiguity_gradient else predictions
         
     if task_type == "classification":
-        agg_prediction = mix_weighted_logits(predictions, agg_delegation) 
+        agg_prediction = mix_weighted_logits(predictions_optional_grad, agg_delegation) 
     elif task_type == "regression":
-        agg_prediction = mix_weighted_mean(predictions, agg_delegation)
+        agg_prediction = mix_weighted_mean(predictions_optional_grad, agg_delegation)
 
     if task_type == "classification":
         perfomance_loss_per_model = ce_loss(predictions, y)
         ambiguity_per_model = jax.vmap(kl_ambiguity, in_axes=(None, 1), out_axes=1)(
-            jax.nn.softmax(agg_prediction), 
-            jax.nn.softmax(predictions)
+            agg_prediction, 
+            predictions_optional_grad
         )
     elif task_type == "regression":
         perfomance_loss_per_model = mse_loss(predictions, y)
         ambiguity_per_model = jax.vmap(var_ambiguity, in_axes=(None, 1), out_axes=1)(
             agg_prediction, 
-            predictions
+            predictions_optional_grad
         )
 
-    return perfomance_loss_per_model, ambiguity_per_model
+    if return_agg_prediction:
+        return (perfomance_loss_per_model, ambiguity_per_model), agg_prediction
+    else:
+        return perfomance_loss_per_model, ambiguity_per_model
     
 
 
@@ -226,7 +277,7 @@ def eval_metric(
 
 
 @partial(jax.jit, static_argnames=("ensemble_model", "train_params"))
-def loss(
+def loss_old(
     ensemble_params: dict,
     key: jax.Array,
     train_params: TrainParams,
@@ -273,8 +324,8 @@ def loss(
     if task_type == "classification":
         performance_loss_per_model = ce_loss(predictions, y)
         ambiguity_per_model = jax.vmap(kl_ambiguity, in_axes=(None, 1), out_axes=1)(
-            jax.nn.softmax(agg_prediction), 
-            jax.nn.softmax(predictions_no_gradient)
+            agg_prediction, 
+            predictions_no_gradient
         )
         metrics["accuracy_metric"] = classification_accuracy(agg_prediction, y)
     elif task_type == "regression":
@@ -330,6 +381,107 @@ def loss(
 
     
     return performance_loss + load_balancing_loss + individual_delegator_loss, {"performance_loss": performance_loss, "load_balancing_loss": load_balancing_loss} | metrics
+
+
+
+
+@partial(jax.jit, static_argnames=("ensemble_model", "train_params"))
+def loss(
+    ensemble_params: dict,
+    key: jax.Array,
+    train_params: TrainParams,
+    ensemble_model: Ensemble,
+    x: jax.Array,
+    y: jax.Array,
+):
+    
+    task_type = train_params.task.task_type()
+    ambiguity_gradient_predictors = train_params.ambiguity_gradient_predictors
+    ambiguity_gradient_delegators = train_params.ambiguity_gradient_delegators
+    n_predictors = train_params.n_predictors
+    batch_size = x.shape[0]
+    agg_delegation: jax.Array = None # (BS, n_predictors), will be probabilities
+    agg_prediction: jax.Array = None # (BS, out)
+    performance_loss_per_model: jax.Array = None # (BS, n_predictors)
+    ambiguity_per_model: jax.Array = None # (BS, n_predictors)
+    metrics = {}
+ 
+    assert ambiguity_gradient_predictors in {"both", "delegators", "none"}
+
+    forward_args = ForwardArgs(x)
+    forward_return = ensemble_model.apply({"params": ensemble_params}, forward_args)
+    predictions = forward_return.predictions # (BS, n_predictors, out)
+    predictions_no_gradient = jax.lax.stop_gradient(predictions)
+    delegations_logits = forward_return.delegations # (BS, n_delegators, n_predictors)
+
+    # Aggregate delegators
+    agg_delegation = aggregate_delegators(train_params, delegations_logits)
+
+    if not ambiguity_gradient_delegators:
+        agg_delegation_for_predictor_ambiguity = jax.lax.stop_gradient(agg_delegation)
+        agg_delegation_for_predictor_performance = jax.lax.stop_gradient(agg_delegation)
+    elif ambiguity_gradient_predictors == "none":
+        agg_delegation_for_predictor_ambiguity = jax.lax.stop_gradient(agg_delegation)
+        agg_delegation_for_predictor_performance = agg_delegation
+    else:
+        agg_delegation_for_predictor_ambiguity = agg_delegation
+        agg_delegation_for_predictor_performance = agg_delegation
+
+
+    (performance_loss_per_model, ambiguity_per_model), agg_prediction = predictor_error_ambiguity_decomposition(
+        predictions,
+        y,
+        task_type=task_type,
+        agg_delegation=jax.lax.stop_gradient(agg_delegation),
+        return_agg_prediction=True,
+        stop_predictions_ambiguity_gradient=(ambiguity_gradient_predictors != "both")
+    )
+
+    assert performance_loss_per_model.shape == (batch_size, n_predictors), ambiguity_per_model.shape == (batch_size, n_predictors)
+
+    weighted_perfomance = jnp.sum(agg_delegation_for_predictor_performance * performance_loss_per_model, axis=-1)
+    weighted_ambiguity = jnp.sum(agg_delegation_for_predictor_ambiguity * ambiguity_per_model, axis=-1)
+
+    loss_per_sample = weighted_perfomance - weighted_ambiguity
+    performance_loss = jnp.mean(loss_per_sample)
+    
+    # Load balancing loss
+    batch_agg_delegation = agg_delegation.mean(axis=0)
+    batch_agg_delegation = batch_agg_delegation / batch_agg_delegation.sum() # Shouldn't be needed
+    model_usage_uniformity = gini_impurity(batch_agg_delegation) # 0 - fully pure; 1 - fully uniform 
+    load_balancing_loss = train_params.load_balancing_lambda * (1 - model_usage_uniformity)
+
+    # Ambiguity delegator gradient
+    if not ambiguity_gradient_delegators:
+        performance_loss_per_delegator, ambiguity_per_delegator = delegator_error_ambiguity_decomposition(
+            delegations=delegations_logits,
+            predictions=predictions_no_gradient,
+            y=y,
+            train_params=train_params
+        )
+
+        via_delegator_performance = jnp.mean(performance_loss_per_delegator, axis=-1) 
+        via_delegator_ambiguity = jnp.mean(ambiguity_per_delegator, axis=-1) 
+        via_delegator_loss_per_sample = via_delegator_performance - via_delegator_ambiguity
+        via_delegator_performance_loss = jnp.mean(via_delegator_loss_per_sample)
+
+        # I am taking the mean and kind assuming that they have they same units which they should have
+        # I also think they should be the same number, to only point to this is to route gradients
+        performance_loss = (
+            performance_loss
+            + via_delegator_performance_loss 
+            - jax.lax.stop_gradient(via_delegator_performance_loss)
+        )
+    
+
+    # Calc metrics
+    if task_type == "classification":
+        metrics["accuracy_metric"] = classification_accuracy(agg_prediction, y)
+    elif task_type == "regression":
+        metrics["r2_metric"] = regression_r2(agg_prediction, y)
+
+    
+    return performance_loss + load_balancing_loss, {"performance_loss": performance_loss, "load_balancing_loss": load_balancing_loss} | metrics
 
 
 def delegator_predictor_ensemble_loss(
@@ -453,18 +605,17 @@ def var_ambiguity(
     return jnp.mean((centroid - other) ** 2, axis=-1)
 
 def kl_ambiguity(
-    centroid: jax.Array,
-    other: jax.Array,
-    epsilon: float = 1e-6,
+    centroid_logits: jax.Array,
+    other_logits: jax.Array,
 ):
-    centroid_safe = jnp.clip(centroid, min=epsilon)
-    other_safe = jnp.clip(other, min=epsilon)
+    centroid_log_probs = jax.nn.log_softmax(centroid_logits, axis=-1)
+    other_log_probs = jax.nn.log_softmax(other_logits, axis=-1)
 
-    kl_per_class = centroid * (
-        jnp.log(centroid_safe) - jnp.log(other_safe)
+    return jnp.sum(
+        jnp.exp(centroid_log_probs)
+        * (centroid_log_probs - other_log_probs),
+        axis=-1,
     )
-
-    return jnp.sum(kl_per_class, axis=-1)
 
 
 def probability_mixing_ambiguity(
