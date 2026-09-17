@@ -9,7 +9,6 @@ from flax import linen as nn
 from structs import ForwardArgs, ForwardReturn, TrainParams, Ensemble
 
 
-
 @partial(jax.jit, static_argnames=("train_params", "steps"))
 def optimal_convex_weights(
     y: jax.Array,

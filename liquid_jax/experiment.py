@@ -21,7 +21,8 @@ from train import finish_run, make_train_folder, train
 
 type Mode = Literal["grid", "random", "paired"]
 type Mixing = Literal["sum", "product"]
-type AmbiguityGradient = Literal["both", "delegators", "none"]
+type AmbiguityGradientPredictor = Literal["both", "delegators", "none"]
+type AmbiguityGradientDelegator = bool
 type TaskType = type[Task]
 
 
@@ -81,7 +82,7 @@ img_task_profile = TaskProfile(
     architecture=three_layer_mlp,
 )
 
-tab_task_profile  = TaskProfile(
+tab_task_profile_energy  = TaskProfile(
     batch_size=256,
     preload_batches_to_gpu=13,
     valid_batches=10,
@@ -89,11 +90,19 @@ tab_task_profile  = TaskProfile(
     architecture=two_layer_mlp,
 )
 
+tab_task_profile_bikes  = TaskProfile(
+    batch_size=256,
+    preload_batches_to_gpu=13,
+    valid_batches=10,
+    epochs=1_000,
+    architecture=two_layer_mlp,
+)
+
 TASK_PROFILES: dict[TaskType, TaskProfile] = {
     Cifar10: img_task_profile,
     Svhn: img_task_profile,
-    Bikes: tab_task_profile,
-    Energy: tab_task_profile
+    Bikes: tab_task_profile_bikes,
+    Energy: tab_task_profile_energy
 }
 
 
@@ -105,7 +114,8 @@ N_DELEGATORS_MULTIPLE = 2, 4, 8, 16, 32
 CNN_WIDTHS = 1, 4, 8
 MLP_WIDTHS = 4, 8, 16
 MIXING: tuple[Mixing, ...] = "sum", "product"
-AMBIGUITY_GRADIENTS: tuple[AmbiguityGradient, ...] = "both", "delegators", "none"
+AMBIGUITY_GRADIENTS_PREDICTORS: tuple[AmbiguityGradientPredictor, ...] = "both", "delegators", "none"
+AMBIGUITY_GRADIENTS_DELEGATORS: tuple[AmbiguityGradientDelegator, ...] = True, False
 
 @dataclass(frozen=True, slots=True)
 class ExperimentCase:
@@ -115,7 +125,8 @@ class ExperimentCase:
     width_predictors: int
     width_delegators: int
     delegators_mixing: Mixing
-    ambiguity_gradient: AmbiguityGradient
+    ambiguity_gradient_predictor: AmbiguityGradientPredictor
+    ambiguity_gradient_delegator: AmbiguityGradientDelegator
     key: jax.Array
 
     @classmethod
@@ -126,7 +137,8 @@ class ExperimentCase:
             a.width_predictors == b.width_predictors and
             a.width_delegators == b.width_delegators and
             a.delegators_mixing == b.delegators_mixing and
-            a.ambiguity_gradient == b.ambiguity_gradient
+            a.ambiguity_gradient_predictor == b.ambiguity_gradient_predictor and
+            a.ambiguity_gradient_delegator == b.ambiguity_gradient_delegator
         )
 
     @property
@@ -138,7 +150,8 @@ class ExperimentCase:
             f"_pwidth_{self.width_predictors}"
             f"_dwidth_{self.width_delegators}"
             f"_mixing_{self.delegators_mixing}"
-            f"_ambiguity_{self.ambiguity_gradient}"
+            f"_ambiguitypred_{self.ambiguity_gradient_predictor}"
+            f"_ambiguitydele_{self.ambiguity_gradient_delegator}"
         )
 
 
@@ -153,7 +166,8 @@ class Experiment:
     width_predictors: Pool[int]
     width_delegators: Pool[int]
     delegators_mixing: Pool[Mixing]
-    ambiguity_gradient: Pool[AmbiguityGradient]
+    ambiguity_gradient_predictor: Pool[AmbiguityGradientPredictor]
+    ambiguity_gradient_delegator: Pool[AmbiguityGradientDelegator]
     max_iterations: int | None = None
     seed: int = 123
         
@@ -166,7 +180,8 @@ class Experiment:
             "width_predictors": self.width_predictors,
             "width_delegators": self.width_delegators,
             "delegators_mixing": self.delegators_mixing,
-            "ambiguity_gradient": self.ambiguity_gradient,
+            "ambiguity_gradient_predictor": self.ambiguity_gradient_predictor,
+            "ambiguity_gradient_delegator": self.ambiguity_gradient_delegator,
         }
 
 
@@ -175,7 +190,6 @@ class Experiment:
         grid = {name: pool for name, pool in self.pools.items() if pool.mode == "grid"}
         random = {name: pool for name, pool in self.pools.items() if pool.mode == "random"}
         paired = {name: pool for name, pool in self.pools.items() if pool.mode == "paired"}
-
 
 
         if len(paired) > 0:
@@ -267,7 +281,8 @@ class Experiment:
             n_predictors=case.n_predictors,
             n_delegators=case.n_delegators,
             delegators_mixing=case.delegators_mixing,
-            ambiguity_gradient_predictors=case.ambiguity_gradient,
+            ambiguity_gradient_predictors=case.ambiguity_gradient_predictor,
+            ambiguity_gradient_delegators=case.ambiguity_gradient_delegator,
             architecture=profile.architecture.determine_size(
                 predictor_base=case.width_predictors,
                 delegator_base=case.width_delegators,
@@ -294,7 +309,8 @@ class Experiment:
             "dwidth": "width_delegators",
             "pwidth": "width_predictors",
             "mixing": "delegators_mixing",
-            "ambiguity": "ambiguity_gradient",
+            "ambiguitypred": "ambiguity_gradient_predictor",
+            "ambiguitydele": "ambiguity_gradient_delegator"
         }
 
         for mf in resume_folder.glob("*_metrics.json"):
@@ -309,7 +325,13 @@ class Experiment:
                 try:
                     value = int(str_value)
                 except ValueError:
-                    value = str_value
+
+                    if value == "True":
+                        value = True
+                    elif value == "False":
+                        value = False
+                    else:
+                        value = str_value
 
                 case_dict[name] = value
 
@@ -373,7 +395,8 @@ experiment_aggregation_method = Experiment(
     width_predictors=Pool.random(*MLP_WIDTHS),
     width_delegators=Pool.random(*MLP_WIDTHS),
     delegators_mixing=Pool.paired(*MIXING),
-    ambiguity_gradient=Pool.constant("none"),
+    ambiguity_gradient_predictor=Pool.constant("none"),
+    ambiguity_gradient_delegator=Pool.constant(True), # Only valid there
     max_iterations=200
 )
 
@@ -383,9 +406,22 @@ exp_ambiguity_gradient = Experiment(
     n_delegators=Pool.random(*N_DELEGATORS_VALID),
     width_predictors=Pool.random(*MLP_WIDTHS),
     width_delegators=Pool.random(*MLP_WIDTHS),
-    delegators_mixing=Pool.random(*MIXING),
-    ambiguity_gradient=Pool.paired(*AMBIGUITY_GRADIENTS),
+    delegators_mixing=Pool.constant("sum"),
+    ambiguity_gradient_delegator=Pool.random(True),
+    ambiguity_gradient_predictor=Pool.paired(*AMBIGUITY_GRADIENTS_PREDICTORS),
     max_iterations=300
+)
+
+exp_ambiguity_delgradient = Experiment(
+    name="exp_ambiguity_delgradient",
+    n_predictors=Pool.random(*N_PREDICTORS),
+    n_delegators=Pool.random(*N_DELEGATORS_VALID),
+    width_predictors=Pool.random(*MLP_WIDTHS),
+    width_delegators=Pool.random(*MLP_WIDTHS),
+    delegators_mixing=Pool.constant("sum"),
+    ambiguity_gradient_predictor=Pool.constant("delegators"),
+    ambiguity_gradient_delegator=Pool.paired(*AMBIGUITY_GRADIENTS_DELEGATORS),
+    max_iterations=200
 )
 
 experiment_scaling = Experiment(
@@ -395,7 +431,8 @@ experiment_scaling = Experiment(
     width_predictors=Pool.grid(*MLP_WIDTHS),
     width_delegators=Pool.grid(*MLP_WIDTHS),
     delegators_mixing=Pool.constant("sum"), 
-    ambiguity_gradient=Pool.constant("delegators")
+    ambiguity_gradient_predictor=Pool.constant("delegators"),
+    ambiguity_gradient_delegator=Pool.constant(False) 
 )
 
 if __name__ ==  "__main__":
@@ -405,7 +442,7 @@ if __name__ ==  "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "experiment",
-        choices=("agg", "gradient", "scaling"),
+        choices=("agg", "gradientpred", "gradientdel", "scaling"),
     )
     parser.add_argument(
         "task",
@@ -421,7 +458,8 @@ if __name__ ==  "__main__":
 
     experiments = {
         "agg": experiment_aggregation_method,
-        "gradient": exp_ambiguity_gradient,
+        "gradientpred": exp_ambiguity_gradient,
+        "gradientdel":  exp_ambiguity_delgradient,
         "scaling": experiment_scaling,
     }
 

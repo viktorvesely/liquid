@@ -11,7 +11,7 @@ CUDA_MODULE="${CUDA_MODULE:-CUDA/13.2.0}"
 DRY_RUN=0
 
 # Keep in sync with the argparse choices in liquid_jax/experiment.py
-VALID_EXPERIMENTS=(agg gradient scaling)
+VALID_EXPERIMENTS=(agg gradientpred gradientdel scaling)
 VALID_TASKS=(Cifar10 Svhn Bikes Energy)
 
 
@@ -19,7 +19,7 @@ usage() {
     cat <<'USAGE'
 Usage: experiments_habrok.sh [options] <experiment_name> <task[=resume_dir]> [task[=resume_dir] ...]
 
-  experiment_name : agg | gradient | scaling
+  experiment_name : agg | gradientpred | gradientdel | scaling
   task            : Cifar10 | Svhn | Bikes | Energy
   resume_dir      : optional run folder to continue from; passed to
                     experiment.py as --resume. Relative paths are resolved

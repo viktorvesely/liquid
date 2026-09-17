@@ -1,0 +1,111 @@
+with ambiguity_gradient_delegators on (stupid)
+{ 'weights_entropy': 0.595372200012207,
+  'delegators_ambiguity': 7.975434303283691,
+  'delegators_performance': 47.17279052734375,
+  'predictors_ambiguity': 0.020679252222180367,
+  'predictors_performance': 0.06605932861566544,
+  'predictor_loss_entropy': 0.9335253834724426,
+  'delegators_loss_entropy': 0.9895569682121277,
+  'final_loss': 0.04664861410856247,
+  'final_loss_under_oracle': 0.04538007453083992,
+  'final_metric': 0.9535242915153503,
+  'final_metric_under_oracle': 0.9547881484031677}
+
+
+
+with ambiguity_gradient_delegators off (smart)
+
+{ 'weights_entropy': 0.37280866503715515,
+  'delegators_ambiguity': 2.0578835010528564,
+  'delegators_performance': 6.5108642578125,
+  'predictors_ambiguity': 0.013005746528506279,
+  'predictors_performance': 0.061643194407224655,
+  'predictor_loss_entropy': 0.9226354956626892,
+  'delegators_loss_entropy': 0.9181475639343262,
+  'final_loss': 0.049642615020275116,
+  'final_loss_under_oracle': 0.04869602993130684,
+  'final_metric': 0.9505414366722107,
+  'final_metric_under_oracle': 0.9514845013618469}
+
+ENERGY:
+
+with ambiguity_gradient_delegators on (stupid)
+
+{ 'weights_entropy': 0.4871574938297272,
+  'delegators_ambiguity': 7.194953918457031,
+  'delegators_performance': 49.50165939331055,
+  'predictors_ambiguity': 0.017008483409881592,
+  'predictors_performance': 0.6884501576423645,
+  'predictor_loss_entropy': 0.9192190170288086,
+  'delegators_loss_entropy': 0.9869793057441711,
+  'final_loss': 0.6830229163169861,
+  'final_loss_under_oracle': 0.6714416742324829,
+  'final_metric': 0.3123163878917694,
+  'final_metric_under_oracle': 0.3239767253398895}
+
+
+with ambiguity_gradient_delegators off (smart)
+
+{ 'weights_entropy': 0.25004154443740845,
+  'delegators_ambiguity': 2.1834752559661865,
+  'delegators_performance': 5.682437419891357,
+  'predictors_ambiguity': 0.011389217339456081,
+  'predictors_performance': 0.6708875894546509,
+  'predictor_loss_entropy': 0.9608299136161804,
+  'delegators_loss_entropy': 0.975378155708313,
+  'final_loss': 0.6675992608070374,
+  'final_loss_under_oracle': 0.6594982743263245,
+  'final_metric': 0.3278453052043915,
+  'final_metric_under_oracle': 0.33600151538848877}
+
+OLD SYSTEM CIFAR
+
+ambiguity_gradient_predictors="delegators",
+ambiguity_gradient_delegators=False,
+
+{ 'weights_entropy': 0.3954732120037079,
+'delegators_ambiguity': 0.43408218026161194,
+'delegators_performance': 1.8625582456588745,
+'predictors_ambiguity': 0.10823846608400345,
+'predictors_performance': 1.630196452140808,
+'predictor_loss_entropy': 0.9002867937088013,
+'delegators_loss_entropy': 0.9237896203994751,
+'final_loss': 1.5343955755233765,
+'final_loss_under_oracle': 1.5219566822052002,
+'final_metric': 0.4582812488079071,
+'final_metric_under_oracle': 0.4596875309944153}
+
+NEW SYSTEM CIFAR
+
+ambiguity_gradient_predictors="delegators",
+ambiguity_gradient_delegators=False,
+
+{ 'weights_entropy': 0.4704931676387787,
+  'delegators_ambiguity': 0.014376851730048656,
+  'delegators_performance': 1.5534733533859253,
+  'predictors_ambiguity': 0.13258995115756989,
+  'predictors_performance': 1.661402940750122,
+  'predictor_loss_entropy': 0.9031985402107239,
+  'delegators_loss_entropy': 0.9999966025352478,
+  'final_loss': 1.539096713066101,
+  'final_loss_under_oracle': 1.5288127660751343,
+  'final_metric': 0.45531249046325684,
+  'final_metric_under_oracle': 0.4517187774181366}
+
+
+
+ambiguity_gradient_predictors="delegators",
+ambiguity_gradient_delegators=True,
+
+
+{ 'weights_entropy': 0.5737364888191223,
+  'delegators_ambiguity': 0.10388857871294022,
+  'delegators_performance': 1.638946533203125,
+  'predictors_ambiguity': 0.12468201667070389,
+  'predictors_performance': 1.6591713428497314,
+  'predictor_loss_entropy': 0.9008154273033142,
+  'delegators_loss_entropy': 0.9999430775642395,
+  'final_loss': 1.5350580215454102,
+  'final_loss_under_oracle': 1.5396753549575806,
+  'final_metric': 0.45484375953674316,
+  'final_metric_under_oracle': 0.4553125500679016}

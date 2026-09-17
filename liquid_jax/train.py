@@ -34,15 +34,15 @@ from atomic_networks import three_layer_mlp, two_layer_mlp, small_cnn, big_cnn
 
 PROFILER = False
 
-CurrentTask = Cifar10
+CurrentTask = Energy
 n_delegators = 16
 n_predictors = 8
 
 g_params = TrainParams(
-    batch_size=128,
+    batch_size=256,
     preload_batches_to_gpu=13,
     valid_batches=10,
-    epochs=50,
+    epochs=2_000,
     lr=1e-3,
     task=CurrentTask,
     n_predictors=n_predictors,
@@ -330,7 +330,8 @@ def finish_run(
         metrics: dict[str, list[float]],
         eval_metrics: dict[str, jax.Array],
         folder: Path,
-        prefix: str = ""
+        prefix: str = "",
+        save_picture: bool = False
     ):
 
     try:
@@ -346,11 +347,12 @@ def finish_run(
         print("Error during metric saving")
         traceback.print_exc()
 
-    try:
-        plot_losses_and_metrics(metrics, folder, prefix)
-    except Exception:
-        print("Error during plotting losses")
-        traceback.print_exc()
+    if save_picture:
+        try:
+            plot_losses_and_metrics(metrics, folder, prefix)
+        except Exception:
+            print("Error during plotting losses")
+            traceback.print_exc()
 
 def save_metrics(metrics: dict[str, list[float]], folder: Path, prefix: str = ""):
     json_metrics = {
@@ -521,7 +523,7 @@ if __name__ == "__main__":
         train_params=g_params,
         profile_dir=folder
     )
-    finish_run(metrics, eval_metrics, folder)
+    finish_run(metrics, eval_metrics, folder, save_picture = True)
 
 
     def norm_entropy(x, axis, normalize: bool = False):
