@@ -31,7 +31,7 @@ def find_runs(folder: Path) -> set[int]:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("runs_dir", type=Path, nargs="?", default=Path("runs"))
+    parser.add_argument("runs_dir", type=Path, nargs="?", default=(Path(__file__).parent / "runs"))
     args = parser.parse_args()
 
     runs_dir = args.runs_dir

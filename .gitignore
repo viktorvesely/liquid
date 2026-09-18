@@ -17,3 +17,7 @@ data/
 /liquid_jax/scaling_analysis/figures
 /logs
 /.venv
+/liquid_jax/paper/*
+!/liquid_jax/paper/*.tex
+!/liquid_jax/paper/*.pdf
+!/liquid_jax/paper/*/
