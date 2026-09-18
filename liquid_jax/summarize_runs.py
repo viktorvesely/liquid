@@ -29,9 +29,37 @@ def find_runs(folder: Path) -> set[int]:
     return runs
 
 
+def format_entry(timestamp, launch_id, task, runs, folder):
+    count = len(runs)
+    reached = max(runs, default=0)
+
+    if not runs:
+        return None
+
+    missing = set(range(1, reached + 1)) - runs
+
+    if missing:
+        status = f"{count} / {reached}, {len(missing)} missing"
+    else:
+        status = f"{count} / {reached}"
+
+    return (
+        f"{timestamp:%Y-%m-%d %H:%M:%S}  "
+        f"{launch_id}  "
+        f"{task:<10}  "
+        f"{status}        "
+        f"{folder.name}"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("runs_dir", type=Path, nargs="?", default=(Path(__file__).parent / "runs"))
+    parser.add_argument(
+        "--by-day",
+        action="store_true",
+        help="group first by day, then by experiment",
+    )
     args = parser.parse_args()
 
     runs_dir = args.runs_dir
@@ -39,7 +67,7 @@ def main():
     if not runs_dir.is_dir():
         raise SystemExit(f"Not a directory: {runs_dir}")
 
-    # experiment -> list[(timestamp, launch_id, task, runs)]
+    # experiment -> list[(timestamp, launch_id, task, runs, folder)]
     groups = defaultdict(list)
 
     for folder in runs_dir.iterdir():
@@ -65,46 +93,70 @@ def main():
                 launch_id,
                 task,
                 find_runs(folder),
-                folder
+                folder,
             )
         )
 
-    for experiment in sorted(groups):
-        print(experiment)
+    if args.by_day:
+        # day -> experiment -> entries
+        days = defaultdict(lambda: defaultdict(list))
 
-        entries = sorted(
-            groups[experiment],
-            key=lambda x: x[0],
-        )
+        for experiment, entries in groups.items():
+            for entry in entries:
+                timestamp = entry[0]
+                days[timestamp.date()][experiment].append(entry)
 
-        for i, (timestamp, launch_id, task, runs, folder) in enumerate(entries):
-            is_last = i == len(entries) - 1
-            branch = "└──" if is_last else "├──"
+        for day in sorted(days):
+            print(day)
 
-            count = len(runs)
-            reached = max(runs, default=0)
+            experiments = sorted(days[day])
 
-            if not runs:
-                continue
-            else:
-                missing = set(range(1, reached + 1)) - runs
+            for exp_i, experiment in enumerate(experiments):
+                exp_is_last = exp_i == len(experiments) - 1
+                exp_branch = "└──" if exp_is_last else "├──"
+                child_prefix = "    " if exp_is_last else "│   "
 
-                if missing:
-                    status = (
-                        f"{count} / {reached}, "
-                        f"{len(missing)} missing"
-                    )
-                else:
-                    status = f"{count} / {reached}"
+                print(f"{exp_branch} {experiment}")
 
-            print(
-                f"{branch} "
-                f"{timestamp:%Y-%m-%d %H:%M:%S}  "
-                f"{launch_id}  "
-                f"{task:<10}  "
-                f"{status}        "
-                f"{folder.name}"
+                entries = sorted(
+                    days[day][experiment],
+                    key=lambda x: x[0],
+                )
+
+                visible_entries = [
+                    entry
+                    for entry in entries
+                    if entry[3]
+                ]
+
+                for i, entry in enumerate(visible_entries):
+                    is_last = i == len(visible_entries) - 1
+                    branch = "└──" if is_last else "├──"
+
+                    line = format_entry(*entry)
+                    print(f"{child_prefix}{branch} {line}")
+
+    else:
+        for experiment in sorted(groups):
+            print(experiment)
+
+            entries = sorted(
+                groups[experiment],
+                key=lambda x: x[0],
             )
+
+            visible_entries = [
+                entry
+                for entry in entries
+                if entry[3]
+            ]
+
+            for i, entry in enumerate(visible_entries):
+                is_last = i == len(visible_entries) - 1
+                branch = "└──" if is_last else "├──"
+
+                line = format_entry(*entry)
+                print(f"{branch} {line}")
 
 
 if __name__ == "__main__":
