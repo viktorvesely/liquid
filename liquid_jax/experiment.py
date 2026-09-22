@@ -326,9 +326,9 @@ class Experiment:
                     value = int(str_value)
                 except ValueError:
 
-                    if value == "True":
+                    if str_value == "True":
                         value = True
-                    elif value == "False":
+                    elif str_value == "False":
                         value = False
                     else:
                         value = str_value
