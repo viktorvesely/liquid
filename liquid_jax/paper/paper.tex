@@ -23,6 +23,11 @@
 \newcommand{\pperformance}{\mathcal{E}_{\mathrm{P}}}
 \newcommand{\dperformance}{\mathcal{E}_{\mathrm{D}}}
 \newcommand{\sg}{\operatorname{sg}}
+\newcommand{\ambiguityon}[1]{\ensuremath{\mathtt{on}[#1]}}
+\newcommand{\ambiguityoff}[1]{\ensuremath{\mathtt{off}[#1]}}
+\newcounter{contribution}
+\newcommand{\contribution}[1]{\refstepcounter{contribution}\label{contribution:#1}\textbf{(C\thecontribution)}}
+\newcommand{\contributionref}[1]{\textbf{(C\ref{contribution:#1})}}
 
 \title{Sparse Ensembles: Do Routing Mechanisms Benefit from Ensemble Effects?}
 
@@ -58,10 +63,10 @@ While ensembles typically focus on improving the predictive capacity of the expe
 \paragraph{Contributions} In this work we provide a systematic study of scaling the number of delegators in image classification tasks, focusing on CIFAR10 \citep{krizhevsky2009learning} and SVHN \citep{netzer2011reading}, and tabular regression tasks, Bike sharing dataset \citep{bike_sharing_275} and Energy production dataset \citep{energydataset}. Specifically this work systematically tests scaling of number of delegators, number of predictors, delegator widths, and predictor widths. Furthermore, two aggregation methods are tested, probabilities product and probabilities sum. We find:
 
 \begin{itemize}
-    \item \textbf{(C1) When scaling number of delegators helps}: Under which scenarios
-    \item \textbf{(C2) What aggregation method is better for the delegators}: Is sum better?
-    \item \textbf{(C3) Ambiguity gradient control}: We examine how separately controlling predictor and delegator ambiguity gradients affects ensemble performance.
-    \item \textbf{(C4) Predictor and delegator decompositions}: We formulate a performance--ambiguity decomposition for delegators through the predictions their weights induce, and use a restricted oracle to separate residual predictor loss from recoverable delegation loss.
+    \item \contribution{scaling} \textbf{When scaling the number of delegators helps}: We identify the model-capacity regimes in which increasing the number of delegators improves ensemble performance.
+    \item \contribution{predictor-ambiguity} \textbf{Predictor ambiguity}: We propose a modification to the learning scheme in which delegators learn from both predictor performance and predictor ambiguity, while predictor ambiguity gradients are stopped from influencing the predictors.
+    \item \contribution{delegator-ambiguity} \textbf{Delegator ambiguity}: We propose a potential new performance--ambiguity decomposition for delegators and empirically validate whether delegators also benefit from the removal of the ambiguity gradient.
+    \item \contribution{aggregation} \textbf{Delegator aggregation}: We empirically compare arithmetic and normalized geometric aggregation to determine which rule works better for combining delegator weights under joint training.
    
 \end{itemize}
 
@@ -80,7 +85,7 @@ For any weights $\va \in \Delta_M$, define the predictor aggregate as prescribed
         {\sum_{c=1}^{d_y}\prod_{m=1}^M \hat y_{m,c}(\vx)^{a_m}}, & \text{classification}.
     \end{cases}
 \end{equation}
-Here $\bigodot$ denotes componentwise multiplication and $\vv^{\odot a}$ denotes componentwise exponentiation. The delegator proposals are combined into $\bar{\va}(\vx) \in \Delta_M$ using either an arithmetic or normalized geometric mean (Section~\ref{sec:exp-agg}). For an input $\vx$, the final prediction is $\hat{\vy} = F(\vx;\bar{\va}(\vx))$, and the prediction induced by delegator $l$ alone is $\hat{\vy}^{(l)} = F(\vx;\va_l(\vx))$. With no delegators ($L=0$), we use uniform weights $\bar a_m = 1/M$.
+Here $\bigodot$ denotes componentwise multiplication and $\vv^{\odot a}$ denotes componentwise exponentiation. The delegator proposals are combined into $\bar{\va}(\vx) \in \Delta_M$ using either an arithmetic or normalized geometric mean (Section~\ref{sec:exp-agg}). For an input $\vx$, the final prediction is $\hat{\vy} = F(\vx;\bar{\va}(\vx))$, and the prediction induced by delegator $l$ alone is $\hat{\vy}^{(l)} = F(\vx;\va_l(\vx))$. With no delegators ($L=0$), we use uniform weights $\bar a_m = 1/M$. 
 
 \subsection{Predictor performance and ambiguity}
 
@@ -104,7 +109,7 @@ In both cases, $\pperformance$ measures individual predictor accuracy, while $\p
 
 Explicit maximization of ambiguity has been shown to be potentially harmful, since it can increase the bias and variance of the individual models, leading to higher generalization error \citep{pmlr-v151-ortega22a, wood2023unified}. In contrast, prior work indicates that using different random initializations is often sufficient to induce test-time diversity among ensemble members \citep{fort2019deep, pmlr-v151-ortega22a}. This motivates controlling ambiguity gradients separately from the loss decomposition itself (Section~\ref{sec:exp-gradient}).
 
-\section{Delegator decompositions}\label{sec:delegator-decompositions}
+\section{Delegator decompositions}\label{sec:delegator-decompositions} 
 
 \subsection{Delegator performance and ambiguity}\label{sec:delegator-ambiguity}
 
@@ -170,55 +175,42 @@ Following the load-balancing motivation of \citet{shazeer2017outrageously} and \
 \end{equation}
 where $M>1$, $\lambda=0.2$, and $\ell_{\mathrm{train}}$ has the value of the ensemble loss but the selected training gradients defined in Section~\ref{sec:exp-gradient}. This penalty encourages balanced predictor use across the minibatch.
 
-The overall ensemble performance is evaluated on $\sD_{\mathrm{val}}$ using the unregularized loss $\ell(\hat{\vy},\vy)$. We further assess the individual performance and diversity of predictors through $\pperformance$ and $\pambiguity$, and of delegators through $\dperformance$ and $\dambiguity$. Finally, Equation~\ref{eq:restricted-delegator-decomposition} separates the remaining error into potential gains from improved delegation or improved prediction.
+\paragraph{How we analyze the experiments.} For every experiment, we ask three separate questions:
+\begin{enumerate}
+    \item \textbf{Did the full system get better?} We compare the validation loss of the complete predictor and delegator ensemble. This is the final performance that we care about.
+    \item \textbf{What happened to the individual ensemble members?} The predictor performance--ambiguity decomposition tells us how well the individual predictors perform and how different their predictions are. The delegator performance--ambiguity decomposition tells us the same for the individual delegators, using the predictions induced by their weights.
+    \item \textbf{Where does the remaining validation loss come from?} We split the total validation loss into the loss under restricted-oracle weights and the delegator regret using Equation~\ref{eq:restricted-delegator-decomposition}. The restricted-oracle loss is what remains after we try to improve the delegator weights while keeping the predictors fixed. The regret is the difference between this loss and the actual loss. We report this regret as a percentage of the total validation loss to estimate how much of the remaining loss is the delegators' fault.
+\end{enumerate}
 
 \subsection{Scaling the number of delegators} \label{sec:exp-scaling}
 
-We next investigate whether delegation itself benefits from an ensemble effect, and under which model-capacity regimes such benefits emerge (Contribution \textbf{(C1)}). In particular, we study whether increasing the number of delegators is most useful when the predictor ensemble is small, the predictors have limited capacity, or the individual delegators are themselves relatively small.
+We next investigate whether delegation itself benefits from an ensemble effect, and under which model-capacity regimes such benefits emerge (Contribution~\contributionref{scaling}). In particular, we study whether increasing the number of delegators is most useful when the predictor ensemble is small, the predictors have limited capacity, or the individual delegators are themselves relatively small.
 
-To isolate the effect of the number of delegators, we vary $L \in \{0,1,2,4,8,16,32\}$ while exhaustively evaluating all combinations of the number of predictors $M \in \{2,4,8,16,32\}$, predictor base width $b_M \in \{4,8,16\}$, and delegator base width $b_L \in \{4,8,16\}$ across all four tasks. The case $L=0$ corresponds to fixed uniform delegation weights $\bar{\va}$, whereas $L=1$ recovers a setting closely related to a standard mixture-of-experts model. Each experimental condition is evaluated over five independent random seeds, yielding $6300$ training runs. We use the \texttt{Delegators} predictor-ambiguity setting (Section~\ref{sec:exp-gradient}) with delegator ambiguity disabled (Section~\ref{sec:exp-delegator-gradient}).
+To isolate the effect of the number of delegators, we vary $L \in \{0,1,2,4,8,16,32\}$ while exhaustively evaluating all combinations of the number of predictors $M \in \{2,4,8,16,32\}$, predictor base width $b_M \in \{4,8,16\}$, and delegator base width $b_L \in \{4,8,16\}$ across all four tasks. The case $L=0$ corresponds to fixed uniform delegation weights $\bar{\va}$, whereas $L=1$ recovers a setting closely related to a standard mixture-of-experts model. Each experimental condition is evaluated over five independent random seeds, yielding $6300$ training runs. We use the \ambiguityon{\pambiguity} setting (Section~\ref{sec:exp-gradient}) and the \ambiguityoff{\dambiguity} setting (Section~\ref{sec:exp-delegator-gradient}).
 
-\subsection{Delegator's aggregation method} \label{sec:exp-agg}
+\subsection{Predictor ambiguity gradient to delegators} \label{sec:exp-gradient}
 
-Previous work \citep{pmlr-v151-ortega22a, wood2023unified} characterizes optimal aggregation rules for predictors under a fixed set of weights $\va$. In our setting, however, predictor and delegator parameters are optimized jointly. Consequently, the aggregation rule affects not only the final combination of delegator outputs, but also the optimization dynamics through which predictors and delegators co-adapt. Results derived for fixed-weight aggregation therefore do not directly determine the appropriate aggregation rule for delegators in our model. We therefore evaluate this choice empirically, corresponding to Contribution \textbf{(C2)}.
+As discussed in Section~\ref{sec:background}, explicitly maximizing predictor ambiguity can harm individual predictor performance. We therefore stop the predictor ambiguity gradient from influencing the predictor parameters $\vTheta$ in both conditions. The experiment only changes whether the delegators learn from predictor ambiguity $\pambiguity$:
+\begin{equation}\label{eq:pred-ambiguity-choices}
+    \underbrace{\pperformance(\bar{\va})-\pambiguity(\bar{\va})}
+        _{\ambiguityon{\pambiguity}}
+    \qquad\text{or}\qquad
+    \underbrace{\pperformance(\bar{\va})}
+        _{\ambiguityoff{\pambiguity}}.
+\end{equation}
+In the \ambiguityon{\pambiguity} condition, delegators learn from both predictor accuracy and complementarity. In the \ambiguityoff{\pambiguity} condition, they learn only from predictor performance. Predictors learn only from $\pperformance$ in both conditions. The stop-gradient equations are given in Appendix~\ref{ap:gradient-routing}.
 
-We compare two aggregation rules over the $L$ delegators: the arithmetic mean, $\bar{\va}(\vx) = L^{-1}\sum_{l=1}^{L}\va_l(\vx)$, and the normalized geometric mean, $\bar{\va}(\vx) = Z^{-1}\bigodot_{l=1}^{L}\va_l(\vx)^{L^{-1}}$, where $Z$ normalizes the weights to sum to one. The predictor aggregation in Equation~\ref{eq:predictor-aggregate} remains unchanged. We use the \texttt{None} predictor-ambiguity setting (Section~\ref{sec:exp-gradient}) with delegator ambiguity enabled (Section~\ref{sec:exp-delegator-gradient}).
-
-To isolate the effect of the aggregation rule, we construct 100 experimental configurations by sampling the remaining experimental variables from the sets reported in Table~\ref{tab:experiment-parameters}. For each configuration and each of the four tasks, we evaluate a matched pair of experiments differing only in the delegator aggregation rule: arithmetic mean or geometric mean. This yields 800 experimental conditions. Each condition is evaluated over five independent random seeds, for a total of 4,000 training runs.
-
-\subsection{Predictor Ambiguity gradient flow} \label{sec:exp-gradient}
-
-As discussed in Section~\ref{sec:background}, explicitly maximizing predictor ambiguity can harm individual predictor performance. The standard training procedures suggest only to use the weighted performance $\pperformance$, however, the delegators still should identify decorrelated predictors using the predictor ambiguity $\pambiguity$. We therefore propose to include the ambiguity term $\pambiguity$ in the loss equation but to stop its gradient from influencing the predictor parameters $\vTheta$. We empirically compare three ways to train the predictor ensemble: allow predictor ambiguity to train both predictors and delegators, only delegators, or neither. Table~\ref{tab:gradient-flow} summarizes which terms are used to update each group of parameters. The performance term $\pperformance$ always contributes a gradient; the settings differ only in whether ambiguity does.
-
-\begin{table}[ht]
-\caption{Objectives used to update predictors and delegators when training the delegator ensemble jointly. All terms use the learned aggregate weights $\bar{\va}$. Each column updates only its own parameter group.}
-\label{tab:gradient-flow}
-\centering
-\begin{tabular}{lll}
-\textbf{Setting} & \textbf{Updates Predictors} & \textbf{Updates delegators} \\
-\hline
-\texttt{Both} & $\pperformance-\pambiguity$ & $\pperformance-\pambiguity$ \\
-\texttt{Delegators} & $\pperformance$ & $\pperformance-\pambiguity$ \\
-\texttt{None} & $\pperformance$ & $\pperformance$ \\
-\end{tabular} 
-\end{table}
-
-The \texttt{Delegators} setting trains predictors only to be individually accurate. Delegators still account for both accuracy and complementarity when assigning weights to predictors. This retains diversity as a routing criterion without encouraging predictors to become less accurate merely to differ from one another.
-
-These choices change the training gradients but preserve the reported ensemble loss. We implement them with stop-gradient operations; the scalar training objective is given in Appendix~\ref{ap:gradient-routing}. The load-balancing penalty in Equation~\ref{eq:training-objective} is applied in every setting.
-
-We compare \texttt{Both}, \texttt{Delegators}, and \texttt{None} with delegator ambiguity enabled and arithmetic delegator aggregation, corresponding to Contribution \textbf{(C3)}. Following the protocol of the preceding experiment, we sample 100 configurations from the parameter sets in Table~\ref{tab:experiment-parameters} and evaluate all three gradient-flow variants for each configuration and each of the four tasks, holding all other experimental factors fixed. This yields 1,200 experimental conditions. Each condition is evaluated over five independent random seeds, for a total of 6,000 training runs.
+We compare \ambiguityon{\pambiguity} and \ambiguityoff{\pambiguity} with \ambiguityon{\dambiguity} and arithmetic delegator aggregation, corresponding to Contribution~\contributionref{predictor-ambiguity}. Following the protocol of the preceding experiment, we sample 100 configurations from the parameter sets in Table~\ref{tab:experiment-parameters} and evaluate both conditions for each configuration and each of the four tasks, holding all other experimental factors fixed. This yields 800 experimental conditions. Each condition is evaluated over five independent random seeds, for a total of 4,000 training runs. The comparison in which predictor ambiguity also trains the predictors is reported separately in Appendix~\ref{ap:verification-ensemble-theory}.
 
 \paragraph{Ensemble performance}
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.99\linewidth]{figures/gradient_box_validation_plot_early.pdf}
-    \caption{Ambiguity gradient flow: Distribution of the relative differences in validation loss (lower values indicate better performance) between pairs of ambiguity-gradient methods across tasks. The black dot denotes the mean relative difference. For each task and method pair, the superior method is highlighted in bold.}
-    \label{fig:gradient_valid_diff_early}
+    \caption{Predictor ambiguity gradient experiment: Distribution of the relative validation-loss differences between \ambiguityon{\pambiguity} and \ambiguityoff{\pambiguity}, computed on validation samples. The better condition is marked in bold on the axis. The black dot denotes the mean relative difference.}
+    \label{fig:predictor-gradient-validation}
 \end{figure}
 
-
-Figure~\ref{fig:gradient_valid_diff_early} shows the relative validation performance difference between the ambiguity gradient configurations. In all tasks there is a consistent ranking of the configurations where $\texttt{Both} > \texttt{Delegators} >  \texttt{None}$.
+Figure~\ref{fig:predictor-gradient-validation} shows the relative validation performance difference between the two predictor ambiguity conditions.
 
 
 \paragraph{Predictors' performance}
@@ -226,8 +218,8 @@ Figure~\ref{fig:gradient_valid_diff_early} shows the relative validation perform
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.99\linewidth]{figures/gradient_2ddist_predictors_ambiguity_performance.pdf}
-    \caption{Ambiguity gradient flow: Distribution of the relative differences in weighted predictor performance (x-axis; higher values indicate better performance) and weighted predictor ambiguity (y-axis; higher values indicate greater ambiguity) across tasks and pairs of methods. The red dot denotes the mean of the distribution. For each task and method pair, the superior method is highlighted in bold.}
-    \label{fig:placeholder}
+    \caption{Predictor ambiguity gradient experiment: Distribution of the predictor performance differences (x-axis) and predictor ambiguity differences (y-axis) between \ambiguityon{\pambiguity} and \ambiguityoff{\pambiguity}, computed on validation samples. The better condition is marked in bold separately on each axis. The red dot denotes the two-dimensional mean.}
+    \label{fig:predictor-gradient-predictors}
 \end{figure}
 
 \paragraph{Delegators' performance}
@@ -235,8 +227,8 @@ Figure~\ref{fig:gradient_valid_diff_early} shows the relative validation perform
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.99\linewidth]{figures/gradient_2ddist_delegators_ambiguity_performance.pdf}
-    \caption{Ambiguity gradient flow: Distribution of the relative differences in individual delegator performance (x-axis; higher values indicate better performance) and delegator ambiguity (y-axis; higher values indicate greater ambiguity) across tasks and pairs of methods. The red dot denotes the distribution mean. For each task and method pair, the superior method is highlighted in bold.}
-    \label{fig:placeholder}
+    \caption{Predictor ambiguity gradient experiment: Distribution of the delegator performance differences (x-axis) and delegator ambiguity differences (y-axis) between \ambiguityon{\pambiguity} and \ambiguityoff{\pambiguity}, computed on validation samples. The better condition is marked in bold separately on each axis. The red dot denotes the two-dimensional mean.}
+    \label{fig:predictor-gradient-delegators}
 \end{figure}
 
 \paragraph{Delegators' regret analysis}
@@ -246,23 +238,109 @@ We found that in $85\%$ cases the restricted oracle was able to improve the vali
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.99\linewidth]{figures/gradient_box_regret_diff_bold_means_more_delegator_regret.pdf}
-    \caption{Ambiguity gradient flow: Distribution of the relative differences in delegators' regret between pairs of ambiguity-gradient methods across tasks. Higher values indicate that a larger fraction of the remaining loss is attributable to the delegators. The black dot denotes the mean relative difference. For each task and method pair, the method with higher delegators' regret is highlighted in bold.}
-    \label{fig:placeholder}
+    \caption{Predictor ambiguity gradient experiment: Distribution of the relative delegator-regret differences between \ambiguityon{\pambiguity} and \ambiguityoff{\pambiguity}, computed on validation samples. The bold condition has more delegator regret, meaning that more of its remaining loss is attributable to the delegators. The black dot denotes the mean relative difference.}
+    \label{fig:predictor-gradient-regret}
 \end{figure}
 
-\subsection{Delegator Ambiguity gradient flow} \label{sec:exp-delegator-gradient}
+\subsection{Delegator ambiguity gradient to delegators} \label{sec:exp-delegator-gradient}
 
-We next test whether delegators should be explicitly trained to increase their ambiguity. Joint ensemble training minimizes $\dperformance-\dambiguity$. Blocking the delegator-ambiguity gradient instead trains each delegator to produce an accurate ensemble prediction on its own, relying on different random initializations to induce diversity. We compare two settings, in which delegators receive gradients only from
+We next test whether delegators should learn from delegator ambiguity $\dambiguity$. We compare two conditions. In \ambiguityon{\dambiguity}, delegators learn from both their individual performance and their ambiguity. In \ambiguityoff{\dambiguity}, the ambiguity gradient is blocked, so each delegator is trained to produce an accurate ensemble prediction on its own. The two objectives used to train the delegators are
 \begin{equation}\label{eq:del-ambiguity-choices}
     \underbrace{\pperformance(\bar{\va})-\pambiguity(\bar{\va})}
-        _{\text{Delegator ambiguity enabled}}
+        _{\ambiguityon{\dambiguity}}
     \qquad\text{or}\qquad
     \underbrace{\dperformance}
-        _{\text{Delegator ambiguity disabled}}.
+        _{\ambiguityoff{\dambiguity}}.
 \end{equation}
-The first expression equals $\dperformance-\dambiguity$ and is only valid when predictor ambiguity gradient settings is not \texttt{None}. All other task-loss gradients to delegators are stopped; the load-balancing penalty remains active in both settings. The full training equations are annoyingly cumbersome, so we enumerate all combinations of predictor and delegator ambiguity gradient settings, including their stop-gradient operations, in Appendix~\ref{ap:gradient-routing}.
+The first expression equals $\dperformance-\dambiguity$ under the \ambiguityon{\pambiguity} condition used in this experiment. All other task-loss gradients to delegators are stopped; the load-balancing penalty remains active in both conditions. We enumerate the full stop-gradient equations in Appendix~\ref{ap:gradient-routing}.
 
-To isolate the effect of delegator ambiguity, we keep the predictor-ambiguity setting fixed at \texttt{Delegators} and use arithmetic delegator aggregation. We sample 100 configurations per task from the parameter sets in Table~\ref{tab:experiment-parameters}. For each configuration, we compare a matched pair with delegator ambiguity enabled or disabled, holding all other factors fixed. Each condition is evaluated over five independent random seeds. Across the four tasks, this yields 800 experimental conditions and 4,000 training runs.
+To isolate the effect of delegator ambiguity for Contribution~\contributionref{delegator-ambiguity}, we keep predictor ambiguity fixed at \ambiguityon{\pambiguity} and use arithmetic delegator aggregation. We sample 100 configurations per task from the parameter sets in Table~\ref{tab:experiment-parameters}. For each configuration, we compare a matched pair of \ambiguityon{\dambiguity} and \ambiguityoff{\dambiguity}, holding all other factors fixed. Each condition is evaluated over five independent random seeds. Across the four tasks, this yields 800 experimental conditions and 4,000 training runs.
+
+\paragraph{Ensemble performance}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/delgradient_box_validation_plot_early.pdf}
+    \caption{Delegator ambiguity gradient experiment: Distribution of the relative validation-loss differences between \ambiguityon{\dambiguity} and \ambiguityoff{\dambiguity}, computed on validation samples. The better condition is marked in bold on the axis. The black dot denotes the mean relative difference.}
+    \label{fig:delegator-gradient-validation}
+\end{figure}
+
+\paragraph{Predictors' performance}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/delgradient_2ddist_predictors_ambiguity_performance.pdf}
+    \caption{Delegator ambiguity gradient experiment: Distribution of the predictor performance differences (x-axis) and predictor ambiguity differences (y-axis) between \ambiguityon{\dambiguity} and \ambiguityoff{\dambiguity}, computed on validation samples. The better condition is marked in bold separately on each axis. The red dot denotes the two-dimensional mean.}
+    \label{fig:delegator-gradient-predictors}
+\end{figure}
+
+\paragraph{Delegators' performance}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/delgradient_2ddist_delegators_ambiguity_performance.pdf}
+    \caption{Delegator ambiguity gradient experiment: Distribution of the delegator performance differences (x-axis) and delegator ambiguity differences (y-axis) between \ambiguityon{\dambiguity} and \ambiguityoff{\dambiguity}, computed on validation samples. The better condition is marked in bold separately on each axis. The red dot denotes the two-dimensional mean.}
+    \label{fig:delegator-gradient-delegators}
+\end{figure}
+
+\paragraph{Delegators' regret analysis}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/delgradient_box_regret_diff_bold_means_more_delegator_regret.pdf}
+    \caption{Delegator ambiguity gradient experiment: Distribution of the relative delegator-regret differences between \ambiguityon{\dambiguity} and \ambiguityoff{\dambiguity}, computed on validation samples. The bold condition has more delegator regret, meaning that more of its remaining loss is attributable to the delegators. The black dot denotes the mean relative difference.}
+    \label{fig:delegator-gradient-regret}
+\end{figure}
+
+\subsection{Delegator's aggregation method} \label{sec:exp-agg}
+
+Previous work \citep{pmlr-v151-ortega22a, wood2023unified} characterizes aggregation rules for predictors under a fixed set of weights $\va$. In our setting, predictor and delegator parameters are optimized jointly, so the aggregation rule also affects how the two ensembles co-adapt during training. We therefore compare the two aggregation rules empirically, corresponding to Contribution~\contributionref{aggregation}.
+
+We compare two aggregation rules over the $L$ delegators: the arithmetic mean, $\bar{\va}(\vx) = L^{-1}\sum_{l=1}^{L}\va_l(\vx)$, and the normalized geometric mean, $\bar{\va}(\vx) = Z^{-1}\bigodot_{l=1}^{L}\va_l(\vx)^{L^{-1}}$, where $Z$ normalizes the weights to sum to one. The predictor aggregation in Equation~\ref{eq:predictor-aggregate} remains unchanged. We use the \ambiguityoff{\pambiguity} setting (Section~\ref{sec:exp-gradient}) and the \ambiguityoff{\dambiguity} setting (Section~\ref{sec:exp-delegator-gradient}).
+
+To isolate the effect of the aggregation rule, we construct 100 experimental configurations by sampling the remaining experimental variables from the sets reported in Table~\ref{tab:experiment-parameters}. For each configuration and each of the four tasks, we evaluate a matched pair of experiments differing only in the delegator aggregation rule: arithmetic mean or geometric mean. This yields 800 experimental conditions. Each condition is evaluated over five independent random seeds, for a total of 4,000 training runs.
+ 
+\paragraph{Ensemble performance}
+
+Figure~\ref{fig:aggregation-validation} shows that arithmetic aggregation has lower mean validation loss on Bikes, CIFAR-10, and Energy. The difference is largest on Bikes and smaller on CIFAR-10 and Energy. On SVHN, the mean difference is close to zero and the distribution is broad and spans both directions, so neither aggregation rule has a clear average advantage. Thus, arithmetic aggregation performs better on three of the four tasks, although the average improvement is modest outside Bikes.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/aggregation_box_validation_plot_early.pdf}
+    \caption{Delegator aggregation experiment: Distribution of the relative validation-loss differences between arithmetic and normalized geometric aggregation, computed on validation samples. The better aggregation rule is marked in bold on the axis. The black dot denotes the mean relative difference.}
+    \label{fig:aggregation-validation}
+\end{figure}
+
+\paragraph{Predictors' performance}
+
+Figure~\ref{fig:aggregation-predictors} shows a consistent trade-off. Arithmetic aggregation produces substantially greater predictor ambiguity on all four tasks, whereas geometric aggregation produces slightly better individual predictor performance. On Bikes, CIFAR-10, and Energy, the increased predictor ambiguity under arithmetic aggregation accompanies the lower overall validation loss reported above. On SVHN, the ambiguity difference is smaller and the predictor-performance distribution is much wider, which is consistent with the mixed overall result on that task.
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/aggregation_2ddist_predictors_ambiguity_performance.pdf}
+    \caption{Delegator aggregation experiment: Distribution of the predictor performance differences (x-axis) and predictor ambiguity differences (y-axis) between arithmetic and normalized geometric aggregation, computed on validation samples. The better aggregation rule is marked in bold separately on each axis. The red dot denotes the two-dimensional mean.}
+    \label{fig:aggregation-predictors}
+\end{figure}
+\paragraph{Delegators' performance}
+
+Figure~\ref{fig:aggregation-delegators} shows the opposite trade-off for the delegators. Geometric aggregation produces substantially greater delegator ambiguity on every task, whereas arithmetic aggregation produces better individual delegator performance. The delegator-ambiguity differences are tightly concentrated, whereas the individual-performance differences vary more across configurations.
+
+\begin{figure}[h] 
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/aggregation_2ddist_delegators_ambiguity_performance.pdf}
+    \caption{Delegator aggregation experiment: Distribution of the delegator performance differences (x-axis) and delegator ambiguity differences (y-axis) between arithmetic and normalized geometric aggregation, computed on validation samples. The better aggregation rule is marked in bold separately on each axis. The red dot denotes the two-dimensional mean.}
+    \label{fig:aggregation-delegators}
+\end{figure}
+
+\paragraph{Delegators' regret analysis}
+
+Figure~\ref{fig:aggregation-regret} shows greater delegator regret under geometric aggregation on every task, with the interquartile range remaining positive in all four cases. Therefore, under geometric aggregation, a larger share of the remaining validation loss is attributable to the delegators rather than the predictors. The additional delegator ambiguity produced by geometric aggregation does not result in better delegation.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/aggregation_box_regret_diff_bold_means_more_delegator_regret.pdf}
+    \caption{Delegator aggregation experiment: Distribution of the relative delegator-regret differences between arithmetic and normalized geometric aggregation, computed on validation samples. The bold aggregation rule has more delegator regret, meaning that more of its remaining loss is attributable to the delegators. The black dot denotes the mean relative difference.}
+    \label{fig:aggregation-regret}
+\end{figure}
+
+Taken together, the aggregation experiment favors the arithmetic mean as the stronger default for combining delegator weights. It produces lower mean validation loss on three tasks and comparable mean performance on SVHN. Although geometric aggregation produces greater delegator ambiguity, its higher delegator regret shows that this does not lead to better delegation.
 
 
 \subsection{Analysis}
@@ -317,13 +395,13 @@ Number of delegators ($L$) & \{$0, 1, 2, 4, 8, 16, 32$\} &  $L=0$: uniform weigh
 Predictors' base width ($b_M$) & \{$4, 8, 16$\} & Predictor hidden layers are either $(2b,b)$ or $(3b,2b,b)$.  \\
 Delegators' base width ($b_L$) & \{$4, 8, 16$\} & Delegator hidden layers are either $(2b,b)$ or $(3b,2b,b)$. \\
 Delegators' aggregation method & \{mean, geometric mean\} & See Section \ref{sec:exp-agg} \\
-Predictor ambiguity gradients & \{none, delegators, both\} & See Table~\ref{tab:gradient-flow}. \\
-Delegator ambiguity gradient & \{disabled, enabled\} & Section~\ref{sec:exp-delegator-gradient}. \\
+Predictor ambiguity gradient to delegators & \ambiguityoff{\pambiguity}, \ambiguityon{\pambiguity} & Section~\ref{sec:exp-gradient}. \\
+Delegator ambiguity gradient to delegators & \ambiguityoff{\dambiguity}, \ambiguityon{\dambiguity} & Section~\ref{sec:exp-delegator-gradient}. \\
 \end{tabular}
 \end{center}
 \end{table}
 
-
+ 
 
 \subsection{Delegator performance--ambiguity decomposition under the sum rule}\label{ap:delegator-decomposition}
 
@@ -332,7 +410,7 @@ Fix a sample $(\vx,\vy)$ and $L\geq 1$ delegators. Under the sum rule, their wei
     \bar{\va}=\frac{1}{L}\sum_{l=1}^L\va_l,
     \qquad
     \hat{\vy}^{(l)}=F(\vx;\va_l),
-    \qquad
+    \qquad 
     \hat{\vy}=F(\vx;\bar{\va}).
 \end{equation}
 We show that this rule makes the final prediction the appropriate aggregate of the delegator-induced predictions, and then derive $\ell(\hat{\vy},\vy)=\dperformance-\dambiguity$.
@@ -417,6 +495,25 @@ Subtracting the two expressions gives
     \mathrm{CE}(\hat{\vy},\vy)=\dperformance-\dambiguity.
 \end{equation}
 Equations~\ref{eq:delegator-se-derivation} and~\ref{eq:delegator-ce-derivation} establish Equation~\ref{eq:delegator-ambiguity}. Both rely on arithmetic aggregation of delegation weights; geometric weight aggregation does not generally produce the required mean of the induced predictions.
+
+\subsection{Verification of ensemble theory}\label{ap:verification-ensemble-theory}
+
+The main predictor ambiguity experiment compares \ambiguityoff{\pambiguity} and \ambiguityon{\pambiguity}. In both conditions, predictor ambiguity does not update the predictors. Here we include the additional setting in which predictor ambiguity updates both predictors and delegators. We use the original names \texttt{None}, \texttt{Delegators}, and \texttt{Both} for this three-way comparison. Their definitions and their relation to the main-paper notation are shown in Table~\ref{tab:gradient-flow}.
+
+\begin{table}[ht]
+\caption{Objectives used to update predictors and delegators in the three-way predictor ambiguity experiment. All terms use the learned aggregate weights $\bar{\va}$. Each column updates only its own parameter group.}
+\label{tab:gradient-flow}
+\centering
+\begin{tabular}{llll}
+\textbf{Setting} & \textbf{Main notation} & \textbf{Updates predictors} & \textbf{Updates delegators} \\
+\hline
+\texttt{Both} & appendix only & $\pperformance-\pambiguity$ & $\pperformance-\pambiguity$ \\
+\texttt{Delegators} & \ambiguityon{\pambiguity} & $\pperformance$ & $\pperformance-\pambiguity$ \\
+\texttt{None} & \ambiguityoff{\pambiguity} & $\pperformance$ & $\pperformance$ \\
+\end{tabular}
+\end{table}
+
+We compare all three settings with \ambiguityon{\dambiguity} and arithmetic delegator aggregation. We sample 100 configurations from the parameter sets in Table~\ref{tab:experiment-parameters} and evaluate all three settings for each configuration and each of the four tasks, holding all other experimental factors fixed. This yields 1,200 experimental conditions. Each condition is evaluated over five independent random seeds, for a total of 6,000 training runs.
 
 \subsection{Gradient routing}\label{ap:gradient-routing}
 
